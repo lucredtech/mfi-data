@@ -36,10 +36,12 @@ export default function StatementAnalysis() {
       if (meta.accountName) form.append('accountName', meta.accountName);
       if (meta.bankName) form.append('bankName', meta.bankName);
 
-      // Use the MFI's API key from localStorage for direct B2B call
       const apiKey = localStorage.getItem('apiKey');
+      if (!apiKey) return toast.error('No API key found. Please log out and log back in.');
+
+      // Let axios set Content-Type automatically so multipart boundary is included
       const { data } = await api.post('/v1/statement/upload-analyze', form, {
-        headers: { 'X-Api-Key': apiKey, 'Content-Type': 'multipart/form-data' },
+        headers: { 'X-Api-Key': apiKey },
       });
       setResult(data.data);
       toast.success('Analysis complete');
