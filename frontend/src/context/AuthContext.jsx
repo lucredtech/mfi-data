@@ -18,6 +18,12 @@ export function AuthProvider({ children }) {
     localStorage.setItem('token', data.token);
     localStorage.setItem('client', JSON.stringify(data.client));
     setClient(data.client);
+    // Fetch the first active API key so statement analysis can use it
+    const { data: keys } = await api.get('/api/keys', {
+      headers: { Authorization: `Bearer ${data.token}` },
+    });
+    const activeKey = keys.find((k) => k.isActive);
+    if (activeKey) localStorage.setItem('apiKey', activeKey.key);
     return data;
   };
 
