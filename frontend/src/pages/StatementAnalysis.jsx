@@ -2,6 +2,20 @@ import { useState, useRef } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
+const BANKS = [
+  { value: "moniepoint", label: "Moniepoint" },
+  { value: "kuda", label: "Kuda" },
+  { value: "vbank", label: "Vbank" },
+  { value: "uba", label: "UBA" },
+  { value: "optimus", label: "Optimus" },
+  { value: "parallex", label: "Parallex" },
+  { value: "gtb", label: "GTB" },
+  { value: "opay", label: "Opay" },
+  { value: "fidelity", label: "Fidelity" },
+  { value: "sterling", label: "Sterling" },
+  { value: "access", label: "Access" },
+];
+
 export default function StatementAnalysis() {
   const [file, setFile] = useState(null);
   const [dragging, setDragging] = useState(false);
@@ -95,7 +109,6 @@ export default function StatementAnalysis() {
               {[
                 { key: 'email', label: 'Borrower Email', placeholder: 'borrower@example.com', type: 'email' },
                 { key: 'accountName', label: 'Account Name', placeholder: 'John Doe', type: 'text' },
-                { key: 'bankName', label: 'Bank Name', placeholder: 'Access Bank', type: 'text' },
               ].map(({ key, label, placeholder, type }) => (
                 <div key={key} style={{ marginBottom: 12 }}>
                   <label style={s.label}>{label}</label>
@@ -103,6 +116,16 @@ export default function StatementAnalysis() {
                     onChange={(e) => setMeta({ ...meta, [key]: e.target.value })} />
                 </div>
               ))}
+              <div style={{ marginBottom: 12 }}>
+                <label style={s.label}>Bank Name</label>
+                <select style={s.input} value={meta.bankName}
+                  onChange={(e) => setMeta({ ...meta, bankName: e.target.value })}>
+                  <option value="">Select a bank</option>
+                  {BANKS.map((b) => (
+                    <option key={b.value} value={b.value}>{b.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <button style={{ ...s.btn, opacity: loading ? 0.7 : 1 }} disabled={loading}>
