@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AdminProvider, useAdmin } from './context/AdminContext';
 import Landing from './pages/Landing';
+import Pricing from './pages/Pricing';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Overview from './pages/Overview';
@@ -13,6 +14,10 @@ import Usage from './pages/Usage';
 import Docs from './pages/Docs';
 import StatementAnalysis from './pages/StatementAnalysis';
 import StatementDetail from './pages/StatementDetail';
+import BVNVerification from './pages/BVNVerification';
+import CreditBureau from './pages/CreditBureau';
+import Customers from './pages/Customers';
+import CustomerDetail from './pages/CustomerDetail';
 import Layout from './components/Layout';
 import AdminLayout from './components/AdminLayout';
 import AdminLogin from './pages/admin/AdminLogin';
@@ -38,12 +43,17 @@ function App() {
       <Toaster position="top-right" />
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/pricing" element={<Pricing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<PrivateRoute><Layout><Overview /></Layout></PrivateRoute>} />
         <Route path="/dashboard/api-keys" element={<PrivateRoute><Layout><ApiKeys /></Layout></PrivateRoute>} />
         <Route path="/dashboard/statement" element={<PrivateRoute><Layout><StatementAnalysis /></Layout></PrivateRoute>} />
         <Route path="/dashboard/statements/:id" element={<PrivateRoute><Layout><StatementDetail /></Layout></PrivateRoute>} />
+        <Route path="/dashboard/bvn" element={<PrivateRoute><Layout><BVNVerification /></Layout></PrivateRoute>} />
+        <Route path="/dashboard/credit-bureau" element={<PrivateRoute><Layout><CreditBureau /></Layout></PrivateRoute>} />
+        <Route path="/dashboard/customers" element={<PrivateRoute><Layout><Customers /></Layout></PrivateRoute>} />
+        <Route path="/dashboard/customers/:id" element={<PrivateRoute><Layout><CustomerDetail /></Layout></PrivateRoute>} />
         <Route path="/dashboard/usage" element={<PrivateRoute><Layout><Usage /></Layout></PrivateRoute>} />
         <Route path="/dashboard/docs" element={<PrivateRoute><Layout><Docs /></Layout></PrivateRoute>} />
         <Route path="/admin/login" element={<AdminLogin />} />

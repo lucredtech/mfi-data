@@ -37,6 +37,7 @@ export default function Landing() {
         <div style={s.navInner}>
           <div style={s.logo}>Lucred <span style={s.logoBadge}>for MFIs</span></div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <Link to="/pricing" style={s.navLink}>Pricing</Link>
             <Link to="/login" style={s.navLink}>Sign in</Link>
             <Link to="/register" style={s.navBtn}>Get API Access</Link>
           </div>

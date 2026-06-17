@@ -10,6 +10,7 @@ const apiKeyRoutes = require('./routes/apiKeys');
 const creditRoutes = require('./routes/credit');
 const statementRoutes = require('./routes/statement');
 const usageRoutes = require('./routes/usage');
+const customerRoutes = require('./routes/customers');
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use('/api/admin', adminRoutes);
 // Protected dashboard routes
 app.use('/api/keys', apiKeyRoutes);
 app.use('/api/usage', usageRoutes);
+app.use('/api/customers', customerRoutes);
 
 // B2B credit engine routes (API key protected)
 app.use('/v1', creditRoutes);

@@ -28,7 +28,7 @@ router.post(
   async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded. Send file as multipart field named "statement"' });
 
-    const { email, accountName, bankName, password } = req.body;
+    const { email, accountName, bankName, password, customerId } = req.body;
 
     try {
       const form = new FormData();
@@ -48,6 +48,7 @@ router.post(
       // Persist result for history
       await StatementResult.create({
         client: req.client._id,
+        customer: customerId || undefined,
         email,
         accountName,
         bankName,
@@ -61,6 +62,7 @@ router.post(
       // Save failed attempt too
       await StatementResult.create({
         client: req.client._id,
+        customer: customerId || undefined,
         email,
         accountName,
         bankName,

@@ -1,21 +1,36 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+
+const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
+
+function authHeaders() {
+  return { Authorization: `Bearer ${localStorage.getItem('token')}` };
+}
 
 export default function Overview() {
   const { client } = useAuth();
   const navigate = useNavigate();
-  const [total, setTotal] = useState(null);
+  const [stats, setStats] = useState(null);
   const [statements, setStatements] = useState([]);
   const [search, setSearch] = useState('');
   const [searching, setSearching] = useState(false);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${API}/api/customers/analyses/stats`, { headers: authHeaders() });
+      setStats(data);
+    } catch {
+      // backend not yet connected
+    }
+  }, []);
 
   const fetchStatements = useCallback(async (q = '') => {
     setSearching(true);
     try {
       const { data } = await api.get('/api/statements', { params: q ? { q } : {} });
-      setTotal(data.total);
       setStatements(data.statements);
     } catch {
       // backend not yet connected
@@ -24,9 +39,11 @@ export default function Overview() {
     }
   }, []);
 
-  useEffect(() => { fetchStatements(); }, [fetchStatements]);
+  useEffect(() => {
+    fetchStats();
+    fetchStatements();
+  }, [fetchStats, fetchStatements]);
 
-  // Debounce search
   useEffect(() => {
     const t = setTimeout(() => fetchStatements(search), 350);
     return () => clearTimeout(t);
@@ -35,19 +52,44 @@ export default function Overview() {
   return (
     <div>
       <h1 style={s.h1}>Welcome, {client?.organizationName}</h1>
-      <p style={s.sub}>Bank statement analyses for your borrowers</p>
+      <p style={s.sub}>Your credit analysis dashboard</p>
 
       {/* Stat cards */}
       <div style={s.statRow}>
-        <StatCard label="Statements Analysed" value={total ?? '—'} />
-        <StatCard label="Successful" value={statements.filter(s => s.status === 'success').length || '—'} />
-        <StatCard label="Failed" value={statements.filter(s => s.status === 'failed').length || '—'} />
+        <StatCard
+          label="Customers"
+          value={stats?.customers ?? '—'}
+          sub="Borrower profiles"
+          color="#0ea5e9"
+          onClick={() => navigate('/dashboard/customers')}
+        />
+        <StatCard
+          label="Statement Analyses"
+          value={stats?.statements?.total ?? '—'}
+          sub={stats ? `${stats.statements.failed} failed` : ''}
+          color="#6d28d9"
+          onClick={() => navigate('/dashboard/statement')}
+        />
+        <StatCard
+          label="BVN Verifications"
+          value={stats?.bvn?.total ?? '—'}
+          sub={stats ? `${stats.bvn.failed} failed` : ''}
+          color="#16a34a"
+          onClick={() => navigate('/dashboard/bvn')}
+        />
+        <StatCard
+          label="Bureau Checks"
+          value={stats?.bureau?.total ?? '—'}
+          sub={stats ? `${stats.bureau.failed} failed` : ''}
+          color="#f59e0b"
+          onClick={() => navigate('/dashboard/credit-bureau')}
+        />
       </div>
 
-      {/* Analyses list */}
+      {/* Recent statement analyses */}
       <div style={s.box}>
         <div style={s.boxHeader}>
-          <h3 style={s.boxTitle}>Recent Analyses</h3>
+          <h3 style={s.boxTitle}>Recent Statement Analyses</h3>
           <input
             style={s.search}
             placeholder="Search by name, email, bank…"
@@ -108,11 +150,12 @@ export default function Overview() {
   );
 }
 
-function StatCard({ label, value }) {
+function StatCard({ label, value, sub, color, onClick }) {
   return (
-    <div style={s.card}>
-      <div style={{ fontSize: 28, fontWeight: 700, color: '#0f172a' }}>{value}</div>
-      <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>{label}</div>
+    <div style={{ ...s.card, cursor: onClick ? 'pointer' : 'default' }} onClick={onClick}>
+      <div style={{ fontSize: 32, fontWeight: 800, color }}>{value}</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', marginTop: 4 }}>{label}</div>
+      {sub && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{sub}</div>}
     </div>
   );
 }
@@ -122,8 +165,8 @@ const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const s = {
   h1: { fontSize: 24, fontWeight: 700, color: '#0f172a', margin: 0 },
   sub: { color: '#64748b', fontSize: 14, marginTop: 4, marginBottom: 24 },
-  statRow: { display: 'flex', gap: 16, marginBottom: 24 },
-  card: { flex: 1, background: '#fff', borderRadius: 12, padding: '1.25rem 1.5rem', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' },
+  statRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 },
+  card: { background: '#fff', borderRadius: 12, padding: '1.25rem 1.5rem', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', transition: 'box-shadow 0.15s' },
   box: { background: '#fff', borderRadius: 12, padding: '1.5rem', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' },
   boxHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   boxTitle: { fontSize: 15, fontWeight: 600, color: '#0f172a', margin: 0 },

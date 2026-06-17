@@ -5,6 +5,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import api from '../services/api';
+import { exportStatementPDF } from '../services/exportPDF';
 
 const GRADE_COLOR = { A: '#16a34a', B: '#0ea5e9', C: '#f59e0b', D: '#ef4444', E: '#7f1d1d' };
 const SPEND_COLORS = ['#0ea5e9', '#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
@@ -63,7 +64,10 @@ export default function StatementDetail() {
 
   return (
     <div>
-      <button onClick={() => navigate('/dashboard')} style={s.back}>← Back to analyses</button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <button onClick={() => navigate('/dashboard')} style={s.back}>← Back to analyses</button>
+        <button onClick={() => exportStatementPDF(statement)} style={s.exportBtn}>⬇ Export PDF</button>
+      </div>
 
       {/* Header */}
       <div style={s.headerCard}>
@@ -342,7 +346,8 @@ function formatKey(k) {
 }
 
 const s = {
-  back: { background: 'none', border: 'none', color: '#0ea5e9', cursor: 'pointer', fontSize: 14, fontWeight: 600, padding: 0, marginBottom: 20 },
+  back: { background: 'none', border: 'none', color: '#0ea5e9', cursor: 'pointer', fontSize: 14, fontWeight: 600, padding: 0 },
+  exportBtn: { background: '#0f172a', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   headerCard: { background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)', borderRadius: 14, padding: '1.75rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4, color: '#fff' },
   headerLeft: { flex: 1 },
   metaLine: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 },

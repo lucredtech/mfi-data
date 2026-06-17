@@ -1,17 +1,14 @@
 const mongoose = require('mongoose');
 
-const statementResultSchema = new mongoose.Schema(
+const bvnResultSchema = new mongoose.Schema(
   {
     client: { type: mongoose.Schema.Types.ObjectId, ref: 'MFIClient', required: true },
     customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
-    email: { type: String },
-    accountName: { type: String },
-    bankName: { type: String },
-    filename: { type: String },
+    bvn: { type: String },
     result: { type: Object },
     status: { type: String, enum: ['success', 'failed'], default: 'success' },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model('StatementResult', statementResultSchema);
+module.exports = mongoose.model('BVNResult', bvnResultSchema);
