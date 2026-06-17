@@ -19,7 +19,7 @@ const BANKS = [
 export default function StatementAnalysis() {
   const [file, setFile] = useState(null);
   const [dragging, setDragging] = useState(false);
-  const [meta, setMeta] = useState({ email: '', accountName: '', bankName: '' });
+  const [meta, setMeta] = useState({ email: '', accountName: '', bankName: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const inputRef = useRef();
@@ -46,6 +46,7 @@ export default function StatementAnalysis() {
     try {
       const form = new FormData();
       form.append('statement', file);
+      if (meta.password) form.append('password', meta.password);
       if (meta.email) form.append('email', meta.email);
       if (meta.accountName) form.append('accountName', meta.accountName);
       if (meta.bankName) form.append('bankName', meta.bankName);
@@ -109,6 +110,7 @@ export default function StatementAnalysis() {
               {[
                 { key: 'email', label: 'Borrower Email', placeholder: 'borrower@example.com', type: 'email' },
                 { key: 'accountName', label: 'Account Name', placeholder: 'John Doe', type: 'text' },
+                { key: 'password', label: 'Statement Password (optional)', placeholder: 'Leave blank if none', type: 'password' },
               ].map(({ key, label, placeholder, type }) => (
                 <div key={key} style={{ marginBottom: 12 }}>
                   <label style={s.label}>{label}</label>

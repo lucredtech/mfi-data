@@ -28,21 +28,19 @@ router.post(
   async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded. Send file as multipart field named "statement"' });
 
-    const { email, accountName, bankName } = req.body;
+    const { email, accountName, bankName, password } = req.body;
 
     try {
       const form = new FormData();
-      form.append('statement', req.file.buffer, {
+      form.append('file', req.file.buffer, {
         filename: req.file.originalname,
         contentType: req.file.mimetype,
       });
-      if (email) form.append('email', email);
-      if (accountName) form.append('accountName', accountName);
-      if (bankName) form.append('bankName', bankName);
-      form.append('userType', 'user');
+      if (bankName) form.append('bank', bankName);
+      if (password) form.append('password', password);
 
       const { data } = await lucredApi.post(
-        process.env.LUCRED_STATEMENT_ANALYZE_PATH || '/api/v1/agentai/analyse-transaction?userType=merchant',
+        process.env.LUCRED_STATEMENT_ANALYZE_PATH || '/metrics/file_transactions',
         form,
         { headers: form.getHeaders() }
       );
