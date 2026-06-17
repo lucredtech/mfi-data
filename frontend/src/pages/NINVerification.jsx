@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { exportNINHistoryCSV } from '../services/exportCSV';
-import exportNINCertPDF from '../services/exportNINCertPDF';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -224,7 +223,10 @@ export default function NINVerification() {
                           {r.status === 'success' && (
                             <span
                               style={{ color: '#4f46e5', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
-                              onClick={() => exportNINCertPDF(r)}
+                              onClick={async () => {
+                                const { default: exportNINCertPDF } = await import('../services/exportNINCertPDF');
+                                exportNINCertPDF(r);
+                              }}
                             >
                               PDF
                             </span>

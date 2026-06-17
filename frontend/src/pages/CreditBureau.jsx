@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { exportBureauHistoryCSV } from '../services/exportCSV';
-import exportBureauPDF from '../services/exportBureauPDF';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -195,7 +194,10 @@ export default function CreditBureau() {
                           {r.status === 'success' && (
                             <span
                               style={{ color: '#f59e0b', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
-                              onClick={() => exportBureauPDF(r)}
+                              onClick={async () => {
+                                const { default: exportBureauPDF } = await import('../services/exportBureauPDF');
+                                exportBureauPDF(r);
+                              }}
                             >
                               PDF
                             </span>

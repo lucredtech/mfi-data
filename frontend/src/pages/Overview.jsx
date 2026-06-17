@@ -4,7 +4,6 @@ import axios from 'axios';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { exportStatementsCSV } from '../services/exportCSV';
-import exportSummaryPDF from '../services/exportSummaryPDF';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -60,7 +59,10 @@ export default function Overview() {
         </div>
         <button
           style={s.exportBtn}
-          onClick={() => exportSummaryPDF({ stats, orgName: client?.organizationName })}
+          onClick={async () => {
+            const { default: exportSummaryPDF } = await import('../services/exportSummaryPDF');
+            exportSummaryPDF({ stats, orgName: client?.organizationName });
+          }}
         >
           ↓ Export Summary PDF
         </button>

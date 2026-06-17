@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { exportBVNHistoryCSV } from '../services/exportCSV';
-import exportBVNCertPDF from '../services/exportBVNCertPDF';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -216,7 +215,10 @@ export default function BVNVerification() {
                           {r.status === 'success' && (
                             <span
                               style={{ color: '#6d28d9', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
-                              onClick={() => exportBVNCertPDF(r)}
+                              onClick={async () => {
+                                const { default: exportBVNCertPDF } = await import('../services/exportBVNCertPDF');
+                                exportBVNCertPDF(r);
+                              }}
                             >
                               PDF
                             </span>

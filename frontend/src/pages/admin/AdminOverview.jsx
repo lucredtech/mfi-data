@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import adminApi from '../../services/adminApi';
-import exportSummaryPDF from '../../services/exportSummaryPDF';
 
 export default function AdminOverview() {
   const [stats, setStats] = useState(null);
@@ -25,7 +24,10 @@ export default function AdminOverview() {
         <div style={{ display: 'flex', gap: 10 }}>
           <button
             style={s.exportBtn}
-            onClick={() => exportSummaryPDF({ stats, isAdmin: true })}
+            onClick={async () => {
+            const { default: exportSummaryPDF } = await import('../../services/exportSummaryPDF');
+            exportSummaryPDF({ stats, isAdmin: true });
+          }}
           >
             ↓ Export PDF
           </button>
