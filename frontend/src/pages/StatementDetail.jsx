@@ -5,7 +5,6 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import api from '../services/api';
-import { exportStatementPDF } from '../services/exportPDF';
 
 const GRADE_COLOR = { A: '#16a34a', B: '#0ea5e9', C: '#f59e0b', D: '#ef4444', E: '#7f1d1d' };
 const SPEND_COLORS = ['#0ea5e9', '#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
@@ -66,7 +65,13 @@ export default function StatementDetail() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <button onClick={() => navigate('/dashboard')} style={s.back}>← Back to analyses</button>
-        <button onClick={() => exportStatementPDF(statement)} style={s.exportBtn}>⬇ Export PDF</button>
+        <button
+          onClick={async () => {
+            const { exportStatementPDF } = await import('../services/exportPDF');
+            exportStatementPDF(statement);
+          }}
+          style={s.exportBtn}
+        >⬇ Export PDF</button>
       </div>
 
       {/* Header */}
