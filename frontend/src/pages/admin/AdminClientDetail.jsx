@@ -7,8 +7,13 @@ export default function AdminClientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [client, setClient] = useState(null);
+  const [analyses, setAnalyses] = useState(null);
 
-  const load = () => adminApi.get(`/api/admin/clients/${id}`).then(({ data }) => setClient(data)).catch(() => {});
+  const load = () => {
+    adminApi.get(`/api/admin/clients/${id}`).then(({ data }) => setClient(data)).catch(() => {});
+    adminApi.get(`/api/admin/clients/${id}/analyses`).then(({ data }) => setAnalyses(data)).catch(() => {});
+  };
+
   useEffect(() => { load(); }, [id]);
 
   const toggleStatus = async () => {
@@ -30,7 +35,7 @@ export default function AdminClientDetail() {
       <div style={s.header}>
         <div>
           <h1 style={s.h1}>{client.organizationName}</h1>
-          <p style={s.sub}>{client.email} · {client.contactPerson} {client.phone ? `· ${client.phone}` : ''}</p>
+          <p style={s.sub}>{client.email} · {client.contactPerson}{client.phone ? ` · ${client.phone}` : ''}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ ...s.badge, background: client.status === 'active' ? '#dcfce7' : '#fee2e2', color: client.status === 'active' ? '#16a34a' : '#dc2626' }}>
@@ -42,10 +47,47 @@ export default function AdminClientDetail() {
         </div>
       </div>
 
-      <div style={s.statRow}>
-        <StatCard label="Total Requests" value={client.totalRequests?.toLocaleString()} />
-        <StatCard label="Active API Keys" value={client.keys?.filter(k => k.isActive).length} />
-        <StatCard label="Member Since" value={new Date(client.createdAt).toLocaleDateString()} />
+      {/* Account stats */}
+      <div style={s.sectionLabel}>Account</div>
+      <div style={{ ...s.statRow, gridTemplateColumns: 'repeat(3, 1fr)', marginBottom: 24 }}>
+        <StatCard label="Total API Requests" value={client.totalRequests?.toLocaleString() ?? '—'} color="#0ea5e9" />
+        <StatCard label="Active API Keys" value={client.keys?.filter(k => k.isActive).length ?? '—'} color="#6d28d9" />
+        <StatCard label="Member Since" value={new Date(client.createdAt).toLocaleDateString()} color="#94a3b8" />
+      </div>
+
+      {/* Analysis stats */}
+      <div style={s.sectionLabel}>Analysis Usage</div>
+      <div style={{ ...s.statRow, gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', marginBottom: 28 }}>
+        <StatCard
+          label="Customers"
+          value={analyses?.customers ?? '—'}
+          sub="Borrower profiles"
+          color="#0ea5e9"
+        />
+        <StatCard
+          label="Statement Analyses"
+          value={analyses?.statements?.total ?? '—'}
+          sub={analyses ? `${analyses.statements.failed} failed` : ''}
+          color="#6d28d9"
+        />
+        <StatCard
+          label="BVN Verifications"
+          value={analyses?.bvn?.total ?? '—'}
+          sub={analyses ? `${analyses.bvn.failed} failed` : ''}
+          color="#16a34a"
+        />
+        <StatCard
+          label="NIN Verifications"
+          value={analyses?.nin?.total ?? '—'}
+          sub={analyses ? `${analyses.nin?.failed ?? 0} failed` : ''}
+          color="#6d28d9"
+        />
+        <StatCard
+          label="Bureau Checks"
+          value={analyses?.bureau?.total ?? '—'}
+          sub={analyses ? `${analyses.bureau.failed} failed` : ''}
+          color="#f59e0b"
+        />
       </div>
 
       {/* API Keys */}
@@ -94,11 +136,12 @@ export default function AdminClientDetail() {
   );
 }
 
-function StatCard({ label, value }) {
+function StatCard({ label, value, sub, color }) {
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: '1.25rem 1.5rem', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-      <div style={{ fontSize: 24, fontWeight: 700, color: '#0f172a' }}>{value}</div>
-      <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>{label}</div>
+      <div style={{ fontSize: 26, fontWeight: 700, color: color || '#0f172a' }}>{value}</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginTop: 4 }}>{label}</div>
+      {sub && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{sub}</div>}
     </div>
   );
 }
@@ -110,7 +153,8 @@ const s = {
   sub: { color: '#64748b', fontSize: 14, marginTop: 4 },
   badge: { padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 },
   btn: { color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  statRow: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 },
+  sectionLabel: { fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
+  statRow: { display: 'grid', gap: 16 },
   box: { background: '#fff', borderRadius: 12, padding: '1.5rem', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 20 },
   boxTitle: { fontSize: 15, fontWeight: 600, color: '#0f172a', marginTop: 0, marginBottom: 16 },
   th: { textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontWeight: 600 },

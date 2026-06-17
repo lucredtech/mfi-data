@@ -4,6 +4,11 @@ const Admin = require('../models/Admin');
 const MFIClient = require('../models/MFIClient');
 const ApiKey = require('../models/ApiKey');
 const UsageLog = require('../models/UsageLog');
+const Customer = require('../models/Customer');
+const StatementResult = require('../models/StatementResult');
+const BVNResult = require('../models/BVNResult');
+const NINResult = require('../models/NINResult');
+const BureauResult = require('../models/BureauResult');
 
 // Admin JWT middleware
 const requireAdmin = (req, res, next) => {
@@ -105,7 +110,11 @@ router.patch('/clients/:id/status', async (req, res) => {
 // Platform-wide usage stats
 router.get('/stats', async (req, res) => {
   try {
-    const [totalClients, activeClients, totalRequests, byEndpoint, recentLogs] = await Promise.all([
+    const [
+      totalClients, activeClients, totalRequests, byEndpoint, recentLogs,
+      totalCustomers, totalStatements, failedStatements,
+      totalBVN, failedBVN, totalNIN, failedNIN, totalBureau, failedBureau,
+    ] = await Promise.all([
       MFIClient.countDocuments(),
       MFIClient.countDocuments({ status: 'active' }),
       UsageLog.countDocuments(),
@@ -114,8 +123,52 @@ router.get('/stats', async (req, res) => {
         { $sort: { count: -1 } },
       ]),
       UsageLog.find().sort({ createdAt: -1 }).limit(30).populate('client', 'organizationName').lean(),
+      Customer.countDocuments(),
+      StatementResult.countDocuments(),
+      StatementResult.countDocuments({ status: 'failed' }),
+      BVNResult.countDocuments(),
+      BVNResult.countDocuments({ status: 'failed' }),
+      NINResult.countDocuments(),
+      NINResult.countDocuments({ status: 'failed' }),
+      BureauResult.countDocuments(),
+      BureauResult.countDocuments({ status: 'failed' }),
     ]);
-    res.json({ totalClients, activeClients, totalRequests, byEndpoint, recentLogs });
+
+    res.json({
+      totalClients, activeClients, totalRequests, byEndpoint, recentLogs,
+      totalCustomers,
+      statements: { total: totalStatements, failed: failedStatements },
+      bvn: { total: totalBVN, failed: failedBVN },
+      nin: { total: totalNIN, failed: failedNIN },
+      bureau: { total: totalBureau, failed: failedBureau },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Per-client analysis breakdown (for client detail view)
+router.get('/clients/:id/analyses', async (req, res) => {
+  try {
+    const clientId = req.params.id;
+    const [customers, statements, failedStatements, bvn, failedBVN, nin, failedNIN, bureau, failedBureau] = await Promise.all([
+      Customer.countDocuments({ client: clientId }),
+      StatementResult.countDocuments({ client: clientId }),
+      StatementResult.countDocuments({ client: clientId, status: 'failed' }),
+      BVNResult.countDocuments({ client: clientId }),
+      BVNResult.countDocuments({ client: clientId, status: 'failed' }),
+      NINResult.countDocuments({ client: clientId }),
+      NINResult.countDocuments({ client: clientId, status: 'failed' }),
+      BureauResult.countDocuments({ client: clientId }),
+      BureauResult.countDocuments({ client: clientId, status: 'failed' }),
+    ]);
+    res.json({
+      customers,
+      statements: { total: statements, failed: failedStatements },
+      bvn: { total: bvn, failed: failedBVN },
+      nin: { total: nin, failed: failedNIN },
+      bureau: { total: bureau, failed: failedBureau },
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

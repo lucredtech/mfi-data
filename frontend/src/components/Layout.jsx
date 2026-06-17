@@ -10,6 +10,7 @@ const NAV = [
   { path: '/dashboard/customers', label: 'Customers', icon: '👤' },
   { path: '/dashboard/statement', label: 'Statement Analysis', icon: '📄' },
   { path: '/dashboard/bvn', label: 'BVN Verification', icon: '✅' },
+  { path: '/dashboard/nin', label: 'NIN Verification', icon: '🪪' },
   { path: '/dashboard/credit-bureau', label: 'Credit Bureau', icon: '🏦' },
   { path: '/dashboard/api-keys', label: 'API Keys', icon: '🔑' },
   { path: '/dashboard/usage', label: 'Usage', icon: '📊' },

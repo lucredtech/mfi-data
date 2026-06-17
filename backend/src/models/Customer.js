@@ -8,6 +8,7 @@ const customerSchema = new mongoose.Schema(
     bvn: { type: String },
     nin: { type: String },
     phone: { type: String },
+    address: { type: String },
   },
   { timestamps: true }
 );

@@ -8,7 +8,7 @@ const GRADE_COLOR = {
   D: [239, 68, 68], E: [127, 29, 29],
 };
 
-export function exportScorecardPDF({ customer, statement, bvnResult, bureauResult }) {
+export function exportScorecardPDF({ customer, statement, bvnResult, ninResult, bureauResult, discrepancies = [] }) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const W = 210;
   let y = 0;
@@ -20,8 +20,11 @@ export function exportScorecardPDF({ customer, statement, bvnResult, bureauResul
   const debt = d.debtServicing || {};
   const behavioral = d.behavioralAnalysis || {};
   const bvn = bvnResult?.result || {};
+  const nin = ninResult?.result || {};
   const bureau = bureauResult?.result || {};
   const bureauScore = bureau.creditScore ?? bureau.summary?.creditScore;
+  const bvnPhoto = bvn.image;
+  const ninPhoto = nin.photo;
 
   // ── Header banner ──────────────────────────────────────────────
   doc.setFillColor(15, 23, 42);
@@ -37,10 +40,18 @@ export function exportScorecardPDF({ customer, statement, bvnResult, bureauResul
   doc.setFont('helvetica', 'normal');
   doc.text('B2B Credit Engine — Customer Scorecard', 14, 19);
 
+  // Borrower photo (BVN preferred, NIN fallback)
+  if (bvnPhoto || ninPhoto) {
+    try {
+      doc.addImage(`data:image/jpeg;base64,${bvnPhoto || ninPhoto}`, 'JPEG', 14, 6, 26, 32, undefined, 'FAST');
+    } catch (_) {}
+  }
+  const textX = (bvnPhoto || ninPhoto) ? 44 : 14;
+
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(14);
   doc.setTextColor(255, 255, 255);
-  doc.text(customer.name, 14, 30);
+  doc.text(customer.name, textX, 30);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
@@ -48,11 +59,12 @@ export function exportScorecardPDF({ customer, statement, bvnResult, bureauResul
   const metaLine = [
     customer.email,
     customer.phone,
+    customer.address,
     customer.bvn ? `BVN: ••••${customer.bvn.slice(-4)}` : null,
     customer.nin ? `NIN: ••••${customer.nin.slice(-4)}` : null,
     `Generated: ${new Date().toLocaleDateString()}`,
   ].filter(Boolean).join('   ·   ');
-  doc.text(metaLine, 14, 36);
+  doc.text(metaLine, textX, 36);
 
   // Grade boxes
   let boxX = W - 14;
@@ -99,9 +111,15 @@ export function exportScorecardPDF({ customer, statement, bvnResult, bureauResul
     sectionTitle(doc, 'Identity Verification (BVN)', y);
     y += 8;
 
+    if (bvn.image) {
+      try {
+        doc.addImage(`data:image/jpeg;base64,${bvn.image}`, 'JPEG', W - 34, y, 20, 24, undefined, 'FAST');
+      } catch (_) {}
+    }
+
     autoTable(doc, {
       startY: y,
-      margin: { left: 14, right: 14 },
+      margin: { left: 14, right: bvn.image ? 40 : 14 },
       head: [['Full Name', 'Date of Birth', 'Gender', 'Phone', 'BVN Status', 'Enrollment Bank']],
       body: [[
         `${bvn.firstName || ''} ${bvn.lastName || ''}`.trim() || '—',
@@ -112,6 +130,58 @@ export function exportScorecardPDF({ customer, statement, bvnResult, bureauResul
         bvn.enrollmentBank || '—',
       ]],
       headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 8 },
+      bodyStyles: { fontSize: 9, textColor: [51, 65, 85] },
+    });
+    y = doc.lastAutoTable.finalY + 10;
+  }
+
+  // ── Discrepancies ──────────────────────────────────────────────
+  if (discrepancies.length > 0) {
+    sectionTitle(doc, `⚠ Data Discrepancies (${discrepancies.length})`, y);
+    y += 8;
+    autoTable(doc, {
+      startY: y,
+      margin: { left: 14, right: 14 },
+      head: [['Field', 'BVN Record', 'NIN Record', 'Severity']],
+      body: discrepancies.map(d => [d.field, d.bvn || '—', d.nin || '—', d.severity.toUpperCase()]),
+      headStyles: { fillColor: [220, 38, 38], textColor: [255, 255, 255], fontSize: 8 },
+      bodyStyles: { fontSize: 9, textColor: [51, 65, 85] },
+      didParseCell: (data) => {
+        if (data.column.index === 3 && data.section === 'body') {
+          const val = data.cell.text[0];
+          data.cell.styles.textColor = val === 'HIGH' ? [220, 38, 38] : val === 'MEDIUM' ? [217, 119, 6] : [22, 163, 74];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      },
+    });
+    y = doc.lastAutoTable.finalY + 10;
+  }
+
+  // ── NIN Verification ───────────────────────────────────────────
+  if (ninResult) {
+    sectionTitle(doc, 'Identity Verification (NIN)', y);
+    y += 8;
+
+    // NIN photo
+    if (nin.photo) {
+      try {
+        doc.addImage(`data:image/jpeg;base64,${nin.photo}`, 'JPEG', W - 34, y, 20, 24, undefined, 'FAST');
+      } catch (_) {}
+    }
+
+    autoTable(doc, {
+      startY: y,
+      margin: { left: 14, right: nin.photo ? 40 : 14 },
+      head: [['Full Name', 'Date of Birth', 'Gender', 'Phone', 'NIN Status', 'Address']],
+      body: [[
+        `${nin.firstName || ''} ${nin.lastName || ''}`.trim() || '—',
+        nin.dateOfBirth || '—',
+        nin.gender || '—',
+        nin.phoneNumber || '—',
+        nin.isValid !== false ? 'Valid ✓' : 'Invalid ✗',
+        nin.address || '—',
+      ]],
+      headStyles: { fillColor: [109, 40, 217], textColor: [255, 255, 255], fontSize: 8 },
       bodyStyles: { fontSize: 9, textColor: [51, 65, 85] },
     });
     y = doc.lastAutoTable.finalY + 10;

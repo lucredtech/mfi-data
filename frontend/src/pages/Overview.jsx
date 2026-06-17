@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { exportStatementsCSV } from '../services/exportCSV';
+import exportSummaryPDF from '../services/exportSummaryPDF';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -51,8 +53,18 @@ export default function Overview() {
 
   return (
     <div>
-      <h1 style={s.h1}>Welcome, {client?.organizationName}</h1>
-      <p style={s.sub}>Your credit analysis dashboard</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+        <div>
+          <h1 style={s.h1}>Welcome, {client?.organizationName}</h1>
+          <p style={s.sub}>Your credit analysis dashboard</p>
+        </div>
+        <button
+          style={s.exportBtn}
+          onClick={() => exportSummaryPDF({ stats, orgName: client?.organizationName })}
+        >
+          ↓ Export Summary PDF
+        </button>
+      </div>
 
       {/* Stat cards */}
       <div style={s.statRow}>
@@ -78,6 +90,13 @@ export default function Overview() {
           onClick={() => navigate('/dashboard/bvn')}
         />
         <StatCard
+          label="NIN Verifications"
+          value={stats?.nin?.total ?? '—'}
+          sub={stats ? `${stats.nin?.failed ?? 0} failed` : ''}
+          color="#6d28d9"
+          onClick={() => navigate('/dashboard/nin')}
+        />
+        <StatCard
           label="Bureau Checks"
           value={stats?.bureau?.total ?? '—'}
           sub={stats ? `${stats.bureau.failed} failed` : ''}
@@ -90,12 +109,17 @@ export default function Overview() {
       <div style={s.box}>
         <div style={s.boxHeader}>
           <h3 style={s.boxTitle}>Recent Statement Analyses</h3>
-          <input
-            style={s.search}
-            placeholder="Search by name, email, bank…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {statements.length > 0 && (
+              <button style={s.csvBtn} onClick={() => exportStatementsCSV(statements)}>↓ CSV</button>
+            )}
+            <input
+              style={s.search}
+              placeholder="Search by name, email, bank…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
         </div>
 
         {searching && <p style={s.hint}>Searching…</p>}
@@ -165,7 +189,7 @@ const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const s = {
   h1: { fontSize: 24, fontWeight: 700, color: '#0f172a', margin: 0 },
   sub: { color: '#64748b', fontSize: 14, marginTop: 4, marginBottom: 24 },
-  statRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 },
+  statRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 24 },
   card: { background: '#fff', borderRadius: 12, padding: '1.25rem 1.5rem', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', transition: 'box-shadow 0.15s' },
   box: { background: '#fff', borderRadius: 12, padding: '1.5rem', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' },
   boxHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
@@ -176,4 +200,6 @@ const s = {
   th: { textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontWeight: 600 },
   td: { padding: '12px 12px', borderBottom: '1px solid #f1f5f9', color: '#334155' },
   badge: { padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600 },
+  exportBtn: { background: '#0f172a', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', fontWeight: 600, fontSize: 13, cursor: 'pointer', flexShrink: 0 },
+  csvBtn: { background: '#f0fdf4', color: '#16a34a', border: '1.5px solid #16a34a', borderRadius: 8, padding: '6px 14px', fontWeight: 700, fontSize: 12, cursor: 'pointer' },
 };

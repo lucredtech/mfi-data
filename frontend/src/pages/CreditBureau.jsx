@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { exportBureauHistoryCSV } from '../services/exportCSV';
+import exportBureauPDF from '../services/exportBureauPDF';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -128,12 +130,17 @@ export default function CreditBureau() {
         <div style={s.historyCard}>
           <div style={s.historyHeader}>
             <div style={s.cardTitle}>Bureau Check History</div>
-            <input
-              style={s.search}
-              placeholder="Search by BVN…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {history.length > 0 && (
+                <button style={s.csvBtn} onClick={() => exportBureauHistoryCSV(history)}>↓ CSV</button>
+              )}
+              <input
+                style={s.search}
+                placeholder="Search by BVN…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </div>
           </div>
           {historyLoading ? (
             <div style={s.empty}>Loading…</div>
@@ -176,14 +183,24 @@ export default function CreditBureau() {
                       </td>
                       <td style={s.td}>{new Date(r.createdAt).toLocaleString()}</td>
                       <td style={s.td}>
-                        {r.result && (
-                          <span
-                            style={{ color: '#0ea5e9', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
-                            onClick={() => setResult(r.result)}
-                          >
-                            View
-                          </span>
-                        )}
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          {r.result && (
+                            <span
+                              style={{ color: '#0ea5e9', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                              onClick={() => setResult(r.result)}
+                            >
+                              View
+                            </span>
+                          )}
+                          {r.status === 'success' && (
+                            <span
+                              style={{ color: '#f59e0b', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                              onClick={() => exportBureauPDF(r)}
+                            >
+                              PDF
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -292,6 +309,7 @@ const s = {
   tableWrap: { overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 10 },
   historyCard: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '1.75rem' },
   historyHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  csvBtn: { background: '#f0fdf4', color: '#16a34a', border: '1.5px solid #16a34a', borderRadius: 8, padding: '6px 14px', fontWeight: 700, fontSize: 12, cursor: 'pointer' },
   search: { border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px', fontSize: 13, outline: 'none', width: 220 },
   empty: { padding: '2rem', textAlign: 'center', color: '#94a3b8', fontSize: 14 },
   table: { width: '100%', borderCollapse: 'collapse' },

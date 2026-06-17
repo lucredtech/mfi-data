@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { exportCustomersCSV } from '../services/exportCSV';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -39,7 +40,12 @@ export default function Customers() {
           <h1 style={s.title}>Customers</h1>
           <p style={s.sub}>Manage borrower profiles and view their analyses.</p>
         </div>
-        <button style={s.btn} onClick={() => setShowForm(true)}>+ Add Customer</button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {customers.length > 0 && (
+            <button style={s.btnOutline} onClick={() => exportCustomersCSV(customers)}>↓ Export CSV</button>
+          )}
+          <button style={s.btn} onClick={() => setShowForm(true)}>+ Add Customer</button>
+        </div>
       </div>
 
       <div style={s.searchBar}>
@@ -92,7 +98,7 @@ export default function Customers() {
 }
 
 function AddCustomerForm({ onClose, onCreated }) {
-  const [form, setForm] = useState({ name: '', email: '', bvn: '', nin: '', phone: '' });
+  const [form, setForm] = useState({ name: '', email: '', bvn: '', nin: '', phone: '', address: '' });
   const [saving, setSaving] = useState(false);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -127,8 +133,9 @@ function AddCustomerForm({ onClose, onCreated }) {
               { k: 'phone', label: 'Phone', placeholder: '08012345678' },
               { k: 'bvn', label: 'BVN', placeholder: '22222222222', maxLength: 11 },
               { k: 'nin', label: 'NIN', placeholder: '12345678901', maxLength: 11 },
-            ].map(({ k, label, placeholder, maxLength }) => (
-              <div key={k} style={s.field}>
+              { k: 'address', label: 'Address (optional)', placeholder: '12 Broad Street, Lagos', span: true },
+            ].map(({ k, label, placeholder, maxLength, span }) => (
+              <div key={k} style={{ ...s.field, ...(span ? { gridColumn: 'span 2' } : {}) }}>
                 <label style={s.label}>{label}</label>
                 <input
                   style={s.input}
@@ -158,6 +165,7 @@ const s = {
   title: { fontSize: 24, fontWeight: 800, color: '#0f172a', margin: '0 0 4px' },
   sub: { fontSize: 14, color: '#64748b', margin: 0 },
   btn: { background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 20px', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
+  btnOutline: { background: '#fff', color: '#0ea5e9', border: '1.5px solid #0ea5e9', borderRadius: 8, padding: '10px 20px', fontWeight: 700, fontSize: 14, cursor: 'pointer' },
   searchBar: { marginBottom: 16 },
   search: { width: '100%', maxWidth: 400, border: '1px solid #d1d5db', borderRadius: 8, padding: '9px 14px', fontSize: 14, outline: 'none', boxSizing: 'border-box' },
   card: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, overflow: 'hidden' },

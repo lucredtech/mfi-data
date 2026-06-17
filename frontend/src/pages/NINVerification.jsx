@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { exportBVNHistoryCSV } from '../services/exportCSV';
-import exportBVNCertPDF from '../services/exportBVNCertPDF';
+import { exportNINHistoryCSV } from '../services/exportCSV';
+import exportNINCertPDF from '../services/exportNINCertPDF';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -11,8 +11,8 @@ function authHeaders() {
   return { Authorization: `Bearer ${localStorage.getItem('token')}` };
 }
 
-export default function BVNVerification() {
-  const [bvn, setBvn] = useState('');
+export default function NINVerification() {
+  const [nin, setNin] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
@@ -23,13 +23,13 @@ export default function BVNVerification() {
   const fetchHistory = useCallback(async (search = '') => {
     setHistoryLoading(true);
     try {
-      const { data } = await axios.get(`${API}/api/customers/analyses/bvn`, {
+      const { data } = await axios.get(`${API}/api/customers/analyses/nin`, {
         params: search ? { q: search } : {},
         headers: authHeaders(),
       });
       setHistory(data.results);
     } catch {
-      // silently fail — history is supplemental
+      // silently fail
     } finally {
       setHistoryLoading(false);
     }
@@ -44,7 +44,7 @@ export default function BVNVerification() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (bvn.length !== 11) return toast.error('BVN must be 11 digits');
+    if (nin.length !== 11) return toast.error('NIN must be 11 digits');
     const apiKey = localStorage.getItem('apiKey');
     if (!apiKey) return toast.error('No API key found. Please re-login.');
 
@@ -52,12 +52,12 @@ export default function BVNVerification() {
     setResult(null);
     try {
       const { data } = await axios.post(
-        `${API}/v1/identity/verify-bvn`,
-        { bvn },
+        `${API}/v1/identity/verify-nin`,
+        { nin },
         { headers: { 'X-Api-Key': apiKey } },
       );
       setResult(data.data || data);
-      toast.success('BVN verified and saved');
+      toast.success('NIN verified and saved');
       fetchHistory();
     } catch (err) {
       toast.error(err.response?.data?.error || 'Verification failed');
@@ -74,43 +74,44 @@ export default function BVNVerification() {
     ['Gender', result.gender],
     ['Phone Number', result.phoneNumber],
     ['Email', result.email],
-    ['Enrollment Bank', result.enrollmentBank],
-    ['Enrollment Branch', result.enrollmentBranch],
-    ['Registration Date', result.registrationDate],
-    ['NIN', result.nin],
+    ['Address', result.address],
+    ['State of Origin', result.stateOfOrigin],
+    ['LGA', result.lga],
+    ['Nationality', result.nationality],
+    ['Religion', result.religion],
+    ['Marital Status', result.maritalStatus],
     ['Watch Listed', result.watchListed !== undefined ? String(result.watchListed) : undefined],
-    ['Account Level', result.levelOfAccount],
   ].filter(([, v]) => v !== undefined && v !== null && v !== '') : [];
 
   return (
     <div style={s.page}>
       <div style={s.header}>
         <div>
-          <h1 style={s.title}>BVN Verification</h1>
-          <p style={s.sub}>Verify a borrower's Bank Verification Number. Every result is saved automatically.</p>
+          <h1 style={s.title}>NIN Verification</h1>
+          <p style={s.sub}>Verify a borrower's National Identification Number against NIMC records. Every result is saved automatically.</p>
         </div>
       </div>
 
       <div style={s.layout}>
         {/* Form */}
         <div style={s.formCard}>
-          <div style={s.cardTitle}>Verify a BVN</div>
+          <div style={s.cardTitle}>Verify a NIN</div>
           <form onSubmit={handleSubmit}>
             <div style={s.field}>
-              <label style={s.label}>BVN (11 digits) *</label>
+              <label style={s.label}>NIN (11 digits) *</label>
               <input
                 style={s.input}
                 type="text"
                 maxLength={11}
-                placeholder="e.g. 22222222222"
-                value={bvn}
-                onChange={(e) => setBvn(e.target.value.replace(/\D/g, ''))}
+                placeholder="e.g. 12345678901"
+                value={nin}
+                onChange={(e) => setNin(e.target.value.replace(/\D/g, ''))}
                 required
               />
-              <div style={s.hint}>{bvn.length}/11 digits</div>
+              <div style={s.hint}>{nin.length}/11 digits</div>
             </div>
             <button style={{ ...s.btn, opacity: loading ? 0.7 : 1 }} type="submit" disabled={loading}>
-              {loading ? 'Verifying…' : 'Verify BVN →'}
+              {loading ? 'Verifying…' : 'Verify NIN →'}
             </button>
           </form>
         </div>
@@ -124,24 +125,31 @@ export default function BVNVerification() {
                 background: result.isValid !== false ? '#dcfce7' : '#fee2e2',
                 color: result.isValid !== false ? '#16a34a' : '#dc2626',
               }}>
-                {result.isValid !== false ? '✓ Valid BVN' : '✗ Invalid BVN'}
+                {result.isValid !== false ? '✓ Valid NIN' : '✗ Invalid NIN'}
               </div>
               <div style={s.cardTitle}>Identity Details</div>
             </div>
-            <div style={s.grid}>
-              {infoFields.map(([label, value]) => (
-                <div key={label} style={s.infoRow}>
-                  <div style={s.infoLabel}>{label}</div>
-                  <div style={s.infoValue}>{value}</div>
-                </div>
-              ))}
-            </div>
-            {result.image && (
-              <div style={{ marginTop: 20 }}>
-                <div style={s.sectionLabel}>Photo</div>
-                <img src={`data:image/jpeg;base64,${result.image}`} alt="BVN Photo" style={s.photo} />
+
+            <div style={s.twoCol}>
+              <div style={s.grid}>
+                {infoFields.map(([label, value]) => (
+                  <div key={label} style={s.infoRow}>
+                    <div style={s.infoLabel}>{label}</div>
+                    <div style={s.infoValue}>{value}</div>
+                  </div>
+                ))}
               </div>
-            )}
+              {result.photo && (
+                <div style={s.photoCol}>
+                  <div style={s.sectionLabel}>Photo</div>
+                  <img
+                    src={`data:image/jpeg;base64,${result.photo}`}
+                    alt="NIN Photo"
+                    style={s.photo}
+                  />
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -151,11 +159,11 @@ export default function BVNVerification() {
             <div style={s.cardTitle}>Verification History</div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               {history.length > 0 && (
-                <button style={s.csvBtn} onClick={() => exportBVNHistoryCSV(history)}>↓ CSV</button>
+                <button style={s.csvBtn} onClick={() => exportNINHistoryCSV(history)}>↓ CSV</button>
               )}
               <input
                 style={s.search}
-                placeholder="Search by BVN…"
+                placeholder="Search by NIN…"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
               />
@@ -164,12 +172,12 @@ export default function BVNVerification() {
           {historyLoading ? (
             <div style={s.empty}>Loading…</div>
           ) : history.length === 0 ? (
-            <div style={s.empty}>No verifications yet. Run your first BVN check above.</div>
+            <div style={s.empty}>No NIN verifications yet. Run your first check above.</div>
           ) : (
             <table style={s.table}>
               <thead>
                 <tr>
-                  {['Name (BVN Result)', 'BVN', 'Customer', 'Status', 'Date', ''].map((h) => (
+                  {['Name (NIN Result)', 'NIN', 'Customer', 'Status', 'Date', ''].map((h) => (
                     <th key={h} style={s.th}>{h}</th>
                   ))}
                 </tr>
@@ -182,7 +190,7 @@ export default function BVNVerification() {
                   return (
                     <tr key={r._id} style={{ background: i % 2 ? '#f8fafc' : '#fff' }}>
                       <td style={s.td}><span style={{ fontWeight: 600, color: '#0f172a' }}>{name}</span></td>
-                      <td style={s.td}>{r.bvn ? `••••${r.bvn.slice(-4)}` : '—'}</td>
+                      <td style={s.td}>{r.nin ? `••••${r.nin.slice(-4)}` : '—'}</td>
                       <td style={s.td}>
                         {r.customer ? (
                           <span
@@ -215,8 +223,8 @@ export default function BVNVerification() {
                           )}
                           {r.status === 'success' && (
                             <span
-                              style={{ color: '#6d28d9', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
-                              onClick={() => exportBVNCertPDF(r)}
+                              style={{ color: '#4f46e5', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}
+                              onClick={() => exportNINCertPDF(r)}
                             >
                               PDF
                             </span>
@@ -237,7 +245,7 @@ export default function BVNVerification() {
 
 const s = {
   page: { padding: '2rem', maxWidth: 1000, margin: '0 auto' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' },
+  header: { marginBottom: '1.5rem' },
   title: { fontSize: 24, fontWeight: 800, color: '#0f172a', margin: '0 0 4px' },
   sub: { fontSize: 14, color: '#64748b', margin: 0 },
   layout: { display: 'flex', flexDirection: 'column', gap: 20 },
@@ -247,16 +255,18 @@ const s = {
   label: { display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 },
   input: { width: '100%', border: '1px solid #d1d5db', borderRadius: 8, padding: '10px 12px', fontSize: 14, color: '#0f172a', boxSizing: 'border-box', outline: 'none' },
   hint: { fontSize: 11, color: '#94a3b8', marginTop: 4 },
-  btn: { background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 8, padding: '11px 24px', fontWeight: 700, fontSize: 14, cursor: 'pointer', marginTop: 4 },
+  btn: { background: '#6d28d9', color: '#fff', border: 'none', borderRadius: 8, padding: '11px 24px', fontWeight: 700, fontSize: 14, cursor: 'pointer', marginTop: 4 },
   resultCard: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '1.75rem' },
   resultHeader: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 },
   badge: { fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20 },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 },
+  twoCol: { display: 'flex', gap: 24, alignItems: 'flex-start' },
+  grid: { flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 10 },
   infoRow: { background: '#f8fafc', borderRadius: 8, padding: '10px 14px' },
   infoLabel: { fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
   infoValue: { fontSize: 14, fontWeight: 600, color: '#0f172a' },
   sectionLabel: { fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
-  photo: { width: 100, height: 100, borderRadius: 8, objectFit: 'cover', border: '2px solid #e2e8f0' },
+  photoCol: { flexShrink: 0 },
+  photo: { width: 120, height: 140, borderRadius: 8, objectFit: 'cover', border: '2px solid #e2e8f0' },
   historyCard: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '1.75rem' },
   historyHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   csvBtn: { background: '#f0fdf4', color: '#16a34a', border: '1.5px solid #16a34a', borderRadius: 8, padding: '6px 14px', fontWeight: 700, fontSize: 12, cursor: 'pointer' },

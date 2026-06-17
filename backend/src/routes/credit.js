@@ -4,6 +4,7 @@ const { requireApiKey, logUsage } = require('../middleware/auth');
 const lucredApi = require('../config/lucredApi');
 const BVNResult = require('../models/BVNResult');
 const BureauResult = require('../models/BureauResult');
+const NINResult = require('../models/NINResult');
 
 const limiter = rateLimit({ windowMs: 60 * 1000, max: 60, keyGenerator: (req) => req.apiKey?.key });
 
@@ -107,6 +108,42 @@ router.post('/identity/verify-bvn', logUsage('/v1/identity/verify-bvn'), async (
       client: req.apiKey.client,
       customer: customerId || undefined,
       bvn,
+      result: upstreamData,
+      status: 'success',
+    });
+
+    res.json({ success: true, data: upstreamData, resultId: saved._id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// NIN verification — saves result, accepts optional customerId
+router.post('/identity/verify-nin', logUsage('/v1/identity/verify-nin'), async (req, res) => {
+  try {
+    const { nin, customerId } = req.body;
+    if (!nin) return res.status(400).json({ error: 'nin is required' });
+
+    let upstreamData;
+    try {
+      const { data } = await lucredApi.post('/api/v1/verifications/verifynin', { nin });
+      upstreamData = data;
+    } catch (upstreamErr) {
+      await NINResult.create({
+        client: req.apiKey.client,
+        customer: customerId || undefined,
+        nin,
+        result: upstreamErr.response?.data || {},
+        status: 'failed',
+      }).catch(() => {});
+      const status = upstreamErr.response?.status || 502;
+      return res.status(status).json({ error: upstreamErr.response?.data || 'Upstream error' });
+    }
+
+    const saved = await NINResult.create({
+      client: req.apiKey.client,
+      customer: customerId || undefined,
+      nin,
       result: upstreamData,
       status: 'success',
     });

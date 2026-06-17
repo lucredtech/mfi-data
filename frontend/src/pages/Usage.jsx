@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '../services/api';
+import { exportUsageLogCSV } from '../services/exportCSV';
 
 export default function Usage() {
   const [usage, setUsage] = useState(null);
@@ -17,8 +18,15 @@ export default function Usage() {
 
   return (
     <div>
-      <h1 style={styles.h1}>Usage</h1>
-      <p style={styles.sub}>Track your API consumption and response times.</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+        <div>
+          <h1 style={styles.h1}>Usage</h1>
+          <p style={styles.sub}>Track your API consumption and response times.</p>
+        </div>
+        {usage?.recent?.length > 0 && (
+          <button style={styles.csvBtn} onClick={() => exportUsageLogCSV(usage.recent)}>↓ Export CSV</button>
+        )}
+      </div>
 
       <div style={styles.grid}>
         {endpointData.map((ep) => (
@@ -32,7 +40,9 @@ export default function Usage() {
 
       {usage?.recent?.length > 0 && (
         <div style={styles.tableBox}>
-          <h3 style={styles.tableTitle}>Request Log</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ ...styles.tableTitle, marginBottom: 0 }}>Request Log</h3>
+        </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr>{['Time', 'Endpoint', 'Method', 'Status', 'Response Time'].map(h => (
@@ -71,4 +81,5 @@ const styles = {
   tableTitle: { fontSize: 15, fontWeight: 600, color: '#0f172a', marginTop: 0, marginBottom: 16 },
   th: { textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontWeight: 600 },
   td: { padding: '10px 12px', borderBottom: '1px solid #f1f5f9', color: '#334155' },
+  csvBtn: { background: '#f0fdf4', color: '#16a34a', border: '1.5px solid #16a34a', borderRadius: 8, padding: '8px 18px', fontWeight: 700, fontSize: 13, cursor: 'pointer', flexShrink: 0 },
 };

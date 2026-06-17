@@ -15,6 +15,7 @@ import Docs from './pages/Docs';
 import StatementAnalysis from './pages/StatementAnalysis';
 import StatementDetail from './pages/StatementDetail';
 import BVNVerification from './pages/BVNVerification';
+import NINVerification from './pages/NINVerification';
 import CreditBureau from './pages/CreditBureau';
 import Customers from './pages/Customers';
 import CustomerDetail from './pages/CustomerDetail';
@@ -51,6 +52,7 @@ function App() {
         <Route path="/dashboard/statement" element={<PrivateRoute><Layout><StatementAnalysis /></Layout></PrivateRoute>} />
         <Route path="/dashboard/statements/:id" element={<PrivateRoute><Layout><StatementDetail /></Layout></PrivateRoute>} />
         <Route path="/dashboard/bvn" element={<PrivateRoute><Layout><BVNVerification /></Layout></PrivateRoute>} />
+        <Route path="/dashboard/nin" element={<PrivateRoute><Layout><NINVerification /></Layout></PrivateRoute>} />
         <Route path="/dashboard/credit-bureau" element={<PrivateRoute><Layout><CreditBureau /></Layout></PrivateRoute>} />
         <Route path="/dashboard/customers" element={<PrivateRoute><Layout><Customers /></Layout></PrivateRoute>} />
         <Route path="/dashboard/customers/:id" element={<PrivateRoute><Layout><CustomerDetail /></Layout></PrivateRoute>} />

@@ -4,6 +4,7 @@ const Customer = require('../models/Customer');
 const StatementResult = require('../models/StatementResult');
 const BVNResult = require('../models/BVNResult');
 const BureauResult = require('../models/BureauResult');
+const NINResult = require('../models/NINResult');
 
 router.use(requireJWT);
 
@@ -45,13 +46,14 @@ router.get('/:id', async (req, res) => {
     const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id }).lean();
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
 
-    const [statements, bvnResults, bureauResults] = await Promise.all([
+    const [statements, bvnResults, ninResults, bureauResults] = await Promise.all([
       StatementResult.find({ customer: customer._id }).sort({ createdAt: -1 }).lean(),
       BVNResult.find({ customer: customer._id }).sort({ createdAt: -1 }).lean(),
+      NINResult.find({ customer: customer._id }).sort({ createdAt: -1 }).lean(),
       BureauResult.find({ customer: customer._id }).sort({ createdAt: -1 }).lean(),
     ]);
 
-    res.json({ customer, statements, bvnResults, bureauResults });
+    res.json({ customer, statements, bvnResults, ninResults, bureauResults });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -60,10 +62,10 @@ router.get('/:id', async (req, res) => {
 // Update customer
 router.patch('/:id', async (req, res) => {
   try {
-    const { name, email, bvn, nin, phone } = req.body;
+    const { name, email, bvn, nin, phone, address } = req.body;
     const customer = await Customer.findOneAndUpdate(
       { _id: req.params.id, client: req.client.id },
-      { name, email, bvn, nin, phone },
+      { name, email, bvn, nin, phone, address },
       { new: true }
     );
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
@@ -104,6 +106,24 @@ router.get('/analyses/bvn', async (req, res) => {
   }
 });
 
+// List all NIN results for this MFI
+router.get('/analyses/nin', async (req, res) => {
+  try {
+    const { q } = req.query;
+    const filter = { client: req.client.id };
+    if (q) filter.nin = new RegExp(q, 'i');
+    const results = await NINResult.find(filter)
+      .populate('customer', 'name email')
+      .sort({ createdAt: -1 })
+      .limit(100)
+      .lean();
+    const total = await NINResult.countDocuments({ client: req.client.id });
+    res.json({ total, results });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // List all bureau results for this MFI
 router.get('/analyses/bureau', async (req, res) => {
   try {
@@ -126,21 +146,24 @@ router.get('/analyses/bureau', async (req, res) => {
 router.get('/analyses/stats', async (req, res) => {
   try {
     const clientId = req.client.id;
-    const [statements, bvn, bureau, customers] = await Promise.all([
+    const [statements, bvn, nin, bureau, customers] = await Promise.all([
       StatementResult.countDocuments({ client: clientId }),
       BVNResult.countDocuments({ client: clientId }),
+      NINResult.countDocuments({ client: clientId }),
       BureauResult.countDocuments({ client: clientId }),
       Customer.countDocuments({ client: clientId }),
     ]);
-    const [stFailed, bvnFailed, buFailed] = await Promise.all([
+    const [stFailed, bvnFailed, ninFailed, buFailed] = await Promise.all([
       StatementResult.countDocuments({ client: clientId, status: 'failed' }),
       BVNResult.countDocuments({ client: clientId, status: 'failed' }),
+      NINResult.countDocuments({ client: clientId, status: 'failed' }),
       BureauResult.countDocuments({ client: clientId, status: 'failed' }),
     ]);
     res.json({
       customers,
       statements: { total: statements, failed: stFailed },
       bvn: { total: bvn, failed: bvnFailed },
+      nin: { total: nin, failed: ninFailed },
       bureau: { total: bureau, failed: buFailed },
     });
   } catch (err) {
