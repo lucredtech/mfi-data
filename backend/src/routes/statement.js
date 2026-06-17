@@ -2,12 +2,13 @@ const router = require('express').Router();
 const multer = require('multer');
 const FormData = require('form-data');
 const rateLimit = require('express-rate-limit');
-const { requireApiKey, logUsage } = require('../middleware/auth');
+const { requireApiKey, requireJWT, logUsage } = require('../middleware/auth');
 const lucredApi = require('../config/lucredApi');
+const StatementResult = require('../models/StatementResult');
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_, file, cb) => {
     const allowed = ['application/pdf', 'image/jpeg', 'image/png'];
     if (allowed.includes(file.mimetype)) return cb(null, true);
@@ -17,15 +18,17 @@ const upload = multer({
 
 const limiter = rateLimit({ windowMs: 60 * 1000, max: 30, keyGenerator: (req) => req.apiKey?.key });
 
-router.use(requireApiKey, limiter);
-
-// Upload bank statement PDF and run transaction analysis
+// Upload bank statement and run transaction analysis
 router.post(
-  '/statement/upload-analyze',
+  '/v1/statement/upload-analyze',
+  requireApiKey,
+  limiter,
   logUsage('/v1/statement/upload-analyze'),
   upload.single('statement'),
   async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded. Send file as multipart field named "statement"' });
+
+    const { email, accountName, bankName } = req.body;
 
     try {
       const form = new FormData();
@@ -33,9 +36,6 @@ router.post(
         filename: req.file.originalname,
         contentType: req.file.mimetype,
       });
-
-      // Forward any extra metadata the MFI sends (e.g. borrower email, accountName)
-      const { email, accountName, bankName } = req.body;
       if (email) form.append('email', email);
       if (accountName) form.append('accountName', accountName);
       if (bankName) form.append('bankName', bankName);
@@ -47,13 +47,66 @@ router.post(
         { headers: form.getHeaders() }
       );
 
+      // Persist result for history
+      await StatementResult.create({
+        client: req.client._id,
+        email,
+        accountName,
+        bankName,
+        filename: req.file.originalname,
+        result: data,
+        status: 'success',
+      });
+
       res.json({ success: true, data });
     } catch (err) {
+      // Save failed attempt too
+      await StatementResult.create({
+        client: req.client._id,
+        email,
+        accountName,
+        bankName,
+        filename: req.file?.originalname,
+        status: 'failed',
+      }).catch(() => {});
+
       const status = err.response?.status || 502;
       res.status(status).json({ error: err.response?.data || err.message || 'Upstream error' });
     }
   }
 );
+
+// List statement analyses for the authenticated MFI (JWT protected — dashboard use)
+router.get('/api/statements', requireJWT, async (req, res) => {
+  try {
+    const { q } = req.query;
+    const filter = { client: req.client.id };
+    if (q) {
+      filter.$or = [
+        { email: { $regex: q, $options: 'i' } },
+        { accountName: { $regex: q, $options: 'i' } },
+        { bankName: { $regex: q, $options: 'i' } },
+        { filename: { $regex: q, $options: 'i' } },
+      ];
+    }
+    const statements = await StatementResult.find(filter).sort({ createdAt: -1 }).limit(50).lean();
+    const total = await StatementResult.countDocuments({ client: req.client.id });
+    res.json({ total, statements });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get single statement analysis
+router.get('/api/statements/:id', requireJWT, async (req, res) => {
+  try {
+    const statement = await StatementResult.findOne({ _id: req.params.id, client: req.client.id });
+    if (!statement) return res.status(404).json({ error: 'Not found' });
+    res.json(statement);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Multer error handler
 router.use((err, req, res, next) => {

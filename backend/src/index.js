@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const mongoose = require('mongoose');
 
 const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
 const apiKeyRoutes = require('./routes/apiKeys');
 const creditRoutes = require('./routes/credit');
 const statementRoutes = require('./routes/statement');
@@ -25,6 +26,7 @@ app.use(morgan('dev'));
 
 // Public routes
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Protected dashboard routes
 app.use('/api/keys', apiKeyRoutes);
@@ -32,7 +34,7 @@ app.use('/api/usage', usageRoutes);
 
 // B2B credit engine routes (API key protected)
 app.use('/v1', creditRoutes);
-app.use('/v1', statementRoutes);
+app.use(statementRoutes);
 
 let dbConnected = false;
 
