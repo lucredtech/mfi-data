@@ -67,25 +67,25 @@ export default function AdminClientDetail() {
         <StatCard
           label="Statement Analyses"
           value={analyses?.statements?.total ?? '—'}
-          sub={analyses ? `${analyses.statements.failed} failed` : ''}
+          sub={analyses?.statements ? `${analyses.statements.failed ?? 0} failed` : ''}
           color="#6d28d9"
         />
         <StatCard
           label="BVN Verifications"
           value={analyses?.bvn?.total ?? '—'}
-          sub={analyses ? `${analyses.bvn.failed} failed` : ''}
+          sub={analyses?.bvn ? `${analyses.bvn.failed ?? 0} failed` : ''}
           color="#16a34a"
         />
         <StatCard
           label="NIN Verifications"
           value={analyses?.nin?.total ?? '—'}
-          sub={analyses ? `${analyses.nin?.failed ?? 0} failed` : ''}
+          sub={analyses?.nin ? `${analyses.nin.failed ?? 0} failed` : ''}
           color="#6d28d9"
         />
         <StatCard
           label="Bureau Checks"
           value={analyses?.bureau?.total ?? '—'}
-          sub={analyses ? `${analyses.bureau.failed} failed` : ''}
+          sub={analyses?.bureau ? `${analyses.bureau.failed ?? 0} failed` : ''}
           color="#f59e0b"
         />
       </div>

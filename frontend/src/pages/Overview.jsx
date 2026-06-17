@@ -80,28 +80,28 @@ export default function Overview() {
         <StatCard
           label="Statement Analyses"
           value={stats?.statements?.total ?? '—'}
-          sub={stats ? `${stats.statements.failed} failed` : ''}
+          sub={stats?.statements ? `${stats.statements.failed ?? 0} failed` : ''}
           color="#6d28d9"
           onClick={() => navigate('/dashboard/statement')}
         />
         <StatCard
           label="BVN Verifications"
           value={stats?.bvn?.total ?? '—'}
-          sub={stats ? `${stats.bvn.failed} failed` : ''}
+          sub={stats?.bvn ? `${stats.bvn.failed ?? 0} failed` : ''}
           color="#16a34a"
           onClick={() => navigate('/dashboard/bvn')}
         />
         <StatCard
           label="NIN Verifications"
           value={stats?.nin?.total ?? '—'}
-          sub={stats ? `${stats.nin?.failed ?? 0} failed` : ''}
+          sub={stats?.nin ? `${stats.nin.failed ?? 0} failed` : ''}
           color="#6d28d9"
           onClick={() => navigate('/dashboard/nin')}
         />
         <StatCard
           label="Bureau Checks"
           value={stats?.bureau?.total ?? '—'}
-          sub={stats ? `${stats.bureau.failed} failed` : ''}
+          sub={stats?.bureau ? `${stats.bureau.failed ?? 0} failed` : ''}
           color="#f59e0b"
           onClick={() => navigate('/dashboard/credit-bureau')}
         />
