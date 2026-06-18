@@ -9,6 +9,7 @@ const customerSchema = new mongoose.Schema(
     nin: { type: String },
     phone: { type: String },
     address: { type: String },
+    customerType: { type: String, enum: ['individual', 'business'], default: 'individual' },
   },
   { timestamps: true }
 );

@@ -68,7 +68,7 @@ export default function Customers() {
           <table style={s.table}>
             <thead>
               <tr>
-                {['Name', 'Email', 'Phone', 'BVN', 'NIN', 'Created', ''].map((h) => (
+                {['Name', 'Type', 'Email', 'Phone', 'BVN', 'NIN', 'Created', ''].map((h) => (
                   <th key={h} style={s.th}>{h}</th>
                 ))}
               </tr>
@@ -81,6 +81,11 @@ export default function Customers() {
                   onClick={() => navigate(`/dashboard/customers/${c._id}`)}
                 >
                   <td style={s.td}><span style={s.name}>{c.name}</span></td>
+                  <td style={s.td}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20, background: c.customerType === 'business' ? '#fef3c7' : '#f0f9ff', color: c.customerType === 'business' ? '#d97706' : '#0ea5e9' }}>
+                      {c.customerType === 'business' ? 'SME' : 'Individual'}
+                    </span>
+                  </td>
                   <td style={s.td}>{c.email || '—'}</td>
                   <td style={s.td}>{c.phone || '—'}</td>
                   <td style={s.td}>{c.bvn ? `••••${c.bvn.slice(-4)}` : '—'}</td>
@@ -98,7 +103,7 @@ export default function Customers() {
 }
 
 function AddCustomerForm({ onClose, onCreated }) {
-  const [form, setForm] = useState({ name: '', email: '', bvn: '', nin: '', phone: '', address: '' });
+  const [form, setForm] = useState({ name: '', email: '', bvn: '', nin: '', phone: '', address: '', customerType: 'individual' });
   const [saving, setSaving] = useState(false);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -126,9 +131,27 @@ function AddCustomerForm({ onClose, onCreated }) {
           <button onClick={onClose} style={s.closeBtn}>✕</button>
         </div>
         <form onSubmit={handleSubmit}>
+          {/* Customer type selector */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+            {[['individual', '👤 Individual'], ['business', '🏢 Business (SME)']].map(([val, label]) => (
+              <button
+                key={val}
+                type="button"
+                onClick={() => setForm(f => ({ ...f, customerType: val }))}
+                style={{
+                  flex: 1, padding: '10px 0', borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                  border: `2px solid ${form.customerType === val ? '#0ea5e9' : '#e2e8f0'}`,
+                  background: form.customerType === val ? '#f0f9ff' : '#fff',
+                  color: form.customerType === val ? '#0ea5e9' : '#64748b',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <div style={s.modalGrid}>
             {[
-              { k: 'name', label: 'Full Name *', placeholder: 'e.g. Amaka Obi' },
+              { k: 'name', label: form.customerType === 'business' ? 'Business Name *' : 'Full Name *', placeholder: form.customerType === 'business' ? 'e.g. Okeke Ventures Ltd' : 'e.g. Amaka Obi' },
               { k: 'email', label: 'Email', placeholder: 'amaka@example.com' },
               { k: 'phone', label: 'Phone', placeholder: '08012345678' },
               { k: 'bvn', label: 'BVN', placeholder: '22222222222', maxLength: 11 },

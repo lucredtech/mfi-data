@@ -35,9 +35,9 @@ router.get('/', async (req, res) => {
 // Create customer
 router.post('/', async (req, res) => {
   try {
-    const { name, email, bvn, nin, phone } = req.body;
+    const { name, email, bvn, nin, phone, customerType } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
-    const customer = await Customer.create({ client: req.client.id, name, email, bvn, nin, phone });
+    const customer = await Customer.create({ client: req.client.id, name, email, bvn, nin, phone, customerType: customerType || 'individual' });
     res.status(201).json({ customer });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -66,10 +66,10 @@ router.get('/:id', async (req, res) => {
 // Update customer
 router.patch('/:id', async (req, res) => {
   try {
-    const { name, email, bvn, nin, phone, address } = req.body;
+    const { name, email, bvn, nin, phone, address, customerType } = req.body;
     const customer = await Customer.findOneAndUpdate(
       { _id: req.params.id, client: req.client.id },
-      { name, email, bvn, nin, phone, address },
+      { name, email, bvn, nin, phone, address, customerType },
       { new: true }
     );
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
