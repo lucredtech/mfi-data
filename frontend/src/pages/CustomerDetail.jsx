@@ -405,6 +405,8 @@ function BVNTab({ customer, bvnResults, onRefresh }) {
     }
   }
 
+  const latest = bvnResults.find((r) => r.status === 'success');
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={s.card}>
@@ -419,6 +421,20 @@ function BVNTab({ customer, bvnResults, onRefresh }) {
           </button>
         </form>
       </div>
+
+      {latest && <VerificationResultCard result={latest.result} accentColor="#16a34a" photoKey="image" fields={[
+        ['Date of Birth', latest.result.dateOfBirth],
+        ['Gender', latest.result.gender],
+        ['Phone Number', latest.result.phoneNumber],
+        ['Email', latest.result.email],
+        ['Enrollment Bank', latest.result.enrollmentBank],
+        ['Enrollment Branch', latest.result.enrollmentBranch],
+        ['Registration Date', latest.result.registrationDate],
+        ['NIN', latest.result.nin],
+        ['Account Level', latest.result.levelOfAccount],
+        ['Watch Listed', latest.result.watchListed != null ? String(latest.result.watchListed) : undefined],
+      ]} verifiedAt={latest.createdAt} label="BVN" />}
+
       <div style={s.card}>
         <div style={s.cardTitle}>BVN Verification History</div>
         {bvnResults.length === 0 ? <div style={s.empty}>No BVN verifications yet.</div> : bvnResults.map((r, i) => (
@@ -460,6 +476,8 @@ function NINTab({ customer, ninResults, onRefresh }) {
     }
   }
 
+  const latest = ninResults.find((r) => r.status === 'success');
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={s.card}>
@@ -474,6 +492,21 @@ function NINTab({ customer, ninResults, onRefresh }) {
           </button>
         </form>
       </div>
+
+      {latest && <VerificationResultCard result={latest.result} accentColor="#6d28d9" photoKey="photo" fields={[
+        ['Date of Birth', latest.result.dateOfBirth],
+        ['Gender', latest.result.gender],
+        ['Phone Number', latest.result.phoneNumber],
+        ['Email', latest.result.email],
+        ['Address', latest.result.address],
+        ['State of Origin', latest.result.stateOfOrigin],
+        ['LGA', latest.result.lga],
+        ['Nationality', latest.result.nationality],
+        ['Religion', latest.result.religion],
+        ['Marital Status', latest.result.maritalStatus],
+        ['Watch Listed', latest.result.watchListed != null ? String(latest.result.watchListed) : undefined],
+      ]} verifiedAt={latest.createdAt} label="NIN" />}
+
       <div style={s.card}>
         <div style={s.cardTitle}>NIN Verification History</div>
         {ninResults.length === 0 ? <div style={s.empty}>No NIN verifications yet.</div> : ninResults.map((r, i) => (
@@ -717,11 +750,199 @@ function ScorecardTab({ customer, statements, bvnResults, ninResults, bureauResu
           )}
         </div>
       )}
+
+      <LoanReviewSection customerId={customer._id} />
+    </div>
+  );
+}
+
+// ── AI Loan Review ───────────────────────────────────────────────────────────
+
+function LoanReviewSection({ customerId }) {
+  const [review, setReview] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function generate() {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await axios.post(
+        `${API}/api/customers/${customerId}/loan-review`,
+        {},
+        { headers: authHeaders() }
+      );
+      setReview(data.review);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to generate review');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const VERDICT_COLOR = { ELIGIBLE: '#16a34a', CONDITIONAL: '#d97706', NOT_ELIGIBLE: '#dc2626' };
+  const VERDICT_BG = { ELIGIBLE: '#dcfce7', CONDITIONAL: '#fef3c7', NOT_ELIGIBLE: '#fee2e2' };
+  const VERDICT_LABEL = { ELIGIBLE: '✓ Eligible', CONDITIONAL: '⚡ Conditional', NOT_ELIGIBLE: '✗ Not Eligible' };
+  const STATUS_COLOR = { PASS: '#16a34a', WARN: '#d97706', FAIL: '#dc2626' };
+  const STATUS_BG = { PASS: '#dcfce7', WARN: '#fef3c7', FAIL: '#fee2e2' };
+
+  const fmt = (v) => (v !== undefined && v !== null ? Number(v).toLocaleString() : null);
+
+  const CAT_LABEL = {
+    identityIntegrity: 'Identity Integrity',
+    creditHistory: 'Credit History',
+    incomeAndCashFlow: 'Income & Cash Flow',
+    debtServicing: 'Debt Servicing',
+    riskProfile: 'Risk Profile',
+  };
+
+  return (
+    <div style={{ ...s.card, borderTop: '3px solid #6d28d9' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: review ? 20 : 0 }}>
+        <div>
+          <div style={s.sectionTitle}>AI Loan Eligibility Review</div>
+          {!review && <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>Synthesizes identity, financial, and bureau data using Claude AI</div>}
+        </div>
+        <button
+          style={{ ...s.btn, background: loading ? '#94a3b8' : '#6d28d9', cursor: loading ? 'not-allowed' : 'pointer', minWidth: 160 }}
+          onClick={generate}
+          disabled={loading}
+        >
+          {loading ? '⏳ Analyzing...' : review ? '↻ Regenerate' : '✦ Generate AI Review'}
+        </button>
+      </div>
+
+      {error && <div style={{ color: '#dc2626', fontSize: 13, marginTop: 12 }}>{error}</div>}
+
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '2rem', color: '#6d28d9' }}>
+          <div style={{ fontSize: 24, marginBottom: 8 }}>✦</div>
+          <div style={{ fontSize: 14, fontWeight: 600 }}>Claude is reviewing all available data...</div>
+          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>This may take 15–30 seconds</div>
+        </div>
+      )}
+
+      {review && !loading && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Verdict banner */}
+          <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', flexWrap: 'wrap' }}>
+            <div style={{ background: VERDICT_BG[review.verdict] || '#f1f5f9', borderRadius: 14, padding: '1.25rem 1.75rem', flex: 1, minWidth: 200 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: VERDICT_COLOR[review.verdict] || '#64748b', marginBottom: 6 }}>Verdict</div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: VERDICT_COLOR[review.verdict] || '#0f172a' }}>{VERDICT_LABEL[review.verdict] || review.verdict}</div>
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Confidence: <strong>{review.confidence}</strong></div>
+            </div>
+            {(review.suggestedMinAmount || review.suggestedMaxAmount) && (
+              <div style={{ background: '#f0fdf4', borderRadius: 14, padding: '1.25rem 1.75rem', flex: 1, minWidth: 200 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#16a34a', marginBottom: 6 }}>Suggested Loan Range</div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: '#15803d' }}>
+                  {review.suggestedMinAmount ? `₦${fmt(review.suggestedMinAmount)}` : '—'} – {review.suggestedMaxAmount ? `₦${fmt(review.suggestedMaxAmount)}` : '—'}
+                </div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Based on income & risk profile</div>
+              </div>
+            )}
+          </div>
+
+          {/* Summary */}
+          <div style={{ background: '#f8fafc', borderRadius: 10, padding: '1rem 1.25rem', fontSize: 14, color: '#334155', lineHeight: 1.7 }}>
+            {review.summary}
+          </div>
+
+          {/* Category breakdown */}
+          {review.categories && (
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>Category Breakdown</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {Object.entries(review.categories).map(([key, cat]) => (
+                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#f8fafc', borderRadius: 10, padding: '12px 16px' }}>
+                    <div style={{ width: 120, fontSize: 12, fontWeight: 700, color: '#475569', flexShrink: 0 }}>{CAT_LABEL[key] || key}</div>
+                    <div style={{ flex: 1, height: 6, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${cat.score || 0}%`, background: (cat.score || 0) >= 70 ? '#16a34a' : (cat.score || 0) >= 40 ? '#f59e0b' : '#ef4444', borderRadius: 99, transition: 'width 0.6s ease' }} />
+                    </div>
+                    <div style={{ width: 36, textAlign: 'right', fontSize: 13, fontWeight: 800, color: '#0f172a' }}>{cat.score}</div>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: STATUS_BG[cat.status] || '#f1f5f9', color: STATUS_COLOR[cat.status] || '#64748b', flexShrink: 0 }}>{cat.status}</span>
+                    <div style={{ fontSize: 12, color: '#64748b', flex: 2 }}>{cat.notes}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Conditions & flags */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            {review.conditions?.length > 0 && (
+              <div style={{ background: '#fef3c7', borderRadius: 10, padding: '1rem 1.25rem' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#d97706', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Conditions</div>
+                {review.conditions.map((c, i) => <div key={i} style={{ fontSize: 13, color: '#78350f', marginBottom: 4 }}>• {c}</div>)}
+              </div>
+            )}
+            {review.flags?.length > 0 && (
+              <div style={{ background: '#fee2e2', borderRadius: 10, padding: '1rem 1.25rem' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Flags</div>
+                {review.flags.map((f, i) => <div key={i} style={{ fontSize: 13, color: '#7f1d1d', marginBottom: 4 }}>⚠ {f}</div>)}
+              </div>
+            )}
+          </div>
+
+          {/* Data availability footer */}
+          {review.dataAvailability && (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {Object.entries(review.dataAvailability).map(([k, v]) => (
+                <span key={k} style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: v ? '#dcfce7' : '#f1f5f9', color: v ? '#16a34a' : '#94a3b8' }}>
+                  {v ? '✓' : '✗'} {k.toUpperCase()}
+                </span>
+              ))}
+              <span style={{ fontSize: 11, color: '#94a3b8', alignSelf: 'center' }}>— data used in this review</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
+
+function VerificationResultCard({ result, accentColor, photoKey, fields, verifiedAt, label }) {
+  const photo = result[photoKey];
+  const visibleFields = fields.filter(([, v]) => v !== undefined && v !== null && v !== '');
+
+  return (
+    <div style={{ background: '#fff', border: `1.5px solid ${accentColor}40`, borderRadius: 14, padding: '1.5rem', borderLeft: `4px solid ${accentColor}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, background: `${accentColor}15`, color: accentColor, padding: '3px 12px', borderRadius: 20 }}>
+          ✓ {label} Verified
+        </span>
+        <span style={{ fontSize: 12, color: '#94a3b8' }}>
+          {new Date(verifiedAt).toLocaleString()}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+        {photo && (
+          <img
+            src={`data:image/jpeg;base64,${photo}`}
+            alt={label}
+            style={{ width: 80, height: 96, borderRadius: 8, objectFit: 'cover', border: `2px solid ${accentColor}`, flexShrink: 0 }}
+          />
+        )}
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', marginBottom: 12 }}>
+            {`${result.firstName || ''} ${result.lastName || ''}`.trim() || '—'}
+            {result.middleName && <span style={{ fontSize: 14, fontWeight: 500, color: '#64748b', marginLeft: 8 }}>{result.middleName}</span>}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
+            {visibleFields.map(([lbl, val]) => (
+              <div key={lbl} style={{ background: '#f8fafc', borderRadius: 8, padding: '8px 12px' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>{lbl}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{val}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function StatusBadge({ status }) {
   return (

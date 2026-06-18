@@ -157,69 +157,70 @@ export default function StatementDetail() {
         </div>
       )}
 
-      {/* Weekly Transaction Summary */}
-      {weeklySummary.length > 0 && (
-        <div style={s.chartCard}>
-          <div style={s.chartTitle}>Weekly Transaction Summary</div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={weeklySummary} barCategoryGap="30%">
-              <XAxis dataKey="week" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`} />
-              <Tooltip formatter={(v) => `₦${Number(v).toLocaleString()}`} />
-              <Legend />
-              <Bar dataKey="totalCredit" name="Credit" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="totalDebit" name="Debit" fill="#f87171" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-          <div style={s.tableWrapInner}>
-            <table style={s.table}>
-              <thead>
-                <tr>{['Week', 'Total Credit', 'Total Debit', 'Net', 'Transactions'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
-              </thead>
-              <tbody>
-                {weeklySummary.map((w, i) => {
-                  const net = (w.totalCredit || 0) - (w.totalDebit || 0);
-                  return (
+      {/* Weekly Transaction Summary — dynamic columns from actual keys */}
+      {weeklySummary.length > 0 && (() => {
+        const cols = Object.keys(weeklySummary[0]);
+        const numericCols = cols.filter(k => typeof weeklySummary[0][k] === 'number');
+        const labelCol = cols.find(k => typeof weeklySummary[0][k] === 'string') || cols[0];
+        const creditCol = numericCols.find(k => /credit/i.test(k));
+        const debitCol = numericCols.find(k => /debit/i.test(k));
+        return (
+          <div style={s.chartCard}>
+            <div style={s.chartTitle}>Weekly Transaction Summary</div>
+            {creditCol && debitCol && (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={weeklySummary} barCategoryGap="30%">
+                  <XAxis dataKey={labelCol} tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip formatter={(v) => `₦${Number(v).toLocaleString()}`} />
+                  <Legend />
+                  <Bar dataKey={creditCol} name="Credit" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey={debitCol} name="Debit" fill="#f87171" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+            <div style={s.tableWrapInner}>
+              <table style={s.table}>
+                <thead>
+                  <tr>{cols.map(k => <th key={k} style={s.th}>{formatKey(k)}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {weeklySummary.map((w, i) => (
                     <tr key={i} style={{ background: i % 2 ? '#f8fafc' : '#fff' }}>
-                      <td style={s.td}>{w.week}</td>
-                      <td style={s.td}>₦{fmt(w.totalCredit)}</td>
-                      <td style={s.td}>₦{fmt(w.totalDebit)}</td>
-                      <td style={{ ...s.td, fontWeight: 600, color: net >= 0 ? '#16a34a' : '#ef4444' }}>
-                        {net >= 0 ? '+' : ''}₦{fmt(Math.abs(net))}
-                      </td>
-                      <td style={s.td}>{w.transactionCount ?? w.count ?? '—'}</td>
+                      {cols.map(k => (
+                        <td key={k} style={s.td}>
+                          {typeof w[k] === 'number' ? `₦${fmt(w[k])}` : (w[k] ?? '—')}
+                        </td>
+                      ))}
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
-      {/* Raw debug for weekly + ranges — remove once keys confirmed */}
-      {(weeklySummary.length > 0 || Object.keys(txRanges).length > 0) && (
-        <div style={s.tableCard}>
-          <div style={s.chartTitle}>Raw Data (Weekly + Ranges)</div>
-          <pre style={{ background: '#0f172a', color: '#e2e8f0', padding: '12px', borderRadius: 8, fontSize: 11, overflowX: 'auto', marginTop: 8 }}>
-            {JSON.stringify({ weeklyTransactionSummary: weeklySummary.slice(0, 3), transactionRanges: txRanges }, null, 2)}
-          </pre>
-        </div>
-      )}
-
-      {/* Transaction Ranges */}
+      {/* Transaction Ranges — dynamic rendering from actual structure */}
       {Object.keys(txRanges).length > 0 && (
         <>
           <SectionTitle>Transaction Ranges</SectionTitle>
-          <div style={s.row2}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, marginBottom: 4 }}>
             {Object.entries(txRanges).map(([range, data]) => {
-              const count = typeof data === 'object' ? (data.count ?? data.transactionCount ?? data.frequency) : data;
-              const amount = typeof data === 'object' ? (data.totalAmount ?? data.amount) : null;
+              const entries = typeof data === 'object' && data !== null
+                ? Object.entries(data)
+                : [['count', data]];
               return (
-                <div key={range} style={s.metricCard}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>{range}</div>
-                  {count != null && <div style={{ fontSize: 20, fontWeight: 700, color: '#0f172a' }}>{count} <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 400 }}>transactions</span></div>}
-                  {amount != null && <div style={{ fontSize: 13, color: '#0ea5e9', marginTop: 4 }}>₦{fmt(amount)}</div>}
+                <div key={range} style={{ ...s.metricCard, borderTop: '3px solid #0ea5e9' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#0ea5e9', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>{range}</div>
+                  {entries.map(([k, v]) => (
+                    <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, color: '#64748b' }}>{formatKey(k)}</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>
+                        {typeof v === 'number' && /amount|total|sum/i.test(k) ? `₦${fmt(v)}` : String(v ?? '—')}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               );
             })}

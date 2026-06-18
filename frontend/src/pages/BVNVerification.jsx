@@ -28,7 +28,7 @@ export default function BVNVerification() {
         params: search ? { q: search } : {},
         headers: authHeaders(),
       });
-      setHistory(data.results);
+      setHistory(data.results || []);
     } catch {
       // silently fail — history is supplemental
     } finally {
@@ -46,16 +46,14 @@ export default function BVNVerification() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (bvn.length !== 11) return toast.error('BVN must be 11 digits');
-    const apiKey = localStorage.getItem('apiKey');
-    if (!apiKey) return toast.error('No API key found. Please re-login.');
 
     setLoading(true);
     setResult(null);
     try {
       const { data } = await axios.post(
-        `${API}/v1/identity/verify-bvn`,
+        `${API}/api/customers/verify/bvn`,
         { bvn, customerId: customerId || undefined },
-        { headers: { 'X-Api-Key': apiKey } },
+        { headers: authHeaders() },
       );
       setResult(data.data || data);
       toast.success('BVN verified and saved');

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import { AdminProvider, useAdmin } from './context/AdminContext';
 import Landing from './pages/Landing';
 import Pricing from './pages/Pricing';
@@ -29,7 +30,7 @@ import AdminClientDetail from './pages/admin/AdminClientDetail';
 function PrivateRoute({ children }) {
   const { client, loading } = useAuth();
   if (loading) return null;
-  return client ? children : <Navigate to="/login" replace />;
+  return client ? <ErrorBoundary>{children}</ErrorBoundary> : <Navigate to="/login" replace />;
 }
 
 function AdminRoute({ children }) {

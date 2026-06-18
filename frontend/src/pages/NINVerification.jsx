@@ -28,7 +28,7 @@ export default function NINVerification() {
         params: search ? { q: search } : {},
         headers: authHeaders(),
       });
-      setHistory(data.results);
+      setHistory(data.results || []);
     } catch {
       // silently fail
     } finally {
@@ -46,16 +46,14 @@ export default function NINVerification() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (nin.length !== 11) return toast.error('NIN must be 11 digits');
-    const apiKey = localStorage.getItem('apiKey');
-    if (!apiKey) return toast.error('No API key found. Please re-login.');
 
     setLoading(true);
     setResult(null);
     try {
       const { data } = await axios.post(
-        `${API}/v1/identity/verify-nin`,
+        `${API}/api/customers/verify/nin`,
         { nin, customerId: customerId || undefined },
-        { headers: { 'X-Api-Key': apiKey } },
+        { headers: authHeaders() },
       );
       setResult(data.data || data);
       toast.success('NIN verified and saved');
