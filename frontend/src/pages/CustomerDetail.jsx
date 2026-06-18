@@ -751,33 +751,320 @@ function ScorecardTab({ customer, statements, bvnResults, ninResults, bureauResu
         </div>
       )}
 
-      <LoanReviewSection customerId={customer._id} />
+      <LoanReviewSection
+        latestBVN={latestBVN}
+        latestNIN={latestNIN}
+        latestBureau={latestBureau}
+        latestStatement={latestStatement}
+        discrepancies={discrepancies}
+        risk={risk}
+        cashFlow={cashFlow}
+        income={income}
+        debt={debt}
+        bureauData={bureauData}
+      />
     </div>
   );
 }
 
-// ── AI Loan Review ───────────────────────────────────────────────────────────
+// ── Loan Eligibility Logic ────────────────────────────────────────────────────
 
-function LoanReviewSection({ customerId }) {
-  const [review, setReview] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, bureauData, proposedMonthlyPayment }) {
+  const flags = [];
+  const conditions = [];
+  const analysis = {}; // per-category detailed reasoning
 
-  async function generate() {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data } = await axios.post(
-        `${API}/api/customers/${customerId}/loan-review`,
-        {},
-        { headers: authHeaders() }
-      );
-      setReview(data.review);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to generate review');
-    } finally {
-      setLoading(false);
+  // ── Identity Integrity ───────────────────────────────────────────────────
+  let identityScore = 50;
+  let identityStatus = 'WARN';
+  let identityNotes = 'No identity verification data available.';
+  const identityReasons = [];
+
+  const bvnVerified = !!latestBVN;
+  const ninVerified = !!latestNIN;
+  const watchlisted = latestBVN?.result?.watchListed === true || latestNIN?.result?.watchListed === true;
+  const highDisc = discrepancies.filter(d => d.severity === 'high');
+  const mediumDisc = discrepancies.filter(d => d.severity === 'medium');
+
+  if (watchlisted) {
+    identityScore = 0; identityStatus = 'FAIL';
+    identityNotes = 'Customer appears on government watchlist — loan application cannot proceed.';
+    identityReasons.push('Watchlist flag detected on BVN or NIN record. This is an automatic disqualifier regardless of other data.');
+    flags.push('Customer is flagged as watchlisted on government records.');
+  } else {
+    if (bvnVerified && ninVerified) {
+      identityReasons.push('Both BVN and NIN have been successfully verified against government databases — strong identity confidence.');
+      identityScore = 90;
+    } else if (bvnVerified) {
+      identityReasons.push('BVN verified but NIN is missing. Single-source identity carries higher fraud risk.');
+      identityScore = 65; conditions.push('Complete NIN verification before disbursement.');
+    } else if (ninVerified) {
+      identityReasons.push('NIN verified but BVN is missing. BVN is especially important for credit history linkage.');
+      identityScore = 60; conditions.push('Complete BVN verification before disbursement.');
+    } else {
+      identityReasons.push('No government identity verification on file. Cannot confirm the customer is who they claim to be.');
+      identityScore = 10; flags.push('No BVN or NIN verification on record.');
     }
+    if (highDisc.length > 0) {
+      identityScore = Math.max(identityScore - 30, 10);
+      identityReasons.push(`${highDisc.length} high-severity discrepanc${highDisc.length > 1 ? 'ies' : 'y'} found between BVN and NIN records (${highDisc.map(d => d.field).join(', ')}). This suggests possible identity manipulation or data inconsistency.`);
+      flags.push(`High-severity identity discrepancies on: ${highDisc.map(d => d.field).join(', ')}.`);
+    }
+    if (mediumDisc.length > 0) {
+      identityScore = Math.max(identityScore - 10, 10);
+      identityReasons.push(`${mediumDisc.length} medium-severity discrepanc${mediumDisc.length > 1 ? 'ies' : 'y'} noted (${mediumDisc.map(d => d.field).join(', ')}). Could be data entry variation — verify directly with customer.`);
+      conditions.push(`Clarify discrepanc${mediumDisc.length > 1 ? 'ies' : 'y'} in ${mediumDisc.map(d => d.field).join(', ')} with customer.`);
+    }
+    identityStatus = identityScore >= 70 ? 'PASS' : identityScore >= 45 ? 'WARN' : 'FAIL';
+    identityNotes = identityReasons[0] || identityNotes;
+  }
+  analysis.identityIntegrity = identityReasons;
+
+  // ── Credit History (Bureau) ──────────────────────────────────────────────
+  let creditScore = 50;
+  let creditStatus = 'WARN';
+  let creditNotes = 'No bureau data available — credit history is unknown.';
+  const creditReasons = [];
+
+  if (latestBureau) {
+    const bScore = bureauData.creditScore ?? bureauData.summary?.creditScore;
+    const delinquency = (bureauData.delinquencyStatus ?? bureauData.summary?.delinquencyStatus ?? '').toLowerCase();
+    const overdue = bureauData.overdueAmount ?? bureauData.summary?.overdueAmount ?? 0;
+    const totalFacilities = bureauData.totalFacilities ?? bureauData.summary?.totalFacilities ?? 0;
+    const activeLoans = bureauData.activeLoans ?? bureauData.summary?.activeLoans ?? 0;
+    const totalOutstanding = bureauData.totalOutstanding ?? bureauData.summary?.totalOutstanding ?? 0;
+
+    const isDelinquent = delinquency && !['performing', 'current', 'none', 'nil', 'no delinquency', ''].includes(delinquency);
+
+    if (isDelinquent || overdue > 0) {
+      creditScore = overdue > 500000 ? 5 : overdue > 100000 ? 20 : 35;
+      creditStatus = 'FAIL';
+      creditNotes = `Active delinquency on record — customer has unpaid obligations.`;
+      creditReasons.push(`Bureau status is "${delinquency}" — this indicates the customer is currently in default or has missed repayments on existing credit.`);
+      if (overdue > 0) creditReasons.push(`₦${Number(overdue).toLocaleString()} is overdue across existing facilities. Lending additional funds before resolution is high risk.`);
+      flags.push(`Bureau delinquency status: "${delinquency}"${overdue > 0 ? ` with ₦${Number(overdue).toLocaleString()} overdue` : ''}.`);
+    } else {
+      if (bScore !== undefined && bScore !== null) {
+        if (bScore >= 650) {
+          creditScore = 90; creditStatus = 'PASS';
+          creditReasons.push(`Credit score of ${bScore} is strong — indicates a history of responsible borrowing and timely repayment.`);
+        } else if (bScore >= 500) {
+          creditScore = 62; creditStatus = 'WARN';
+          creditReasons.push(`Credit score of ${bScore} is moderate. Repayment history is acceptable but not exceptional — closer monitoring is advisable.`);
+          conditions.push('Monitor repayment closely given moderate credit score.');
+        } else {
+          creditScore = 28; creditStatus = 'FAIL';
+          creditReasons.push(`Credit score of ${bScore} is low, indicating poor credit history. High probability of default based on past behaviour.`);
+          flags.push(`Low credit bureau score: ${bScore}.`);
+        }
+      } else {
+        creditScore = 62; creditStatus = 'PASS';
+        creditReasons.push('No delinquency or overdue amounts detected. Bureau check passed without red flags.');
+      }
+      if (totalFacilities > 0) creditReasons.push(`Customer has ${totalFacilities} total credit facilit${totalFacilities > 1 ? 'ies' : 'y'} on record, ${activeLoans} currently active${totalOutstanding > 0 ? ` with ₦${Number(totalOutstanding).toLocaleString()} total outstanding` : ''}.`);
+    }
+    creditNotes = creditReasons[0] || creditNotes;
+  } else {
+    creditReasons.push('No bureau check has been run. Without credit history data, it is impossible to assess past repayment behaviour. Recommend running a bureau check before approving.');
+    conditions.push('Run a credit bureau check before disbursement — no credit history on file.');
+  }
+  analysis.creditHistory = creditReasons;
+
+  // ── Income & Cash Flow (Statement) ──────────────────────────────────────
+  let incomeScore = 50;
+  let incomeStatus = 'WARN';
+  let incomeNotes = 'No bank statement data available.';
+  let monthlyIncome = 0;
+  const incomeReasons = [];
+
+  if (latestStatement) {
+    monthlyIncome = income.monthlyAverageIncome ?? 0;
+    const inflow = cashFlow.totalCashInflow ?? 0;
+    const outflow = cashFlow.totalCashOutflow ?? 0;
+    const isSalary = income.isSalaryEarner;
+    const stabilityScore = risk.scoreBreakdown?.incomeStability ?? 0;
+    const spendingScore = risk.scoreBreakdown?.spendingBehavior ?? 0;
+    const liquidityScore = risk.scoreBreakdown?.liquidity ?? 0;
+    const inflowRatio = inflow > 0 ? (inflow - outflow) / inflow : 0;
+
+    if (monthlyIncome === 0 && inflow === 0) {
+      incomeScore = 10; incomeStatus = 'FAIL';
+      incomeReasons.push('No income or cash inflow detected in the bank statement. The account shows no earnings activity during the analysis period.');
+      flags.push('No income detected in bank statement.');
+    } else {
+      if (monthlyIncome > 0) incomeReasons.push(`Monthly average income is ₦${Number(monthlyIncome).toLocaleString()}${isSalary ? ', confirmed as a salary earner with regular employer credits' : ' from non-salary sources (business or irregular income)'}.`);
+      if (inflowRatio >= 0.3) incomeReasons.push(`Net inflow ratio is ${Math.round(inflowRatio * 100)}% — customer retains a good portion of earnings, indicating disciplined spending.`);
+      else if (inflowRatio >= 0.1) incomeReasons.push(`Net inflow ratio is ${Math.round(inflowRatio * 100)}% — outflows are high relative to inflows. Customer spends most of what comes in.`);
+      else incomeReasons.push(`Net inflow ratio is only ${Math.round(inflowRatio * 100)}% — nearly all income is spent. Very little liquidity buffer.`);
+      if (stabilityScore < 10) incomeReasons.push(`Income stability score is low (${stabilityScore}/25) — income appears irregular or declining. This increases repayment risk.`);
+      if (spendingScore < 10) incomeReasons.push(`Spending behaviour score is ${spendingScore}/25 — statement shows signs of impulsive or uncontrolled spending patterns.`);
+      if (liquidityScore < 10) incomeReasons.push(`Liquidity score is ${liquidityScore}/25 — customer maintains very low average balances, leaving little buffer for unexpected expenses.`);
+
+      const baseScore = Math.min((stabilityScore / 25) * 100, 100);
+      const salaryBonus = isSalary ? 8 : 0;
+      const ratioBonus = inflowRatio > 0.3 ? 10 : inflowRatio > 0.1 ? 5 : 0;
+      incomeScore = Math.min(Math.round(baseScore + salaryBonus + ratioBonus), 100);
+      incomeStatus = incomeScore >= 70 ? 'PASS' : incomeScore >= 45 ? 'WARN' : 'FAIL';
+      if (incomeScore < 45) flags.push('Low income stability detected in statement analysis.');
+      else if (incomeScore < 70) conditions.push('Request 3 months of recent payslips or business income evidence to corroborate statement data.');
+    }
+    incomeNotes = incomeReasons[0] || incomeNotes;
+  } else {
+    incomeReasons.push('No bank statement has been analysed. Income and cash flow cannot be assessed without this data.');
+    conditions.push('Submit bank statement for analysis before making a lending decision.');
+  }
+  analysis.incomeAndCashFlow = incomeReasons;
+
+  // ── Debt Servicing (with proposed monthly payment) ───────────────────────
+  let debtScore = 50;
+  let debtStatus = 'WARN';
+  let debtNotes = 'Proposed monthly payment not entered — DTI cannot be calculated.';
+  const debtReasons = [];
+  let effectiveDTI = null;
+  let existingDebtMonthly = 0;
+  let totalDebtMonthly = 0;
+
+  const existingDTI = debt.loanRepayments?.DebtToIncomeRatio ?? null;
+  const debtServiceScore = risk.scoreBreakdown?.debtServicing ?? 0;
+
+  if (monthlyIncome > 0 && proposedMonthlyPayment > 0) {
+    existingDebtMonthly = existingDTI !== null ? (monthlyIncome * existingDTI) / 100 : 0;
+    totalDebtMonthly = existingDebtMonthly + proposedMonthlyPayment;
+    effectiveDTI = Math.round((totalDebtMonthly / monthlyIncome) * 100);
+
+    debtReasons.push(`Proposed monthly payment of ₦${Number(proposedMonthlyPayment).toLocaleString()} added to existing obligations of ₦${Number(existingDebtMonthly).toLocaleString()}/month (existing DTI: ${existingDTI ?? 0}%) gives a total DTI of ${effectiveDTI}%.`);
+
+    if (effectiveDTI > 60) {
+      debtScore = 15; debtStatus = 'FAIL';
+      debtReasons.push(`Total DTI of ${effectiveDTI}% far exceeds the 60% ceiling. The customer cannot comfortably absorb this loan alongside existing debts — default risk is very high.`);
+      flags.push(`Combined DTI would be ${effectiveDTI}% with this loan — above the 60% hard limit.`);
+    } else if (effectiveDTI > 40) {
+      debtScore = 48; debtStatus = 'WARN';
+      debtReasons.push(`Total DTI of ${effectiveDTI}% is in the caution zone (40–60%). The loan is technically serviceable but leaves limited financial cushion.`);
+      conditions.push(`DTI of ${effectiveDTI}% is elevated. Consider reducing the loan amount or extending the tenure to lower monthly payments.`);
+    } else if (effectiveDTI > 25) {
+      debtScore = 72; debtStatus = 'PASS';
+      debtReasons.push(`Total DTI of ${effectiveDTI}% is acceptable. Customer can service this loan alongside existing obligations with a reasonable buffer.`);
+    } else {
+      debtScore = 92; debtStatus = 'PASS';
+      debtReasons.push(`Total DTI of ${effectiveDTI}% is excellent — well below the 40% comfort threshold. Customer has strong repayment capacity for this loan.`);
+    }
+    if (debtServiceScore > 0) debtReasons.push(`Statement debt servicing score is ${debtServiceScore}/25, reflecting how well the customer has handled existing debt payments in the analysed period.`);
+  } else if (latestStatement) {
+    if (proposedMonthlyPayment === 0) {
+      debtReasons.push('No proposed monthly payment entered. Enter the estimated repayment amount above to calculate the true post-loan DTI.');
+      debtNotes = 'Enter proposed monthly payment to calculate DTI.';
+    }
+    if (existingDTI !== null) {
+      debtReasons.push(`Existing DTI from statement is ${existingDTI}% (before this loan). This is the baseline — the new loan will increase this.`);
+      debtScore = existingDTI > 60 ? 20 : existingDTI > 40 ? 50 : 75;
+      debtStatus = existingDTI > 60 ? 'FAIL' : existingDTI > 40 ? 'WARN' : 'PASS';
+      if (existingDTI > 60) flags.push(`Existing DTI of ${existingDTI}% is already above the safe threshold — adding more debt is very risky.`);
+    }
+  } else {
+    debtReasons.push('No statement data and no proposed payment entered. Debt servicing capacity cannot be assessed.');
+  }
+  debtNotes = debtReasons[0] || debtNotes;
+  analysis.debtServicing = debtReasons;
+
+  // ── Risk Profile ─────────────────────────────────────────────────────────
+  const GRADE_SCORE = { A: 95, B: 78, C: 55, D: 30, E: 10 };
+  let riskScore = 50;
+  let riskStatus = 'WARN';
+  let riskNotes = 'No statement risk profile available.';
+  const riskReasons = [];
+
+  if (latestStatement) {
+    const grade = risk.overallRiskScore;
+    const sb = risk.scoreBreakdown || {};
+    riskScore = GRADE_SCORE[grade] ?? 50;
+    riskStatus = riskScore >= 70 ? 'PASS' : riskScore >= 45 ? 'WARN' : 'FAIL';
+
+    if (grade) {
+      const gradeDesc = { A: 'excellent — lowest risk tier', B: 'good — low-to-moderate risk', C: 'moderate — proceed with caution', D: 'poor — high risk', E: 'very poor — highest risk tier' };
+      riskReasons.push(`Overall risk grade is ${grade} (${gradeDesc[grade] || ''}). ${risk.recommendation || ''}`);
+    } else {
+      riskReasons.push('Risk grade could not be computed from the statement data.');
+    }
+    if (sb.incomeStability !== undefined) riskReasons.push(`Income Stability: ${sb.incomeStability}/25 | Debt Servicing: ${sb.debtServicing}/25 | Spending Behaviour: ${sb.spendingBehavior}/25 | Liquidity: ${sb.liquidity}/25.`);
+    if (riskScore < 45) flags.push(`Overall risk grade ${grade} — elevated probability of default.`);
+    riskNotes = riskReasons[0] || riskNotes;
+  } else {
+    riskReasons.push('No statement analysis on file. Risk profile cannot be computed without cash flow and spending data.');
+  }
+  analysis.riskProfile = riskReasons;
+
+  // ── Verdict & Suggested Loan Amount ─────────────────────────────────────
+  const scores = [identityScore, creditScore, incomeScore, debtScore, riskScore];
+  const avgScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+  const statuses = [identityStatus, creditStatus, incomeStatus, debtStatus, riskStatus];
+  const failCount = statuses.filter(st => st === 'FAIL').length;
+  const hasHardFail = watchlisted || (identityStatus === 'FAIL' && !bvnVerified && !ninVerified) || (creditStatus === 'FAIL');
+
+  let verdict, confidence;
+  if (hasHardFail || failCount >= 2) {
+    verdict = 'NOT_ELIGIBLE';
+    confidence = watchlisted || failCount >= 3 ? 'HIGH' : 'MEDIUM';
+  } else if (avgScore >= 72 && failCount === 0 && conditions.length <= 1) {
+    verdict = 'ELIGIBLE';
+    confidence = avgScore >= 85 ? 'HIGH' : 'MEDIUM';
+  } else {
+    verdict = 'CONDITIONAL';
+    confidence = avgScore >= 60 ? 'MEDIUM' : 'LOW';
+  }
+
+  let suggestedMinAmount = null;
+  let suggestedMaxAmount = null;
+  let loanAmountReasoning = null;
+
+  if (verdict !== 'NOT_ELIGIBLE' && monthlyIncome > 0) {
+    const dtiUsed = effectiveDTI ?? (existingDTI ?? 30);
+    const headroom = Math.max(50 - dtiUsed, 5);
+    const affordableMonthly = monthlyIncome * (headroom / 100);
+    const multiplier = verdict === 'ELIGIBLE' ? 6 : 3;
+    suggestedMaxAmount = Math.round((affordableMonthly * multiplier) / 5000) * 5000;
+    suggestedMinAmount = Math.round(suggestedMaxAmount * 0.4 / 5000) * 5000;
+    loanAmountReasoning = `Based on monthly income of ₦${Number(monthlyIncome).toLocaleString()} and ${headroom}% DTI headroom (₦${Math.round(affordableMonthly).toLocaleString()}/month available for repayment), using a ${multiplier}× tenure multiplier.`;
+  }
+
+  const verdictReason = {
+    ELIGIBLE: `All or most eligibility criteria are satisfied with a combined score of ${avgScore}/100. ${bvnVerified || ninVerified ? 'Identity is verified' : 'Identity data is limited'}. ${latestStatement ? `Risk grade ${risk.overallRiskScore || 'N/A'}` : 'No statement data'}. ${effectiveDTI !== null ? `Post-loan DTI would be ${effectiveDTI}%` : 'DTI not calculated'}.`,
+    CONDITIONAL: `Customer scores ${avgScore}/100 overall with ${failCount} failing categor${failCount !== 1 ? 'ies' : 'y'} and ${conditions.length} condition${conditions.length !== 1 ? 's' : ''} to satisfy. Approval can proceed once conditions are met and flagged items are resolved.`,
+    NOT_ELIGIBLE: `Customer fails ${failCount} of 5 eligibility categories with a combined score of ${avgScore}/100. ${watchlisted ? 'Watchlist status is an automatic disqualifier.' : `Core issues are in: ${statuses.map((st, i) => st === 'FAIL' ? ['Identity Integrity', 'Credit History', 'Income & Cash Flow', 'Debt Servicing', 'Risk Profile'][i] : null).filter(Boolean).join(', ')}.`}`,
+  };
+
+  return {
+    verdict,
+    confidence,
+    suggestedMinAmount,
+    suggestedMaxAmount,
+    loanAmountReasoning,
+    summary: verdictReason[verdict],
+    effectiveDTI,
+    existingDTI,
+    proposedMonthlyPayment,
+    monthlyIncome,
+    categories: {
+      identityIntegrity: { score: identityScore, status: identityStatus, notes: identityNotes },
+      creditHistory: { score: creditScore, status: creditStatus, notes: creditNotes },
+      incomeAndCashFlow: { score: incomeScore, status: incomeStatus, notes: incomeNotes },
+      debtServicing: { score: debtScore, status: debtStatus, notes: debtNotes },
+      riskProfile: { score: riskScore, status: riskStatus, notes: riskNotes },
+    },
+    analysis,
+    conditions,
+    flags,
+    dataAvailability: { bvn: !!latestBVN, nin: !!latestNIN, bureau: !!latestBureau, statement: !!latestStatement },
+  };
+}
+
+function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, bureauData }) {
+  const [proposedPayment, setProposedPayment] = useState('');
+  const [review, setReview] = useState(null);
+
+  function generate() {
+    const proposed = parseFloat(proposedPayment.replace(/,/g, '')) || 0;
+    setReview(computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, bureauData, proposedMonthlyPayment: proposed }));
   }
 
   const VERDICT_COLOR = { ELIGIBLE: '#16a34a', CONDITIONAL: '#d97706', NOT_ELIGIBLE: '#dc2626' };
@@ -785,44 +1072,39 @@ function LoanReviewSection({ customerId }) {
   const VERDICT_LABEL = { ELIGIBLE: '✓ Eligible', CONDITIONAL: '⚡ Conditional', NOT_ELIGIBLE: '✗ Not Eligible' };
   const STATUS_COLOR = { PASS: '#16a34a', WARN: '#d97706', FAIL: '#dc2626' };
   const STATUS_BG = { PASS: '#dcfce7', WARN: '#fef3c7', FAIL: '#fee2e2' };
-
+  const CAT_LABEL = { identityIntegrity: 'Identity Integrity', creditHistory: 'Credit History', incomeAndCashFlow: 'Income & Cash Flow', debtServicing: 'Debt Servicing', riskProfile: 'Risk Profile' };
   const fmt = (v) => (v !== undefined && v !== null ? Number(v).toLocaleString() : null);
-
-  const CAT_LABEL = {
-    identityIntegrity: 'Identity Integrity',
-    creditHistory: 'Credit History',
-    incomeAndCashFlow: 'Income & Cash Flow',
-    debtServicing: 'Debt Servicing',
-    riskProfile: 'Risk Profile',
-  };
 
   return (
     <div style={{ ...s.card, borderTop: '3px solid #6d28d9' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: review ? 20 : 0 }}>
-        <div>
-          <div style={s.sectionTitle}>AI Loan Eligibility Review</div>
-          {!review && <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>Synthesizes identity, financial, and bureau data using Claude AI</div>}
+      <div style={{ marginBottom: 20 }}>
+        <div style={s.sectionTitle}>Loan Eligibility Review</div>
+        <div style={{ fontSize: 13, color: '#64748b', marginTop: 4, marginBottom: 16 }}>
+          Analyses identity, bureau, and financial data. Enter the proposed monthly repayment to calculate post-loan DTI.
         </div>
-        <button
-          style={{ ...s.btn, background: loading ? '#94a3b8' : '#6d28d9', cursor: loading ? 'not-allowed' : 'pointer', minWidth: 160 }}
-          onClick={generate}
-          disabled={loading}
-        >
-          {loading ? '⏳ Analyzing...' : review ? '↻ Regenerate' : '✦ Generate AI Review'}
-        </button>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>Proposed Monthly Repayment (₦)</label>
+            <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid #6d28d9', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+              <span style={{ padding: '0 10px', fontSize: 14, fontWeight: 700, color: '#6d28d9', borderRight: '1px solid #e2e8f0' }}>₦</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="e.g. 50,000"
+                value={proposedPayment}
+                onChange={e => setProposedPayment(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && generate()}
+                style={{ border: 'none', outline: 'none', padding: '9px 12px', fontSize: 14, width: 160 }}
+              />
+            </div>
+          </div>
+          <button style={{ ...s.btn, background: '#6d28d9', height: 38 }} onClick={generate}>
+            {review ? '↻ Re-run Review' : '▶ Run Eligibility Review'}
+          </button>
+        </div>
       </div>
 
-      {error && <div style={{ color: '#dc2626', fontSize: 13, marginTop: 12 }}>{error}</div>}
-
-      {loading && (
-        <div style={{ textAlign: 'center', padding: '2rem', color: '#6d28d9' }}>
-          <div style={{ fontSize: 24, marginBottom: 8 }}>✦</div>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>Claude is reviewing all available data...</div>
-          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>This may take 15–30 seconds</div>
-        </div>
-      )}
-
-      {review && !loading && (
+      {review && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Verdict banner */}
           <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', flexWrap: 'wrap' }}>
@@ -831,69 +1113,80 @@ function LoanReviewSection({ customerId }) {
               <div style={{ fontSize: 28, fontWeight: 900, color: VERDICT_COLOR[review.verdict] || '#0f172a' }}>{VERDICT_LABEL[review.verdict] || review.verdict}</div>
               <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Confidence: <strong>{review.confidence}</strong></div>
             </div>
+            {review.effectiveDTI !== null && (
+              <div style={{ background: review.effectiveDTI > 60 ? '#fee2e2' : review.effectiveDTI > 40 ? '#fef3c7' : '#f0fdf4', borderRadius: 14, padding: '1.25rem 1.75rem', minWidth: 160 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: review.effectiveDTI > 60 ? '#dc2626' : review.effectiveDTI > 40 ? '#d97706' : '#16a34a', marginBottom: 6 }}>Post-Loan DTI</div>
+                <div style={{ fontSize: 28, fontWeight: 900, color: review.effectiveDTI > 60 ? '#dc2626' : review.effectiveDTI > 40 ? '#d97706' : '#15803d' }}>{review.effectiveDTI}%</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Existing {review.existingDTI ?? 0}% + proposed</div>
+              </div>
+            )}
             {(review.suggestedMinAmount || review.suggestedMaxAmount) && (
               <div style={{ background: '#f0fdf4', borderRadius: 14, padding: '1.25rem 1.75rem', flex: 1, minWidth: 200 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#16a34a', marginBottom: 6 }}>Suggested Loan Range</div>
                 <div style={{ fontSize: 22, fontWeight: 900, color: '#15803d' }}>
-                  {review.suggestedMinAmount ? `₦${fmt(review.suggestedMinAmount)}` : '—'} – {review.suggestedMaxAmount ? `₦${fmt(review.suggestedMaxAmount)}` : '—'}
+                  ₦{fmt(review.suggestedMinAmount)} – ₦{fmt(review.suggestedMaxAmount)}
                 </div>
-                <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Based on income & risk profile</div>
+                {review.loanAmountReasoning && <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{review.loanAmountReasoning}</div>}
               </div>
             )}
           </div>
 
           {/* Summary */}
-          <div style={{ background: '#f8fafc', borderRadius: 10, padding: '1rem 1.25rem', fontSize: 14, color: '#334155', lineHeight: 1.7 }}>
-            {review.summary}
+          <div style={{ background: '#f8fafc', borderRadius: 10, padding: '1rem 1.25rem', fontSize: 14, color: '#334155', lineHeight: 1.7, borderLeft: `4px solid ${VERDICT_COLOR[review.verdict] || '#94a3b8'}` }}>
+            <strong>Assessment: </strong>{review.summary}
           </div>
 
           {/* Category breakdown */}
-          {review.categories && (
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>Category Breakdown</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {Object.entries(review.categories).map(([key, cat]) => (
-                  <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 14, background: '#f8fafc', borderRadius: 10, padding: '12px 16px' }}>
-                    <div style={{ width: 120, fontSize: 12, fontWeight: 700, color: '#475569', flexShrink: 0 }}>{CAT_LABEL[key] || key}</div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>Category Breakdown</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {Object.entries(review.categories).map(([key, cat]) => (
+                <div key={key} style={{ background: '#f8fafc', borderRadius: 10, padding: '14px 16px', borderLeft: `3px solid ${STATUS_COLOR[cat.status] || '#94a3b8'}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8 }}>
+                    <div style={{ width: 140, fontSize: 12, fontWeight: 700, color: '#475569', flexShrink: 0 }}>{CAT_LABEL[key]}</div>
                     <div style={{ flex: 1, height: 6, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${cat.score || 0}%`, background: (cat.score || 0) >= 70 ? '#16a34a' : (cat.score || 0) >= 40 ? '#f59e0b' : '#ef4444', borderRadius: 99, transition: 'width 0.6s ease' }} />
+                      <div style={{ height: '100%', width: `${cat.score}%`, background: cat.score >= 70 ? '#16a34a' : cat.score >= 45 ? '#f59e0b' : '#ef4444', borderRadius: 99 }} />
                     </div>
                     <div style={{ width: 36, textAlign: 'right', fontSize: 13, fontWeight: 800, color: '#0f172a' }}>{cat.score}</div>
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: STATUS_BG[cat.status] || '#f1f5f9', color: STATUS_COLOR[cat.status] || '#64748b', flexShrink: 0 }}>{cat.status}</span>
-                    <div style={{ fontSize: 12, color: '#64748b', flex: 2 }}>{cat.notes}</div>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: STATUS_BG[cat.status], color: STATUS_COLOR[cat.status], flexShrink: 0 }}>{cat.status}</span>
                   </div>
-                ))}
-              </div>
+                  {review.analysis[key]?.map((reason, i) => (
+                    <div key={i} style={{ fontSize: 12, color: '#475569', lineHeight: 1.6, paddingLeft: 4, borderTop: i === 0 ? '1px solid #e2e8f0' : 'none', paddingTop: i === 0 ? 8 : 4 }}>
+                      {i === 0 ? '→ ' : '   '}{reason}
+                    </div>
+                  ))}
+                </div>
+              ))}
             </div>
-          )}
-
-          {/* Conditions & flags */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            {review.conditions?.length > 0 && (
-              <div style={{ background: '#fef3c7', borderRadius: 10, padding: '1rem 1.25rem' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#d97706', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Conditions</div>
-                {review.conditions.map((c, i) => <div key={i} style={{ fontSize: 13, color: '#78350f', marginBottom: 4 }}>• {c}</div>)}
-              </div>
-            )}
-            {review.flags?.length > 0 && (
-              <div style={{ background: '#fee2e2', borderRadius: 10, padding: '1rem 1.25rem' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Flags</div>
-                {review.flags.map((f, i) => <div key={i} style={{ fontSize: 13, color: '#7f1d1d', marginBottom: 4 }}>⚠ {f}</div>)}
-              </div>
-            )}
           </div>
 
-          {/* Data availability footer */}
-          {review.dataAvailability && (
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {Object.entries(review.dataAvailability).map(([k, v]) => (
-                <span key={k} style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: v ? '#dcfce7' : '#f1f5f9', color: v ? '#16a34a' : '#94a3b8' }}>
-                  {v ? '✓' : '✗'} {k.toUpperCase()}
-                </span>
-              ))}
-              <span style={{ fontSize: 11, color: '#94a3b8', alignSelf: 'center' }}>— data used in this review</span>
+          {/* Conditions & flags */}
+          {(review.conditions.length > 0 || review.flags.length > 0) && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              {review.conditions.length > 0 && (
+                <div style={{ background: '#fef3c7', borderRadius: 10, padding: '1rem 1.25rem' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#d97706', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Conditions for Approval</div>
+                  {review.conditions.map((c, i) => <div key={i} style={{ fontSize: 13, color: '#78350f', marginBottom: 6, lineHeight: 1.5 }}>• {c}</div>)}
+                </div>
+              )}
+              {review.flags.length > 0 && (
+                <div style={{ background: '#fee2e2', borderRadius: 10, padding: '1rem 1.25rem' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Risk Flags</div>
+                  {review.flags.map((f, i) => <div key={i} style={{ fontSize: 13, color: '#7f1d1d', marginBottom: 6, lineHeight: 1.5 }}>⚠ {f}</div>)}
+                </div>
+              )}
             </div>
           )}
+
+          {/* Data availability */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            {Object.entries(review.dataAvailability).map(([k, v]) => (
+              <span key={k} style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: v ? '#dcfce7' : '#f1f5f9', color: v ? '#16a34a' : '#94a3b8' }}>
+                {v ? '✓' : '✗'} {k.toUpperCase()}
+              </span>
+            ))}
+            <span style={{ fontSize: 11, color: '#94a3b8' }}>— data sources used</span>
+          </div>
         </div>
       )}
     </div>
