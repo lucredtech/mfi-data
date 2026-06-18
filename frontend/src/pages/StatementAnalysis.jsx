@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import CustomerSelect from '../components/CustomerSelect';
 
 const BANKS = [
   { value: "moniepoint", label: "Moniepoint" },
@@ -20,6 +21,7 @@ export default function StatementAnalysis() {
   const [file, setFile] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [meta, setMeta] = useState({ email: '', accountName: '', bankName: '', password: '' });
+  const [customerId, setCustomerId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const inputRef = useRef();
@@ -50,6 +52,7 @@ export default function StatementAnalysis() {
       if (meta.email) form.append('email', meta.email);
       if (meta.accountName) form.append('accountName', meta.accountName);
       if (meta.bankName) form.append('bankName', meta.bankName);
+      if (customerId) form.append('customerId', customerId);
 
       const apiKey = localStorage.getItem('apiKey');
       if (!apiKey) return toast.error('No API key found. Please log out and log back in.');
@@ -104,8 +107,25 @@ export default function StatementAnalysis() {
               )}
             </div>
 
-            {/* Metadata */}
+            {/* Customer link */}
             <div style={{ marginTop: 20 }}>
+              <CustomerSelect
+                value={customerId}
+                onChange={(id, customer) => {
+                  setCustomerId(id);
+                  if (customer) {
+                    setMeta((m) => ({
+                      ...m,
+                      email: m.email || customer.email || '',
+                      accountName: m.accountName || customer.name || '',
+                    }));
+                  }
+                }}
+              />
+            </div>
+
+            {/* Metadata */}
+            <div style={{ marginTop: 4 }}>
               <div style={s.sectionLabel}>Borrower Details (optional)</div>
               {[
                 { key: 'email', label: 'Borrower Email', placeholder: 'borrower@example.com', type: 'email' },

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { exportNINHistoryCSV } from '../services/exportCSV';
+import CustomerSelect from '../components/CustomerSelect';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -12,6 +13,7 @@ function authHeaders() {
 
 export default function NINVerification() {
   const [nin, setNin] = useState('');
+  const [customerId, setCustomerId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
@@ -52,7 +54,7 @@ export default function NINVerification() {
     try {
       const { data } = await axios.post(
         `${API}/v1/identity/verify-nin`,
-        { nin },
+        { nin, customerId: customerId || undefined },
         { headers: { 'X-Api-Key': apiKey } },
       );
       setResult(data.data || data);
@@ -95,6 +97,13 @@ export default function NINVerification() {
         {/* Form */}
         <div style={s.formCard}>
           <div style={s.cardTitle}>Verify a NIN</div>
+          <CustomerSelect
+            value={customerId}
+            onChange={(id, customer) => {
+              setCustomerId(id);
+              if (customer?.nin) setNin(customer.nin);
+            }}
+          />
           <form onSubmit={handleSubmit}>
             <div style={s.field}>
               <label style={s.label}>NIN (11 digits) *</label>

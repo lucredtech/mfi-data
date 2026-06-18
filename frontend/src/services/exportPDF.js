@@ -24,6 +24,8 @@ export function exportStatementPDF(statement) {
   const behavioral = d.behavioralAnalysis || {};
   const expense = d.expenseAnalysis || {};
   const meta = d.metaData || {};
+  const txRanges = d.transactionRanges || {};
+  const weeklySummary = d.weeklyTransactionSummary || [];
 
   const W = 210;
   let y = 0;
@@ -257,6 +259,51 @@ export function exportStatementPDF(statement) {
   doc.setFontSize(8);
   doc.text(`Total Saved: ₦${fmt(behavioral.savingsHabits?.totalSaved)}   Frequency: ${behavioral.savingsHabits?.savingsFrequency || '—'}`, 14, y + 2);
   y += 10;
+
+  // ── Weekly Transaction Summary ─────────────────────────────────
+  if (weeklySummary.length > 0) {
+    sectionTitle(doc, 'Weekly Transaction Summary', y);
+    y += 8;
+    autoTable(doc, {
+      startY: y,
+      margin: { left: 14, right: 14 },
+      head: [['Week', 'Total Credit', 'Total Debit', 'Net', 'Transactions']],
+      body: weeklySummary.map((w) => {
+        const net = (w.totalCredit || 0) - (w.totalDebit || 0);
+        return [
+          w.week,
+          `₦${fmt(w.totalCredit)}`,
+          `₦${fmt(w.totalDebit)}`,
+          `${net >= 0 ? '+' : ''}₦${fmt(Math.abs(net))}`,
+          w.transactionCount ?? w.count ?? '—',
+        ];
+      }),
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 9 },
+      bodyStyles: { fontSize: 8, textColor: [51, 65, 85] },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+
+  // ── Transaction Ranges ─────────────────────────────────────────
+  if (Object.keys(txRanges).length > 0) {
+    sectionTitle(doc, 'Transaction Ranges', y);
+    y += 8;
+    autoTable(doc, {
+      startY: y,
+      margin: { left: 14, right: 14 },
+      head: [['Range', 'Transactions', 'Total Amount']],
+      body: Object.entries(txRanges).map(([range, data]) => {
+        const count = typeof data === 'object' ? (data.count ?? data.transactionCount ?? data.frequency ?? '—') : data;
+        const amount = typeof data === 'object' ? (data.totalAmount ?? data.amount) : null;
+        return [range, count, amount != null ? `₦${fmt(amount)}` : '—'];
+      }),
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 9 },
+      bodyStyles: { fontSize: 8, textColor: [51, 65, 85] },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
 
   // ── Top Transactions ───────────────────────────────────────────
   if (expense.topHighValueTransactions?.length > 0) {
