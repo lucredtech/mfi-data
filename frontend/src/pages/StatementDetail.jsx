@@ -197,6 +197,16 @@ export default function StatementDetail() {
         </div>
       )}
 
+      {/* Raw debug for weekly + ranges — remove once keys confirmed */}
+      {(weeklySummary.length > 0 || Object.keys(txRanges).length > 0) && (
+        <div style={s.tableCard}>
+          <div style={s.chartTitle}>Raw Data (Weekly + Ranges)</div>
+          <pre style={{ background: '#0f172a', color: '#e2e8f0', padding: '12px', borderRadius: 8, fontSize: 11, overflowX: 'auto', marginTop: 8 }}>
+            {JSON.stringify({ weeklyTransactionSummary: weeklySummary.slice(0, 3), transactionRanges: txRanges }, null, 2)}
+          </pre>
+        </div>
+      )}
+
       {/* Transaction Ranges */}
       {Object.keys(txRanges).length > 0 && (
         <>
