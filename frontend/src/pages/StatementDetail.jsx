@@ -181,7 +181,7 @@ export default function StatementDetail() {
                     {[['Min', range.min], ['Avg', range.average], ['Max', range.max]].map(([lbl, val]) => (
                       <div key={lbl} style={{ background: '#f8fafc', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
                         <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 3 }}>{lbl}</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{val != null ? `₦${fmtN(val, 2)}` : '—'}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{val != null ? `₦${Number(val).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</div>
                       </div>
                     ))}
                   </div>
@@ -483,15 +483,21 @@ export default function StatementDetail() {
             </div>
           )}
 
-          {/* High risk flags */}
-          {expense.highRiskExpenseFlags?.filter(f => f.amount > 0).length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 12 }}>
-              {expense.highRiskExpenseFlags.filter(f => f.amount > 0).map((f, i) => (
-                <div key={i} style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 10, padding: '8px 14px', fontSize: 13 }}>
-                  <span style={{ fontWeight: 600, color: '#dc2626' }}>⚠ {f.category}</span>
-                  <span style={{ color: '#64748b', marginLeft: 8 }}>₦{fmt(f.amount)} ({(f.percentageOfIncome * 100).toFixed(1)}% of income)</span>
-                </div>
-              ))}
+          {/* High risk flags — show all categories; green = cleared, red = detected */}
+          {expense.highRiskExpenseFlags?.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>High-Risk Category Checks</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {expense.highRiskExpenseFlags.map((f, i) => {
+                  const flagged = f.amount > 0;
+                  return (
+                    <div key={i} style={{ background: flagged ? '#fef2f2' : '#f0fdf4', border: `1px solid ${flagged ? '#fca5a5' : '#bbf7d0'}`, borderRadius: 10, padding: '8px 14px', fontSize: 13 }}>
+                      <span style={{ fontWeight: 600, color: flagged ? '#dc2626' : '#16a34a' }}>{flagged ? '⚠' : '✓'} {f.category}</span>
+                      {flagged && <span style={{ color: '#64748b', marginLeft: 8 }}>₦{fmt(f.amount)} ({(f.percentageOfIncome * 100).toFixed(1)}% of income)</span>}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </Section>

@@ -1015,16 +1015,17 @@ function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement
 
   let suggestedMinAmount = null;
   let suggestedMaxAmount = null;
+  let affordableMonthly = null;
   let loanAmountReasoning = null;
 
   if (verdict !== 'NOT_ELIGIBLE' && monthlyIncome > 0) {
     const dtiUsed = effectiveDTI ?? (existingDTI ?? 30);
     const headroom = Math.max(50 - dtiUsed, 5);
-    const affordableMonthly = monthlyIncome * (headroom / 100);
+    affordableMonthly = Math.round(monthlyIncome * (headroom / 100));
     const multiplier = verdict === 'ELIGIBLE' ? 6 : 3;
     suggestedMaxAmount = Math.round((affordableMonthly * multiplier) / 5000) * 5000;
     suggestedMinAmount = Math.round(suggestedMaxAmount * 0.4 / 5000) * 5000;
-    loanAmountReasoning = `Based on monthly income of ₦${Number(monthlyIncome).toLocaleString()} and ${headroom}% DTI headroom (₦${Math.round(affordableMonthly).toLocaleString()}/month available for repayment), using a ${multiplier}× tenure multiplier.`;
+    loanAmountReasoning = `₦${Number(affordableMonthly).toLocaleString()}/month available after existing obligations (${headroom}% of income). At a ${multiplier}-month repayment horizon, total principal capacity is ₦${Number(affordableMonthly * multiplier).toLocaleString()}.`;
   }
 
   const verdictReason = {
@@ -1038,6 +1039,7 @@ function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement
     confidence,
     suggestedMinAmount,
     suggestedMaxAmount,
+    affordableMonthly,
     loanAmountReasoning,
     summary: verdictReason[verdict],
     effectiveDTI,
@@ -1120,9 +1122,16 @@ function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement
                 <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>Existing {review.existingDTI ?? 0}% + proposed</div>
               </div>
             )}
+            {review.affordableMonthly != null && (
+              <div style={{ background: '#f0f9ff', borderRadius: 14, padding: '1.25rem 1.75rem', minWidth: 160 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#0ea5e9', marginBottom: 6 }}>Max Monthly Repayment</div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: '#0369a1' }}>₦{fmt(review.affordableMonthly)}</div>
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Based on DTI headroom</div>
+              </div>
+            )}
             {(review.suggestedMinAmount || review.suggestedMaxAmount) && (
               <div style={{ background: '#f0fdf4', borderRadius: 14, padding: '1.25rem 1.75rem', flex: 1, minWidth: 200 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#16a34a', marginBottom: 6 }}>Suggested Loan Range</div>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#16a34a', marginBottom: 6 }}>Suggested Loan Amount (Total Principal)</div>
                 <div style={{ fontSize: 22, fontWeight: 900, color: '#15803d' }}>
                   ₦{fmt(review.suggestedMinAmount)} – ₦{fmt(review.suggestedMaxAmount)}
                 </div>
