@@ -361,7 +361,7 @@ function StatementTab({ customer, statements, onRefresh }) {
             </select>
           </div>
           <div style={s.field}><label style={s.label}>Statement File *</label>
-            <input style={s.input} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setFile(e.target.files[0])} required />
+            <input style={s.input} type="file" accept=".pdf,.xlsx,.xls,.csv,.docx,.doc" onChange={(e) => setFile(e.target.files[0])} required />
           </div>
           <div style={s.field}><label style={s.label}>PDF Password (optional)</label>
             <input style={s.input} type="password" placeholder="Leave blank if none" value={password} onChange={(e) => setPassword(e.target.value)} />
