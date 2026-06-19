@@ -550,9 +550,39 @@ function NINTab({ customer, ninResults, onRefresh }) {
 
 // ── Bureau tab ────────────────────────────────────────────────────────────────
 
+// Parse the FirstCentral data array → keyed sections object
+function parseBureauSections(result) {
+  const arr = result?.data ?? (Array.isArray(result) ? result : []);
+  const sec = {};
+  arr.forEach(item => {
+    const key = Object.keys(item || {})[0];
+    if (key) sec[key] = item[key];
+  });
+  return sec;
+}
+
+// Payment history cell colour
+function paymentColor(code) {
+  if (code === '#' || code == null) return { bg: '#f1f5f9', color: '#94a3b8', label: '—' };
+  if (code === '0') return { bg: '#dcfce7', color: '#16a34a', label: '✓' };
+  if (code === '101') return { bg: '#450a0a', color: '#fca5a5', label: 'WO' };
+  const n = parseInt(code, 10);
+  if (n >= 3) return { bg: '#dc2626', color: '#fff', label: code };
+  if (n >= 1) return { bg: '#fef3c7', color: '#d97706', label: code };
+  return { bg: '#f1f5f9', color: '#64748b', label: code };
+}
+
+function scoreColor(score) {
+  const n = parseInt(score, 10);
+  if (n >= 700) return '#16a34a';
+  if (n >= 500) return '#f59e0b';
+  return '#dc2626';
+}
+
 function BureauTab({ customer, bureauResults, onRefresh }) {
   const [form, setForm] = useState({ bvn: customer.bvn || '', firstName: '', lastName: '', dateOfBirth: '' });
   const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(null);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   async function handleCheck(e) {
@@ -572,8 +602,47 @@ function BureauTab({ customer, bureauResults, onRefresh }) {
     }
   }
 
+  const latest = bureauResults.find(r => r.status === 'success');
+  const sec = latest ? parseBureauSections(latest.result) : null;
+
+  const scoring = sec?.Scoring?.[0];
+  const personal = sec?.PersonalDetailsSummary?.[0];
+  const summary = sec?.CreditAccountSummary?.[0];
+  const rating = sec?.CreditAccountRating?.[0];
+  const agreements = sec?.CreditAgreementSummary || [];
+  const payHistHeader = sec?.AccountMonthlyPaymentHistoryHeader?.[0];
+  const payHistory = sec?.AccountMonthlyPaymentHistory || [];
+  const delinquency = (sec?.DeliquencyInformation || []).filter(d => d.SubscriberName || d.AccountNo);
+  const enquiries = (sec?.EnquiryHistoryTop || []).filter(e => e.DateRequested);
+  const guarantors = (sec?.GuarantorDetails || []).filter(g => g.GuarantorFirstName);
+
+  // Build 24 month column labels from header
+  const monthCols = payHistHeader
+    ? Array.from({ length: 24 }, (_, i) => {
+        const key = `MH${String(24 - i).padStart(2, '0')}`;
+        return payHistHeader[key]?.replace('\n', ' ') || `M${String(i + 1).padStart(2, '0')}`;
+      })
+    : [];
+
+  const ACCOUNT_TYPES = [
+    ['Home Loan', 'NoOfHomeLoanAccountsGood', 'NoOfHomeLoanAccountsBad'],
+    ['Auto Loan', 'NoOfAutoLoanccountsGood', 'NoOfAutoLoanAccountsBad'],
+    ['Study Loan', 'NoOfStudyLoanAccountsGood', 'NoOfStudyLoanAccountsBad'],
+    ['Personal Loan', 'NoOfPersonalLoanAccountsGood', 'NoOfPersonalLoanAccountsBad'],
+    ['Credit Card', 'NoOfCreditCardAccountsGood', 'NoOfCreditCardAccountsBad'],
+    ['Retail', 'NoOfRetailAccountsGood', 'NoOfRetailAccountsBad'],
+    ['Joint Loan', 'NoOfJointLoanAccountsGood', 'NoOfJointLoanAccountsBad'],
+    ['Telecom', 'NoOfTelecomAccountsGood', 'NoOfTelecomAccountsBad'],
+    ['Other', 'NoOfOtherAccountsGood', 'NoOfOtherAccountsBad'],
+  ].filter(([, g, b]) => parseInt(rating?.[g] || 0) + parseInt(rating?.[b] || 0) > 0);
+
+  const scoreTotal = scoring?.TotalConsumerScore;
+  const scoreDesc = scoring?.Description;
+  const scoreColor_ = scoreColor(scoreTotal);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Run check form */}
       <div style={s.card}>
         <div style={s.cardTitle}>Run Credit Bureau Check</div>
         <form onSubmit={handleCheck} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -586,14 +655,282 @@ function BureauTab({ customer, bureauResults, onRefresh }) {
           </div>
         </form>
       </div>
+
+      {/* ── Full bureau report ─────────────────────────────────────────────── */}
+      {latest && sec && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Score banner */}
+          <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)', borderRadius: 14, padding: '1.75rem 2rem', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+            <div style={{ textAlign: 'center', background: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: '1rem 1.5rem', minWidth: 130 }}>
+              <div style={{ fontSize: 52, fontWeight: 900, color: scoreColor_, lineHeight: 1 }}>{scoreTotal ?? '—'}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: scoreColor_, textTransform: 'uppercase', letterSpacing: 1, marginTop: 4 }}>{scoreDesc || 'Credit Score'}</div>
+              {scoring?.ScoreDate && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>As at {scoring.ScoreDate}</div>}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#fff', marginBottom: 12 }}>
+                {personal ? `${personal.FirstName || ''} ${personal.Surname || ''}`.trim() : customer.name}
+              </div>
+              {scoring && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+                  {[
+                    ['Repayment History', scoring.RepaymentHistoryScore],
+                    ['Amount Owed', scoring.TotalAmountOwedScore],
+                    ['Types of Credit', scoring.TypesOfCreditScore],
+                    ['Credit History Length', scoring.LengthOfCreditHistoryScore],
+                    ['No. of Accounts', scoring.NoOfAcctScore],
+                  ].map(([lbl, val]) => val && (
+                    <div key={lbl} style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 8, padding: '8px 12px' }}>
+                      <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 3 }}>{lbl}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>{val}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12, color: '#94a3b8', minWidth: 160 }}>
+              <div>Checked: <strong style={{ color: '#e2e8f0' }}>{new Date(latest.createdAt).toLocaleDateString()}</strong></div>
+              <div>BVN: <strong style={{ color: '#e2e8f0' }}>••••{latest.bvn?.slice(-4)}</strong></div>
+              <StatusBadge status={latest.status} />
+            </div>
+          </div>
+
+          {/* Personal details */}
+          {personal && (
+            <div style={s.card}>
+              <div style={s.cardTitle}>Personal Details</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+                {[
+                  ['Full Name', `${personal.FirstName || ''} ${personal.OtherNames || ''} ${personal.Surname || ''}`.trim()],
+                  ['Date of Birth', personal.BirthDate],
+                  ['Gender', personal.Gender],
+                  ['Marital Status', personal.MaritalStatus],
+                  ['Nationality', personal.Nationality],
+                  ['BVN', personal.BankVerificationNo],
+                  ['National ID', personal.NationalIDNo],
+                  ['Dependants', personal.Dependants],
+                  ['Address', [personal.ResidentialAddress1, personal.ResidentialAddress2, personal.ResidentialAddress3].filter(Boolean).join(', ')],
+                  ['Phone', personal.CellularNo || personal.HomeTelephoneNo || personal.WorkTelephoneNo],
+                  ['Email', personal.EmailAddress],
+                  ['Employer', personal.EmployerDetail],
+                  ['Property Type', personal.PropertyOwnedType],
+                ].filter(([, v]) => v && v !== ' ' && v !== '0').map(([lbl, val]) => (
+                  <div key={lbl} style={s.infoCell}>
+                    <div style={s.infoLabel}>{lbl}</div>
+                    <div style={{ ...s.infoValue, fontSize: 13 }}>{val}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Account summary */}
+          {summary && (
+            <div style={s.card}>
+              <div style={s.cardTitle}>Credit Account Summary</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))', gap: 10 }}>
+                {[
+                  ['Total Accounts', summary.TotalAccounts, null],
+                  ['Accounts in Good Standing', summary.TotalaccountinGoodcondition || summary.TotalaccountinGodcondition, '#16a34a'],
+                  ['Accounts in Arrears', summary.TotalAccountarrear, summary.TotalAccountarrear > 0 ? '#ef4444' : null],
+                  ['Amount in Arrears', summary.Amountarrear && summary.Amountarrear !== '0.00' ? `₦${summary.Amountarrear}` : null, '#ef4444'],
+                  ['Total Outstanding Debt', summary.TotalOutstandingdebt && summary.TotalOutstandingdebt !== '0.00' ? `₦${summary.TotalOutstandingdebt}` : '₦0', null],
+                  ['Monthly Instalment', summary.TotalMonthlyInstalment ? `₦${summary.TotalMonthlyInstalment}` : null, null],
+                  ['Judgements', summary.TotalNumberofJudgement, summary.TotalNumberofJudgement > 0 ? '#ef4444' : '#16a34a'],
+                  ['Judgement Amount', summary.TotalJudgementAmount > 0 ? `₦${summary.TotalJudgementAmount}` : null, '#ef4444'],
+                  ['Dishonoured Cheques', summary.TotalNumberofDishonoured, summary.TotalNumberofDishonoured > 0 ? '#ef4444' : '#16a34a'],
+                  ['Rating', summary.Rating, null],
+                ].filter(([, v]) => v !== null && v !== undefined && v !== '').map(([lbl, val, color]) => (
+                  <div key={lbl} style={s.infoCell}>
+                    <div style={s.infoLabel}>{lbl}</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: color || '#0f172a' }}>{String(val)}</div>
+                  </div>
+                ))}
+              </div>
+              {/* Account type breakdown */}
+              {ACCOUNT_TYPES.length > 0 && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Account Type Breakdown</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {ACCOUNT_TYPES.map(([lbl, gKey, bKey]) => {
+                      const good = parseInt(rating[gKey] || 0);
+                      const bad = parseInt(rating[bKey] || 0);
+                      return (
+                        <div key={lbl} style={{ background: bad > 0 ? '#fef2f2' : '#f0fdf4', border: `1px solid ${bad > 0 ? '#fca5a5' : '#bbf7d0'}`, borderRadius: 10, padding: '8px 14px', fontSize: 13, textAlign: 'center' }}>
+                          <div style={{ fontWeight: 700, color: '#0f172a' }}>{lbl}</div>
+                          <div style={{ fontSize: 12, marginTop: 3 }}>
+                            <span style={{ color: '#16a34a', fontWeight: 600 }}>{good} good</span>
+                            {bad > 0 && <span style={{ color: '#ef4444', fontWeight: 600, marginLeft: 6 }}>{bad} bad</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Delinquency */}
+          {delinquency.length > 0 && (
+            <div style={{ ...s.card, borderLeft: '4px solid #ef4444' }}>
+              <div style={{ ...s.cardTitle, color: '#dc2626' }}>⚠ Delinquency Information</div>
+              <table style={s.table}>
+                <thead><tr>{['Lender', 'Account No', 'Period', 'Months in Arrears'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {delinquency.map((d, i) => (
+                    <tr key={i} style={{ background: '#fff5f5', borderBottom: '1px solid #fee2e2' }}>
+                      <td style={s.td}>{d.SubscriberName || '—'}</td>
+                      <td style={s.td}>{d.AccountNo || '—'}</td>
+                      <td style={s.td}>{d.PeriodNum || '—'}</td>
+                      <td style={{ ...s.td, fontWeight: 700, color: '#dc2626' }}>{d.MonthsinArrears || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Credit agreements */}
+          {agreements.length > 0 && (
+            <div style={s.card}>
+              <div style={s.cardTitle}>Credit Agreements ({agreements.length})</div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={s.table}>
+                  <thead>
+                    <tr>{['Lender', 'Account No', 'Opened', 'Closed', 'Opening Balance', 'Instalment', 'Overdue', 'Status', 'Performance'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {agreements.map((a, i) => {
+                      const isPerforming = a.PerformanceStatus === 'Performing';
+                      const isWatchlist = a.PerformanceStatus === 'Watchlist';
+                      return (
+                        <tr key={i} style={{ borderBottom: '1px solid #f1f5f9', background: i % 2 ? '#f8fafc' : '#fff' }}>
+                          <td style={{ ...s.td, maxWidth: 180 }}><span style={{ fontSize: 12 }}>{a.SubscriberName}</span></td>
+                          <td style={{ ...s.td, fontFamily: 'monospace', fontSize: 11 }}>{a.AccountNo}</td>
+                          <td style={{ ...s.td, whiteSpace: 'nowrap', fontSize: 12 }}>{a.DateAccountOpened}</td>
+                          <td style={{ ...s.td, whiteSpace: 'nowrap', fontSize: 12 }}>{a.ClosedDate || '—'}</td>
+                          <td style={{ ...s.td, fontWeight: 600 }}>{a.OpeningBalanceAmt ? `₦${a.OpeningBalanceAmt}` : '—'}</td>
+                          <td style={s.td}>{a.InstalmentAmount ? `₦${a.InstalmentAmount}` : '—'}</td>
+                          <td style={{ ...s.td, color: parseFloat(a.AmountOverdue) > 0 ? '#ef4444' : '#94a3b8' }}>
+                            {a.AmountOverdue ? `₦${a.AmountOverdue}` : '—'}
+                          </td>
+                          <td style={s.td}>
+                            <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: a.AccountStatus === 'Closed' ? '#f1f5f9' : '#dcfce7', color: a.AccountStatus === 'Closed' ? '#64748b' : '#16a34a' }}>
+                              {a.AccountStatus}
+                            </span>
+                          </td>
+                          <td style={s.td}>
+                            <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: isPerforming ? '#dcfce7' : isWatchlist ? '#fef3c7' : '#fee2e2', color: isPerforming ? '#16a34a' : isWatchlist ? '#d97706' : '#dc2626' }}>
+                              {a.PerformanceStatus || '—'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 24-Month payment history */}
+          {payHistory.length > 0 && (
+            <div style={s.card}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div style={s.cardTitle}>24-Month Payment History</div>
+                <div style={{ display: 'flex', gap: 10, fontSize: 11 }}>
+                  {[['✓ Current', '#dcfce7', '#16a34a'], ['1-2 Late', '#fef3c7', '#d97706'], ['3+ Late', '#fee2e2', '#dc2626'], ['WO Written-off', '#450a0a', '#fca5a5'], ['— N/A', '#f1f5f9', '#94a3b8']].map(([lbl, bg, color]) => (
+                    <span key={lbl} style={{ background: bg, color, padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>{lbl}</span>
+                  ))}
+                </div>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                {payHistory.map((acc, ai) => (
+                  <div key={ai} style={{ marginBottom: 16 }}>
+                    <button
+                      onClick={() => setExpanded(expanded === ai ? null : ai)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%', padding: '6px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    >
+                      <div>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{acc.SubscriberName}</span>
+                        <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 10 }}>{acc.AccountNo}</span>
+                        <span style={{ fontSize: 11, color: '#64748b', marginLeft: 10 }}>{acc.DateAccountOpened} → {acc.ClosedDate || 'Open'}</span>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: acc.PerformanceStatus === 'Performing' ? '#dcfce7' : '#fef3c7', color: acc.PerformanceStatus === 'Performing' ? '#16a34a' : '#d97706' }}>{acc.PerformanceStatus}</span>
+                    </button>
+                    {(expanded === ai || payHistory.length <= 2) && (
+                      <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginTop: 6 }}>
+                        {Array.from({ length: 24 }, (_, i) => {
+                          const mKey = `M${String(i + 1).padStart(2, '0')}`;
+                          const code = acc[mKey];
+                          const { bg, color, label } = paymentColor(code);
+                          const colLabel = monthCols[i] || mKey;
+                          return (
+                            <div key={mKey} title={`${colLabel}: ${code ?? '—'}`} style={{ width: 32, textAlign: 'center' }}>
+                              <div style={{ background: bg, color, borderRadius: 4, padding: '4px 2px', fontSize: 10, fontWeight: 700, minHeight: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{label}</div>
+                              <div style={{ fontSize: 8, color: '#94a3b8', marginTop: 2, lineHeight: 1.2 }}>{colLabel}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Enquiry history */}
+          {enquiries.length > 0 && (
+            <div style={s.card}>
+              <div style={s.cardTitle}>Recent Enquiries</div>
+              <table style={s.table}>
+                <thead><tr>{['Date', 'Lender', 'Enquiry Reason', 'Phone'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {enquiries.map((e, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #f1f5f9', background: i % 2 ? '#f8fafc' : '#fff' }}>
+                      <td style={{ ...s.td, whiteSpace: 'nowrap', fontSize: 12 }}>{e.DateRequested}</td>
+                      <td style={s.td}>{e.SubscriberName || '—'}</td>
+                      <td style={s.td}>{e.EnquiryReason || '—'}</td>
+                      <td style={s.td}>{e.CompanyTelephoneNo || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Guarantors */}
+          {guarantors.length > 0 && (
+            <div style={s.card}>
+              <div style={s.cardTitle}>Guarantors ({guarantors.length})</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {guarantors.map((g, i) => (
+                  <div key={i} style={{ background: '#f8fafc', borderRadius: 10, padding: '12px 16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
+                    {[['Name', `${g.GuarantorFirstName || ''} ${g.GuarantorOtherName || ''}`.trim()], ['Gender', g.GuarantorGender], ['DOB', g.GuarantorDateOfBirth], ['NIN', g.GuarantorNationalIDNo], ['Address', g.GuarantorAddress1]].filter(([, v]) => v).map(([lbl, val]) => (
+                      <div key={lbl}><div style={s.infoLabel}>{lbl}</div><div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{val}</div></div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* History list */}
       <div style={s.card}>
         <div style={s.cardTitle}>Bureau Check History</div>
         {bureauResults.length === 0 ? <div style={s.empty}>No bureau checks yet.</div> : bureauResults.map((r, i) => {
-          const score = r.result?.creditScore ?? r.result?.summary?.creditScore;
+          const sec2 = parseBureauSections(r.result);
+          const sc = sec2?.Scoring?.[0]?.TotalConsumerScore;
+          const desc = sec2?.Scoring?.[0]?.Description;
           return (
-            <div key={r._id} style={{ ...s.activityRow, padding: '12px 0', borderBottom: '1px solid #f1f5f9', background: i % 2 ? '#f8fafc' : '#fff' }}>
+            <div key={r._id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 0', borderBottom: '1px solid #f1f5f9', background: i % 2 ? '#f8fafc' : '#fff' }}>
+              {sc && <div style={{ fontSize: 22, fontWeight: 900, color: scoreColor(sc), minWidth: 44, textAlign: 'center' }}>{sc}</div>}
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, color: '#0f172a', fontSize: 14 }}>Credit Score: {score ?? '—'} · BVN ••••{r.bvn?.slice(-4)}</div>
+                <div style={{ fontWeight: 600, color: '#0f172a', fontSize: 14 }}>{desc || 'Bureau Check'} · BVN ••••{r.bvn?.slice(-4)}</div>
                 <div style={s.activityDate}>{new Date(r.createdAt).toLocaleString()}</div>
               </div>
               <StatusBadge status={r.status} />

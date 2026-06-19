@@ -49,6 +49,11 @@ router.post('/credit-bureau/check', logUsage('/v1/credit-bureau/check'), async (
       upstreamData = await getXScoreConsumerReport({ consumerID, consumerMergeList });
     } catch (upstreamErr) {
       const errBody = upstreamErr.response?.data || { message: upstreamErr.message };
+      console.error('[Bureau] upstream error:', {
+        status: upstreamErr.response?.status,
+        url: upstreamErr.config?.url,
+        data: errBody,
+      });
       await BureauResult.create({
         client: req.apiKey.client,
         customer: customerId || undefined,
@@ -56,8 +61,11 @@ router.post('/credit-bureau/check', logUsage('/v1/credit-bureau/check'), async (
         result: errBody,
         status: 'failed',
       }).catch(() => {});
-      const status = upstreamErr.response?.status || 502;
-      return res.status(status).json({ error: errBody?.Message || errBody?.message || 'Bureau check failed' });
+      // Never forward upstream 401/403 to the client — they'd look like our own auth errors
+      const rawStatus = upstreamErr.response?.status || 502;
+      const status = rawStatus === 401 || rawStatus === 403 ? 502 : rawStatus;
+      const message = errBody?.Message || errBody?.message || errBody?.error || JSON.stringify(errBody) || 'Bureau check failed';
+      return res.status(status).json({ error: message, upstream: { status: rawStatus, url: upstreamErr.config?.url } });
     }
 
     const saved = await BureauResult.create({
