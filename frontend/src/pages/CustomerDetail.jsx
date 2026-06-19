@@ -306,7 +306,8 @@ function StatementTab({ customer, statements, onRefresh }) {
     { value: 'optimus', label: 'Optimus' }, { value: 'parallex', label: 'Parallex' },
     { value: 'gtb', label: 'GTBank' }, { value: 'opay', label: 'Opay' },
     { value: 'fidelity', label: 'Fidelity' }, { value: 'sterling', label: 'Sterling' },
-    { value: 'access', label: 'Access' },
+    { value: 'access', label: 'Access' }, { value: 'fcmb', label: 'FCMB' },
+    { value: 'firstbank', label: 'First Bank' },
   ];
 
   async function handleUpload(e) {

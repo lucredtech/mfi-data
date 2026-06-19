@@ -55,7 +55,7 @@ export default function Landing() {
           <p style={s.heroSub}>
             Give your microfinance institution access to Lucred's credit data infrastructure —
             bank statement analysis, credit bureau, identity verification and AI-powered credit scoring.
-            All via a single API.
+            All via a single dashboard.
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
             <Link to="/register" style={s.heroBtnPrimary}>Start for free →</Link>
