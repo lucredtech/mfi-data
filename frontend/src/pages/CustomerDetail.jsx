@@ -297,6 +297,7 @@ function StatementTab({ customer, statements, onRefresh }) {
   const [bank, setBank] = useState('');
   const [password, setPassword] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(null);
   const navigate = useNavigate();
 
   const BANKS = [
@@ -323,10 +324,23 @@ function StatementTab({ customer, statements, onRefresh }) {
       fd.append('email', customer.email || '');
       fd.append('customerId', customer._id);
       if (password) fd.append('password', password);
-      await axios.post(`${API}/v1/statement/upload-analyze`, fd, { headers: { 'X-Api-Key': apiKey } });
-      toast.success('Analysis complete');
+      const { data } = await axios.post(`${API}/v1/statement/upload-analyze`, fd, { headers: { 'X-Api-Key': apiKey } });
+      toast.success('Analysis complete — redirecting to results in 5 seconds…');
       setFile(null); setBank(''); setPassword('');
       onRefresh();
+      const statementId = data?.statement?._id || data?._id;
+      if (statementId) {
+        let secs = 5;
+        setRedirectCountdown(secs);
+        const interval = setInterval(() => {
+          secs -= 1;
+          setRedirectCountdown(secs);
+          if (secs <= 0) {
+            clearInterval(interval);
+            navigate(`/dashboard/statements/${statementId}`);
+          }
+        }, 1000);
+      }
     } catch (err) {
       toast.error(err.response?.data?.error || 'Upload failed');
     } finally {
@@ -358,6 +372,15 @@ function StatementTab({ customer, statements, onRefresh }) {
           </div>
         </form>
       </div>
+      {redirectCountdown !== null && (
+        <div style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 12, padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ fontSize: 28, fontWeight: 900, color: '#16a34a', minWidth: 32, textAlign: 'center' }}>{redirectCountdown}</div>
+          <div>
+            <div style={{ fontWeight: 700, color: '#15803d', fontSize: 14 }}>Analysis complete!</div>
+            <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Redirecting to the full statement analysis view in {redirectCountdown} second{redirectCountdown !== 1 ? 's' : ''}…</div>
+          </div>
+        </div>
+      )}
       <div style={s.card}>
         <div style={s.cardTitle}>Statement History</div>
         {statements.length === 0 ? <div style={s.empty}>No statements yet.</div> : (
