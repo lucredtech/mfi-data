@@ -15,6 +15,8 @@ const BANKS = [
   { value: "fidelity", label: "Fidelity" },
   { value: "sterling", label: "Sterling" },
   { value: "access", label: "Access" },
+  { value: "fcmb", label: "FCMB" },
+  { value: "firstbank", label: "First Bank" },
 ];
 
 export default function StatementAnalysis() {
