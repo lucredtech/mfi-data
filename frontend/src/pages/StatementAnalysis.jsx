@@ -36,8 +36,8 @@ export default function StatementAnalysis() {
   };
 
   const validateAndSet = (f) => {
-    const allowed = ['application/pdf', 'image/jpeg', 'image/png'];
-    if (!allowed.includes(f.type)) return toast.error('Only PDF, JPEG, or PNG files accepted');
+    const allowed = ['application/pdf', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowed.includes(f.type) && !f.name.match(/\.(pdf|xlsx|xls|csv|doc|docx)$/i)) return toast.error('Only PDF, spreadsheet, or document files accepted');
     if (f.size > 10 * 1024 * 1024) return toast.error('File must be under 10MB');
     setFile(f);
     setResult(null);
@@ -89,7 +89,7 @@ export default function StatementAnalysis() {
               onDrop={onDrop}
               onClick={() => inputRef.current.click()}
             >
-              <input ref={inputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }}
+              <input ref={inputRef} type="file" accept=".pdf,.xlsx,.xls,.csv,.docx,.doc" style={{ display: 'none' }}
                 onChange={(e) => e.target.files[0] && validateAndSet(e.target.files[0])} />
               {file ? (
                 <div>
