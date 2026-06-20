@@ -1487,7 +1487,7 @@ function ScoreBreakdownCards({ breakdown }) {
 
 // ── Loan Eligibility Logic ────────────────────────────────────────────────────
 
-function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, proposedMonthlyPayment, loanTenor, annualRate }) {
+function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, proposedMonthlyPayment, proposedLoanAmount, loanTenor, annualRate }) {
   const flags = [];
   const conditions = [];
   const analysis = {}; // per-category detailed reasoning
@@ -1794,17 +1794,28 @@ function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement
     loanAmountReasoning = `₦${Number(affordableMonthly).toLocaleString()}/month spare capacity (${sourceNote}) → ${headroomPct}% of income available. At a ${multiplier}-month horizon, suggested principal up to ₦${Number(suggestedMaxAmount).toLocaleString()}.`;
   }
 
-  // ── Repayment schedule (if tenor + rate provided) ────────────────────────
+  // ── Repayment schedule — system suggested amount ─────────────────────────
   let suggestedMonthlyPayment = null;
   let totalRepayment = null;
   let totalInterest = null;
 
   if (suggestedMaxAmount && loanTenor > 0 && annualRate >= 0) {
-    // Flat rate (common for Nigerian MFIs)
     const interest = suggestedMaxAmount * (annualRate / 100) * (loanTenor / 12);
     totalInterest = Math.round(interest);
     totalRepayment = suggestedMaxAmount + totalInterest;
     suggestedMonthlyPayment = Math.round(totalRepayment / loanTenor);
+  }
+
+  // ── Repayment schedule — proposed loan amount ─────────────────────────────
+  let proposedMonthlyPaymentCalc = proposedMonthlyPayment; // already computed by caller
+  let proposedTotalRepayment = null;
+  let proposedTotalInterest = null;
+
+  if (proposedLoanAmount > 0 && loanTenor > 0) {
+    const interest = proposedLoanAmount * (annualRate / 100) * (loanTenor / 12);
+    proposedTotalInterest = Math.round(interest);
+    proposedTotalRepayment = proposedLoanAmount + proposedTotalInterest;
+    proposedMonthlyPaymentCalc = Math.round(proposedTotalRepayment / loanTenor);
   }
 
   const verdictReason = {
@@ -1828,7 +1839,10 @@ function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement
     summary: verdictReason[verdict],
     effectiveDTI,
     existingDTI,
-    proposedMonthlyPayment,
+    proposedLoanAmount,
+    proposedMonthlyPayment: proposedMonthlyPaymentCalc,
+    proposedTotalRepayment,
+    proposedTotalInterest,
     monthlyIncome,
     categories: {
       identityIntegrity: { score: identityScore, status: identityStatus, notes: identityNotes },
@@ -1903,11 +1917,17 @@ function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement
   const [review, setReview] = useState(null);
   const [hasRun, setHasRun] = useState(false);
 
-  function compute(payment, tenor, rate) {
-    const proposed = parseFloat((payment || '').replace(/,/g, '')) || 0;
+  function compute(amount, tenor, rate) {
+    const principal = parseFloat((amount || '').replace(/,/g, '')) || 0;
     const tenorNum  = parseInt(tenor, 10) || 0;
     const rateNum   = parseFloat(rate) || 0;
-    return computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, proposedMonthlyPayment: proposed, loanTenor: tenorNum, annualRate: rateNum });
+    // Derive monthly repayment from loan amount using flat-rate formula
+    let proposedMonthlyPayment = 0;
+    if (principal > 0 && tenorNum > 0) {
+      const interest = principal * (rateNum / 100) * (tenorNum / 12);
+      proposedMonthlyPayment = Math.round((principal + interest) / tenorNum);
+    }
+    return computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, proposedMonthlyPayment, proposedLoanAmount: principal, loanTenor: tenorNum, annualRate: rateNum });
   }
 
   function generate() {
@@ -1946,7 +1966,7 @@ function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement
           Analyses identity, bureau, and financial data. Enter loan parameters to compute eligibility, DTI, and full repayment schedule.
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          {inputBox('Proposed Monthly Repayment (₦)', '₦', proposedPayment, setProposedPayment, 'e.g. 50,000')}
+          {inputBox('Proposed Loan Amount (₦)', '₦', proposedPayment, setProposedPayment, 'e.g. 500,000')}
           {inputBox('Loan Tenure', 'months', loanTenor, setLoanTenor, '12', 60)}
           {inputBox('Annual Interest Rate', '%', annualRate, setAnnualRate, 'e.g. 24', 60)}
           <button style={{ ...s.btn, background: '#6d28d9', height: 38 }} onClick={generate}>
@@ -1989,22 +2009,44 @@ function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement
             )}
           </div>
 
-          {/* Repayment schedule */}
-          {review.suggestedMonthlyPayment != null && (
+          {/* Proposed loan repayment schedule */}
+          {review.proposedLoanAmount > 0 && review.loanTenor > 0 && (
             <div style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)', borderRadius: 14, padding: '1.25rem 1.75rem' }}>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#a5b4fc', marginBottom: 14 }}>
-                Repayment Schedule · {review.loanTenor} months @ {review.annualRate}% p.a. (flat rate)
+                Proposed Loan Schedule · {review.loanTenor} months @ {review.annualRate}% p.a. (flat rate)
               </div>
               <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
                 {[
-                  ['Suggested Monthly Payment', `₦${fmt(review.suggestedMonthlyPayment)}`, '#fff'],
-                  ['Total Repayment', `₦${fmt(review.totalRepayment)}`, '#c7d2fe'],
-                  ['Total Interest Cost', `₦${fmt(review.totalInterest)}`, '#fca5a5'],
-                  ['Principal Amount', `₦${fmt(review.suggestedMaxAmount)}`, '#86efac'],
+                  ['Monthly Repayment', `₦${fmt(review.proposedMonthlyPayment)}`, '#fff'],
+                  ['Total Repayment', `₦${fmt(review.proposedTotalRepayment)}`, '#c7d2fe'],
+                  ['Total Interest', `₦${fmt(review.proposedTotalInterest)}`, '#fca5a5'],
+                  ['Loan Amount', `₦${fmt(review.proposedLoanAmount)}`, '#86efac'],
                 ].map(([label, value, color]) => (
                   <div key={label}>
                     <div style={{ fontSize: 10, color: '#818cf8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
                     <div style={{ fontSize: 20, fontWeight: 800, color }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* System suggested schedule */}
+          {review.suggestedMonthlyPayment != null && (
+            <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 14, padding: '1.25rem 1.75rem' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#6d28d9', marginBottom: 14 }}>
+                System Suggested Schedule · Based on affordability
+              </div>
+              <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+                {[
+                  ['Monthly Repayment', `₦${fmt(review.suggestedMonthlyPayment)}`, '#4c1d95'],
+                  ['Total Repayment', `₦${fmt(review.totalRepayment)}`, '#5b21b6'],
+                  ['Total Interest', `₦${fmt(review.totalInterest)}`, '#6d28d9'],
+                  ['Suggested Principal', `₦${fmt(review.suggestedMaxAmount)}`, '#7c3aed'],
+                ].map(([label, value, color]) => (
+                  <div key={label}>
+                    <div style={{ fontSize: 10, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color }}>{value}</div>
                   </div>
                 ))}
               </div>
