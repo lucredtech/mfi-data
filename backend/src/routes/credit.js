@@ -42,12 +42,21 @@ router.post('/credit-bureau/check', logUsage('/v1/credit-bureau/check'), async (
       // Step 1: match consumer to get consumerID / mergeList
       const matchResult = await matchConsumer({ bvn, name, dateOfBirth, phone });
 
-      const consumerID = matchResult?.consumerID ?? matchResult?.ConsumerID ?? '';
-      const consumerMergeList = matchResult?.consumerMergeList ?? matchResult?.ConsumerMergeList ?? '';
-      const subscriberEnquiryEngineID = matchResult?.SubscriberEnquiryEngineID ?? matchResult?.subscriberEnquiryEngineID ?? '';
+      // FirstCentral nests results inside MatchedConsumer array
+      const matched = matchResult?.MatchedConsumer?.[0] ?? matchResult;
+      const consumerID = matched?.ConsumerID ?? matched?.consumerID ?? '0';
+      const consumerMergeList = matched?.ConsumerMergeList ?? matched?.consumerMergeList ?? '';
+      const subscriberEnquiryEngineID = matched?.MatchingEngineID ?? matched?.SubscriberEnquiryEngineID ?? matched?.subscriberEnquiryEngineID ?? '';
+      const enquiryID = matched?.EnquiryID ?? matched?.enquiryID ?? '';
+      const matchingRate = parseFloat(matched?.MatchingRate ?? 0);
 
-      // Step 2: pull full XScore report, passing SubscriberEnquiryEngineID from match response
-      upstreamData = await getXScoreConsumerReport({ consumerID, consumerMergeList, subscriberEnquiryEngineID });
+      // No record found — return a clean result rather than calling the report endpoint
+      if (parseInt(consumerID, 10) === 0 && matchingRate === 0) {
+        upstreamData = { noRecord: true, message: 'No credit record found for this individual in FirstCentral.' };
+      } else {
+        // Step 2: pull full XScore report using the numeric EnquiryID from the match
+        upstreamData = await getXScoreConsumerReport({ consumerID, consumerMergeList, subscriberEnquiryEngineID, enquiryID });
+      }
     } catch (upstreamErr) {
       const errBody = upstreamErr.response?.data || { message: upstreamErr.message };
       console.error('[Bureau] upstream error:', {

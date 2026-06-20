@@ -64,22 +64,26 @@ async function matchConsumer({ bvn, name, dateOfBirth, phone }) {
       Identification: bvn || phone || '',
     };
     const { data } = await axios.post(`${BASE_URL}/connectConsumerMatch`, body, { timeout: 30000 });
-    return data;
+    // FirstCentral returns either an object or a single-element array
+    return Array.isArray(data) ? data[0] : data;
   });
 }
 
-async function getXScoreConsumerReport({ consumerID, consumerMergeList, subscriberEnquiryEngineID }) {
+async function getXScoreConsumerReport({ consumerID, consumerMergeList, subscriberEnquiryEngineID, enquiryID }) {
   return withRetry(async () => {
     const DataTicket = await getDataTicket();
+    const idNum   = parseInt(consumerID, 10) || 0;
+    const engID   = parseInt(subscriberEnquiryEngineID, 10) || 0;
+    const mergeID = parseInt(consumerMergeList, 10) || 0;
+    const enqID   = parseInt(enquiryID, 10) || 0;
     const body = {
       DataTicket,
-      consumerID: consumerID || '',
-      consumerMergeList: consumerMergeList || '',
-      EnquiryID: `LCR-${Date.now()}`,
+      consumerID: idNum,
+      EnquiryID: enqID || Date.now(),
       EnquiryReason: ENQUIRY_REASON,
     };
-    // SubscriberEnquiryEngineID must come from the match response per FirstCentral requirements
-    if (subscriberEnquiryEngineID) body.SubscriberEnquiryEngineID = subscriberEnquiryEngineID;
+    if (engID)   body.SubscriberEnquiryEngineID = engID;
+    if (mergeID) body.consumerMergeList = mergeID;
     const { data } = await axios.post(`${BASE_URL}/GetXScoreConsumerFullCreditReport`, body, { timeout: 60000 });
     return data;
   });

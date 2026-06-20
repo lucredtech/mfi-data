@@ -659,17 +659,19 @@ function BureauTab({ customer, bureauResults, onRefresh }) {
   const summary = sec?.CreditAccountSummary?.[0];
   const rating = sec?.CreditAccountRating?.[0];
   const agreements = sec?.CreditAgreementSummary || [];
-  const payHistHeader = sec?.AccountMonthlyPaymentHistoryHeader?.[0];
-  const payHistory = sec?.AccountMonthlyPaymentHistory || [];
-  const delinquency = (sec?.DeliquencyInformation || []).filter(d => d.SubscriberName || d.AccountNo);
-  const enquiries = (sec?.EnquiryHistoryTop || []).filter(e => e.DateRequested);
-  const guarantors = (sec?.GuarantorDetails || []).filter(g => g.GuarantorFirstName);
+  const payHistHeader = sec?.AccountMonthlyPaymentHeader?.[0];
+  const payHistory    = sec?.AccountMonthlyPaymentHistory || [];
+  const delinquency   = (sec?.DeliquencyInformation || []).filter(d => d.SubscriberName || d.AccountNo);
+  const enquiries     = (sec?.EnquiryHistoryTop || []).filter(e => e.DateRequested);
+  const guarantors    = (sec?.GuarantorDetails || []).filter(g => g.GuarantorFirstName);
+  const employment    = (sec?.EmploymentHistory || []).filter(e => e.EmployerDetail || e.Occupation);
+  const enquiryInput  = (sec?.EnquiryInput || []).find(e => e.SubscriberName);
 
-  // Build 24 month column labels from header
+  // Build 24 month column labels from header (MH24=oldest … MH01=most recent)
   const monthCols = payHistHeader
     ? Array.from({ length: 24 }, (_, i) => {
         const key = `MH${String(24 - i).padStart(2, '0')}`;
-        return payHistHeader[key]?.replace('\n', ' ') || `M${String(i + 1).padStart(2, '0')}`;
+        return payHistHeader[key] || `M${String(i + 1).padStart(2, '0')}`;
       })
     : [];
 
@@ -971,6 +973,52 @@ function BureauTab({ customer, bureauResults, onRefresh }) {
               </div>
             </div>
           )}
+
+          {/* Employment history */}
+          {employment.length > 0 && (
+            <div style={s.card}>
+              <div style={s.cardTitle}>Employment History</div>
+              <table style={s.table}>
+                <thead><tr>{['Employer', 'Occupation', 'Updated'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {employment.map((e, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #f1f5f9', background: i % 2 ? '#f8fafc' : '#fff' }}>
+                      <td style={s.td}>{e.EmployerDetail || '—'}</td>
+                      <td style={s.td}>{e.Occupation || '—'}</td>
+                      <td style={{ ...s.td, fontSize: 12, color: '#64748b' }}>{e.UpDateOnDate || e.UpDateDate || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Enquiry input — shows which lender ran this check and the match rate */}
+          {enquiryInput && (
+            <div style={{ ...s.card, background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+              <div style={s.cardTitle}>Enquiry Details</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10, marginBottom: enquiryInput.Disclaimer ? 12 : 0 }}>
+                {[
+                  ['Enquiry Date', enquiryInput.EnquiryDate],
+                  ['Reason', enquiryInput.EnquiryReason],
+                  ['Subscriber', enquiryInput.SubscriberName],
+                  ['Username', enquiryInput.SubscriberUsername],
+                  ['Match Rate', enquiryInput.MatchRate != null ? `${enquiryInput.MatchRate}%` : null],
+                ].filter(([, v]) => v != null && v !== '').map(([lbl, val]) => (
+                  <div key={lbl} style={s.infoCell}>
+                    <div style={s.infoLabel}>{lbl}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{val}</div>
+                  </div>
+                ))}
+              </div>
+              {enquiryInput.Disclaimer && (
+                <details style={{ marginTop: 4 }}>
+                  <summary style={{ fontSize: 11, color: '#94a3b8', cursor: 'pointer', userSelect: 'none' }}>View disclaimer</summary>
+                  <p style={{ fontSize: 11, color: '#64748b', marginTop: 8, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{enquiryInput.Disclaimer}</p>
+                </details>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -978,14 +1026,21 @@ function BureauTab({ customer, bureauResults, onRefresh }) {
       <div style={s.card}>
         <div style={s.cardTitle}>Bureau Check History</div>
         {bureauResults.length === 0 ? <div style={s.empty}>No bureau checks yet.</div> : bureauResults.map((r, i) => {
-          const sec2 = parseBureauSections(r.result);
+          const noRecord = r.result?.noRecord;
+          const sec2 = noRecord ? null : parseBureauSections(r.result);
           const sc = sec2?.Scoring?.[0]?.TotalConsumerScore;
           const desc = sec2?.Scoring?.[0]?.Description;
           return (
             <div key={r._id} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 0', borderBottom: '1px solid #f1f5f9', background: i % 2 ? '#f8fafc' : '#fff' }}>
-              {sc && <div style={{ fontSize: 22, fontWeight: 900, color: scoreColor(sc), minWidth: 44, textAlign: 'center' }}>{sc}</div>}
+              {sc
+                ? <div style={{ fontSize: 22, fontWeight: 900, color: scoreColor(sc), minWidth: 44, textAlign: 'center' }}>{sc}</div>
+                : <div style={{ fontSize: 22, minWidth: 44, textAlign: 'center', color: '#94a3b8' }}>—</div>
+              }
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 600, color: '#0f172a', fontSize: 14 }}>{desc || 'Bureau Check'} · BVN ••••{r.bvn?.slice(-4)}</div>
+                <div style={{ fontWeight: 600, color: '#0f172a', fontSize: 14 }}>
+                  {noRecord ? 'No Credit Record Found' : (desc || 'Bureau Check')} · BVN ••••{r.bvn?.slice(-4)}
+                </div>
+                {noRecord && <div style={{ fontSize: 12, color: '#64748b' }}>This individual has no record in FirstCentral's database.</div>}
                 <div style={s.activityDate}>{new Date(r.createdAt).toLocaleString()}</div>
               </div>
               <StatusBadge status={r.status} />
@@ -1258,7 +1313,13 @@ function ScorecardTab({ customer, statements, bvnResults, ninResults, bureauResu
       )}
 
       {/* ── Bureau score card ─────────────────────────────────────────────────── */}
-      {latestBureau && bureauSec && (
+      {latestBureau?.result?.noRecord && (
+        <div style={{ ...s.card, borderLeft: '4px solid #94a3b8' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Credit Bureau — FirstCentral</div>
+          <div style={{ fontSize: 13, color: '#64748b' }}>No credit record found for this individual. They may be new to credit or not yet registered with FirstCentral.</div>
+        </div>
+      )}
+      {latestBureau && !latestBureau.result?.noRecord && bureauSec && (
         <div style={s.card}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>Credit Bureau — FirstCentral</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
