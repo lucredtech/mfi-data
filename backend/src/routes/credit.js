@@ -160,7 +160,7 @@ router.post('/identity/verify-bvn', logUsage('/v1/identity/verify-bvn'), async (
       client: req.apiKey.client,
       customer: customerId || undefined,
       bvn,
-      result: stripBiometrics(normalized), // biometric image never persisted
+      result: normalized,
       status: 'success',
     });
 
@@ -216,7 +216,7 @@ router.post('/identity/verify-nin', logUsage('/v1/identity/verify-nin'), async (
       client: req.apiKey.client,
       customer: customerId || undefined,
       nin,
-      result: stripBiometrics(normalized), // biometric photo never persisted
+      result: normalized,
       status: 'success',
     });
 

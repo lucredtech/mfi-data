@@ -19,13 +19,11 @@ export default function exportBVNCertPDF(record) {
   doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 24);
   doc.text(`Lucred Credit Engine · Confidential`, 14, 30);
 
-  // Photo
-  let photoX = W - 14;
+  // Photo (returned from Dojah in live result; stored in DB for history)
   if (r.image) {
     try {
       const imgData = r.image.startsWith('data:') ? r.image : `data:image/jpeg;base64,${r.image}`;
       doc.addImage(imgData, 'JPEG', W - 46, 4, 30, 30, undefined, 'FAST');
-      photoX = W - 50;
     } catch { /* skip if corrupt */ }
   }
 
@@ -36,7 +34,7 @@ export default function exportBVNCertPDF(record) {
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(isSuccess ? 22 : 220, isSuccess ? 163 : 38, isSuccess ? 74 : 38);
-  doc.text(isSuccess ? '✓ VERIFIED' : '✗ FAILED', 18, 50);
+  doc.text(isSuccess ? 'VERIFIED' : 'FAILED', 18, 50);
 
   // Identity fields
   doc.setTextColor(15, 23, 42);
@@ -48,11 +46,13 @@ export default function exportBVNCertPDF(record) {
     ['Date of Birth', r.dateOfBirth || '—'],
     ['Gender', r.gender || '—'],
     ['Phone Number', r.phoneNumber || '—'],
-    ['Nationality', r.nationality || 'Nigerian'],
-    ['State of Origin', r.stateOfOrigin || '—'],
-    ['LGA', r.lga || '—'],
+    ['Email', r.email || '—'],
+    ['NIN (on BVN record)', r.nin || '—'],
     ['Enrollment Bank', r.enrollmentBank || '—'],
-    ['Watch Listed', r.watchListed || 'No'],
+    ['Enrollment Branch', r.enrollmentBranch || '—'],
+    ['Registration Date', r.registrationDate || '—'],
+    ['Level of Account', r.levelOfAccount || '—'],
+    ['Watch Listed', r.watchListed !== undefined ? String(r.watchListed) : 'No'],
   ];
 
   doc.autoTable({

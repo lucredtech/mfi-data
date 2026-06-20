@@ -26,6 +26,8 @@ export function exportStatementPDF(statement) {
   const meta = d.metaData || {};
   const txRanges = d.transactionRanges || {};
   const weeklySummary = d.weeklyTransactionSummary || [];
+  const monthlyCredit = d.monthlyTransactionMetrics?.averageMonthlyCredit || [];
+  const monthlyDebit = d.monthlyTransactionMetricsDebit?.averageMonthlyDebit || [];
 
   const W = 210;
   let y = 0;
@@ -238,6 +240,59 @@ export function exportStatementPDF(statement) {
   doc.text(`Severity: ${sweep.sweepSeverity}   Events: ${sweep.numberOfSweepEvents}   Swept: ₦${fmt(sweep.totalSweptAmount)}   Ratio: ${pct(sweep.overallSweepRatio)}`, 20, y + 11);
   y += 20;
 
+  // Monthly sweep analysis
+  if (sweep.monthlySweepAnalysis?.length > 0) {
+    autoTable(doc, {
+      startY: y,
+      margin: { left: 14, right: 14 },
+      head: [['Month', 'Events', 'Swept Amount', 'Incoming Amount', 'Sweep Ratio']],
+      body: sweep.monthlySweepAnalysis.map((m) => [
+        m.month || '—',
+        m.sweep_count ?? '—',
+        `₦${fmt(m.swept_amount)}`,
+        `₦${fmt(m.incoming_amount)}`,
+        `${((m.sweep_ratio || 0) * 100).toFixed(1)}%`,
+      ]),
+      headStyles: { fillColor: [220, 38, 38], textColor: [255, 255, 255], fontSize: 8 },
+      bodyStyles: { fontSize: 8, textColor: [51, 65, 85] },
+      alternateRowStyles: { fillColor: [255, 248, 248] },
+      didDrawPage: (data) => {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(220, 38, 38);
+        doc.text('Monthly Sweep Summary', 14, data.settings.startY - 3);
+      },
+    });
+    y = doc.lastAutoTable.finalY + 6;
+  }
+
+  // Sweep candidate events
+  if (sweep.sweepCandidates?.length > 0) {
+    autoTable(doc, {
+      startY: y,
+      margin: { left: 14, right: 14 },
+      head: [['Credit Date', 'Credit Amount', 'Debit Date', 'Debit Amount', 'Hours Gap', 'Sweep %']],
+      body: sweep.sweepCandidates.map((c) => [
+        c.credit_date?.slice(0, 10) || '—',
+        `₦${fmt(c.credit_amount)}`,
+        c.debit_date?.slice(0, 10) || '—',
+        `₦${fmt(c.debit_amount)}`,
+        `${c.time_difference_hours ?? '—'}h`,
+        `${Number(c.sweep_percentage || 0).toFixed(1)}%`,
+      ]),
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 8 },
+      bodyStyles: { fontSize: 8, textColor: [51, 65, 85] },
+      alternateRowStyles: { fillColor: [255, 248, 248] },
+      didDrawPage: (data) => {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text('Sweep Events', 14, data.settings.startY - 3);
+      },
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+
   // ── Behavioral ─────────────────────────────────────────────────
   sectionTitle(doc, 'Behavioral Insights', y);
   y += 8;
@@ -260,6 +315,39 @@ export function exportStatementPDF(statement) {
   doc.text(`Total Saved: ₦${fmt(behavioral.savingsHabits?.totalSaved)}   Frequency: ${behavioral.savingsHabits?.savingsFrequency || '—'}`, 14, y + 2);
   y += 10;
 
+  // ── Monthly Credit vs Debit ────────────────────────────────────
+  if (monthlyCredit.length > 0) {
+    sectionTitle(doc, 'Monthly Credit vs Debit', y);
+    y += 8;
+    const monthlyRows = monthlyCredit.map((c) => {
+      const deb = monthlyDebit.find(x => x.month === c.month);
+      const net = (c.amount || 0) - (deb?.amount || 0);
+      return [
+        c.month,
+        `₦${fmt(c.amount)}`,
+        `₦${fmt(deb?.amount ?? 0)}`,
+        `${net >= 0 ? '+' : ''}₦${fmt(Math.abs(net))}`,
+      ];
+    });
+    autoTable(doc, {
+      startY: y,
+      margin: { left: 14, right: 14 },
+      head: [['Month', 'Total Credit', 'Total Debit', 'Net']],
+      body: monthlyRows,
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 9 },
+      bodyStyles: { fontSize: 9, textColor: [51, 65, 85] },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      didParseCell: (data) => {
+        if (data.column.index === 3 && data.section === 'body') {
+          const isPos = data.cell.text[0]?.startsWith('+');
+          data.cell.styles.textColor = isPos ? [22, 163, 74] : [220, 38, 38];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      },
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+
   // ── Weekly Transaction Summary ─────────────────────────────────
   if (weeklySummary.length > 0) {
     sectionTitle(doc, 'Weekly Transaction Summary', y);
@@ -267,20 +355,28 @@ export function exportStatementPDF(statement) {
     autoTable(doc, {
       startY: y,
       margin: { left: 14, right: 14 },
-      head: [['Week', 'Total Credit', 'Total Debit', 'Net', 'Transactions']],
+      head: [['Week Start', 'Credit', 'Debit', 'Net']],
       body: weeklySummary.map((w) => {
-        const net = (w.totalCredit || 0) - (w.totalDebit || 0);
+        const credit = w.credit_sum ?? w.totalCredit ?? 0;
+        const debit  = w.debit_sum  ?? w.totalDebit  ?? 0;
+        const net = credit - debit;
         return [
-          w.week,
-          `₦${fmt(w.totalCredit)}`,
-          `₦${fmt(w.totalDebit)}`,
+          w.week_start_date ?? w.week ?? '—',
+          `₦${fmt(credit)}`,
+          `₦${fmt(debit)}`,
           `${net >= 0 ? '+' : ''}₦${fmt(Math.abs(net))}`,
-          w.transactionCount ?? w.count ?? '—',
         ];
       }),
       headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 9 },
       bodyStyles: { fontSize: 8, textColor: [51, 65, 85] },
       alternateRowStyles: { fillColor: [248, 250, 252] },
+      didParseCell: (data) => {
+        if (data.column.index === 3 && data.section === 'body') {
+          const isPos = data.cell.text[0]?.startsWith('+');
+          data.cell.styles.textColor = isPos ? [22, 163, 74] : [220, 38, 38];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      },
     });
     y = doc.lastAutoTable.finalY + 8;
   }

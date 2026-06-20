@@ -144,7 +144,7 @@ export function exportScorecardPDF({ customer, statement, bvnResult, ninResult, 
         bvn.dateOfBirth || '—',
         bvn.gender || '—',
         bvn.phoneNumber || '—',
-        bvn.isValid !== false ? 'Valid ✓' : 'Invalid ✗',
+        bvn.isValid !== false ? 'Verified' : 'Failed',
         bvn.enrollmentBank || '—',
       ]],
       headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 8 },
@@ -155,7 +155,7 @@ export function exportScorecardPDF({ customer, statement, bvnResult, ninResult, 
 
   // ── Discrepancies ──────────────────────────────────────────────
   if (discrepancies.length > 0) {
-    sectionTitle(doc, `⚠ Data Discrepancies (${discrepancies.length})`, y);
+    sectionTitle(doc, `Data Discrepancies (${discrepancies.length})`, y);
     y += 8;
     autoTable(doc, {
       startY: y,
@@ -196,7 +196,7 @@ export function exportScorecardPDF({ customer, statement, bvnResult, ninResult, 
         nin.dateOfBirth || '—',
         nin.gender || '—',
         nin.phoneNumber || '—',
-        nin.isValid !== false ? 'Valid ✓' : 'Invalid ✗',
+        nin.isValid !== false ? 'Verified' : 'Failed',
         nin.address || '—',
       ]],
       headStyles: { fillColor: [109, 40, 217], textColor: [255, 255, 255], fontSize: 8 },
@@ -271,7 +271,7 @@ export function exportScorecardPDF({ customer, statement, bvnResult, ninResult, 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
       doc.setTextColor(220, 38, 38);
-      doc.text(`⚠ DELINQUENCY — ${bureauDelinquencyPDF.length} record(s) on file`, 16, y + 4);
+      doc.text(`DELINQUENCY — ${bureauDelinquencyPDF.length} record(s) on file`, 16, y + 4);
       y += 8;
       autoTable(doc, {
         startY: y,

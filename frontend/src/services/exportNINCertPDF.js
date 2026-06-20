@@ -19,7 +19,7 @@ export default function exportNINCertPDF(record) {
   doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 24);
   doc.text(`Lucred Credit Engine · Confidential`, 14, 30);
 
-  // Photo
+  // Photo (returned from Dojah in live result; stored in DB for history)
   if (r.photo) {
     try {
       const imgData = r.photo.startsWith('data:') ? r.photo : `data:image/jpeg;base64,${r.photo}`;
@@ -34,7 +34,7 @@ export default function exportNINCertPDF(record) {
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(isSuccess ? 22 : 220, isSuccess ? 163 : 38, isSuccess ? 74 : 38);
-  doc.text(isSuccess ? '✓ VERIFIED' : '✗ FAILED', 18, 50);
+  doc.text(isSuccess ? 'VERIFIED' : 'FAILED', 18, 50);
 
   // Identity fields
   doc.setTextColor(15, 23, 42);
