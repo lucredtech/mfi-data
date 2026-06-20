@@ -28,6 +28,7 @@ import Privacy from './pages/Privacy';
 import AdminOverview from './pages/admin/AdminOverview';
 import AdminClients from './pages/admin/AdminClients';
 import AdminClientDetail from './pages/admin/AdminClientDetail';
+import NotFound from './pages/NotFound';
 
 function PrivateRoute({ children }) {
   const { client, loading } = useAuth();
@@ -66,6 +67,7 @@ function App() {
         <Route path="/admin" element={<AdminRoute><AdminLayout><AdminOverview /></AdminLayout></AdminRoute>} />
         <Route path="/admin/clients" element={<AdminRoute><AdminLayout><AdminClients /></AdminLayout></AdminRoute>} />
         <Route path="/admin/clients/:id" element={<AdminRoute><AdminLayout><AdminClientDetail /></AdminLayout></AdminRoute>} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
   );
