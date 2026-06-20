@@ -8,7 +8,7 @@ const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.rail
 function authHeaders() { return { Authorization: `Bearer ${localStorage.getItem('token')}` }; }
 function apiKeyHeaders() { return { 'X-Api-Key': localStorage.getItem('apiKey') }; }
 
-const TABS = ['Overview', 'Statement Analysis', 'BVN Verification', 'NIN Verification', 'Credit Bureau', 'Scorecard'];
+const TABS = ['Overview', 'Statement Analysis', 'BVN Verification', 'NIN Verification', 'Credit Bureau', 'Scorecard', 'Loan Review'];
 
 // ── Discrepancy engine ───────────────────────────────────────────────────────
 function detectDiscrepancies(customer, bvnData, ninData) {
@@ -130,7 +130,12 @@ export default function CustomerDetail() {
       {/* Tabs */}
       <div style={s.tabs}>
         {TABS.map((t) => (
-          <button key={t} style={{ ...s.tabBtn, ...(tab === t ? s.tabActive : {}) }} onClick={() => setTab(t)}>{t}</button>
+          <button key={t} style={{ ...s.tabBtn, ...(tab === t ? s.tabActive : {}) }} onClick={() => setTab(t)}>
+            {t}
+            {t === 'Loan Review' && (
+              <span style={{ fontSize: 9, fontWeight: 800, background: '#7c3aed', color: '#fff', padding: '1px 6px', borderRadius: 20, marginLeft: 6, verticalAlign: 'middle', letterSpacing: 0.5 }}>BETA</span>
+            )}
+          </button>
         ))}
       </div>
 
@@ -140,10 +145,44 @@ export default function CustomerDetail() {
         {tab === 'BVN Verification' && <BVNTab customer={customer} bvnResults={bvnResults || []} onRefresh={load} />}
         {tab === 'NIN Verification' && <NINTab customer={customer} ninResults={ninResults || []} onRefresh={load} />}
         {tab === 'Credit Bureau' && <BureauTab customer={customer} bureauResults={bureauResults || []} onRefresh={load} />}
-        {tab === 'Scorecard' && <ScorecardTab customer={customer} statements={statements || []} bvnResults={bvnResults || []} ninResults={ninResults || []} bureauResults={bureauResults || []} discrepancies={discrepancies} />}
+        {tab === 'Scorecard' && <ScorecardTab customer={customer} statements={statements || []} bvnResults={bvnResults || []} ninResults={ninResults || []} bureauResults={bureauResults || []} discrepancies={discrepancies} setTab={setTab} />}
+        {tab === 'Loan Review' && <LoanReviewTab customer={customer} statements={statements || []} bvnResults={bvnResults || []} ninResults={ninResults || []} bureauResults={bureauResults || []} discrepancies={discrepancies} />}
       </div>
     </div>
   );
+}
+
+// ── Score explanations ────────────────────────────────────────────────────────
+const SCORE_DETAIL = {
+  incomeStability: {
+    what: 'Measures regularity and predictability of income credits. High scores indicate consistent salary or business inflows at predictable intervals with stable amounts.',
+    ranges: [[20,25,'Excellent — consistent, predictable income with regular employer or business credits'],[15,19,'Good — mostly regular income with some variation in timing or amount'],[10,14,'Moderate — irregular income; repayment timing may be unpredictable'],[0,9,'Poor — very inconsistent inflows; high risk of missed repayments']],
+  },
+  debtServicing: {
+    what: 'Evaluates how well existing loan repayments are managed relative to income. Looks at consistency and proportion of loan deductions from the account.',
+    ranges: [[20,25,'Excellent — loan repayments well within income capacity, comfortable buffer'],[15,19,'Good — repayments manageable but taking a notable share of income'],[10,14,'Moderate — existing debt load is high; additional borrowing increases risk significantly'],[0,9,'Poor — income barely covers current repayments; very little room for new debt']],
+  },
+  spendingBehavior: {
+    what: 'Analyses spending patterns for signs of impulsive or high-risk behaviour including gambling, excessive lifestyle spending, or erratic large outflows.',
+    ranges: [[20,25,'Excellent — disciplined, needs-based spending with no high-risk categories detected'],[15,19,'Good — generally controlled spending with occasional discretionary outflows'],[10,14,'Moderate — some concerning patterns; spending not fully aligned with income level'],[0,9,'Poor — impulsive or high-risk spending behaviour detected']],
+  },
+  liquidity: {
+    what: 'Measures average account balance maintained after expenses. Higher balances signal a financial buffer that reduces default risk when income is delayed.',
+    ranges: [[20,25,'Excellent — consistently maintains a healthy cash buffer above salary level'],[15,19,'Good — adequate liquidity with moderate reserve between pay cycles'],[10,14,'Moderate — balance often runs low; limited buffer for unexpected expenses'],[0,9,'Poor — account frequently near zero; no meaningful financial cushion']],
+  },
+};
+
+// ── Payment history helpers ───────────────────────────────────────────────────
+function worstPaymentCode(acc) {
+  let worst = null;
+  let worstSeverity = -1;
+  for (let i = 1; i <= 24; i++) {
+    const code = acc[`M${String(i).padStart(2, '0')}`];
+    if (!code || code === '#') continue;
+    const severity = code === '101' ? 100 : (parseInt(code, 10) || 0);
+    if (severity > worstSeverity) { worst = code; worstSeverity = severity; }
+  }
+  return worst;
 }
 
 // ── Overview ─────────────────────────────────────────────────────────────────
@@ -154,7 +193,8 @@ function OverviewTab({ customer, statements, bvnResults, ninResults, bureauResul
   const latestNIN = ninResults.find(r => r.status === 'success');
   const latestBureau = bureauResults[0];
   const risk = latestStatement?.result?.overallRiskScore || {};
-  const creditScore = latestBureau?.result?.creditScore ?? latestBureau?.result?.summary?.creditScore;
+  const bureauSecOverview = latestBureau ? parseBureauSections(latestBureau.result) : null;
+  const creditScore = bureauSecOverview?.Scoring?.[0]?.TotalConsumerScore ?? latestBureau?.result?.creditScore ?? latestBureau?.result?.summary?.creditScore;
 
   return (
     <div>
@@ -328,8 +368,8 @@ function StatementTab({ customer, statements, onRefresh }) {
       const { data } = await axios.post(`${API}/v1/statement/upload-analyze`, fd, { headers: { 'X-Api-Key': apiKey } });
       toast.success('Analysis complete — redirecting to results in 5 seconds…');
       setFile(null); setBank(''); setPassword('');
-      onRefresh();
       const statementId = data?.statement?._id || data?._id;
+      await onRefresh();
       if (statementId) {
         let secs = 5;
         setRedirectCountdown(secs);
@@ -341,6 +381,8 @@ function StatementTab({ customer, statements, onRefresh }) {
             navigate(`/dashboard/statements/${statementId}`);
           }
         }, 1000);
+        // store interval id on component ref so cancel button can clear it
+        window.__lucredCountdownInterval = interval;
       }
     } catch (err) {
       toast.error(err.response?.data?.error || 'Upload failed');
@@ -376,10 +418,16 @@ function StatementTab({ customer, statements, onRefresh }) {
       {redirectCountdown !== null && (
         <div style={{ background: '#f0fdf4', border: '1.5px solid #86efac', borderRadius: 12, padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ fontSize: 28, fontWeight: 900, color: '#16a34a', minWidth: 32, textAlign: 'center' }}>{redirectCountdown}</div>
-          <div>
+          <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, color: '#15803d', fontSize: 14 }}>Analysis complete!</div>
             <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Redirecting to the full statement analysis view in {redirectCountdown} second{redirectCountdown !== 1 ? 's' : ''}…</div>
           </div>
+          <button
+            onClick={() => { clearInterval(window.__lucredCountdownInterval); setRedirectCountdown(null); }}
+            style={{ fontSize: 12, fontWeight: 700, color: '#64748b', background: '#e2e8f0', border: 'none', borderRadius: 8, padding: '6px 14px', cursor: 'pointer' }}
+          >
+            Cancel
+          </button>
         </div>
       )}
       <div style={s.card}>
@@ -847,20 +895,25 @@ function BureauTab({ customer, bureauResults, onRefresh }) {
                 </div>
               </div>
               <div style={{ overflowX: 'auto' }}>
-                {payHistory.map((acc, ai) => (
+                {payHistory.map((acc, ai) => {
+                  const worst = worstPaymentCode(acc);
+                  const { bg: worstBg, color: worstColor, label: worstLabel } = worst ? paymentColor(worst) : { bg: '#dcfce7', color: '#16a34a', label: '✓' };
+                  const autoExpand = payHistory.length <= 3;
+                  return (
                   <div key={ai} style={{ marginBottom: 16 }}>
                     <button
                       onClick={() => setExpanded(expanded === ai ? null : ai)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%', padding: '6px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                     >
-                      <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{acc.SubscriberName}</span>
-                        <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 10 }}>{acc.AccountNo}</span>
-                        <span style={{ fontSize: 11, color: '#64748b', marginLeft: 10 }}>{acc.DateAccountOpened} → {acc.ClosedDate || 'Open'}</span>
+                        <span style={{ fontSize: 11, color: '#94a3b8' }}>{acc.AccountNo}</span>
+                        <span style={{ fontSize: 11, color: '#64748b' }}>{acc.DateAccountOpened} → {acc.ClosedDate || 'Open'}</span>
+                        <span title="Worst payment in 24 months" style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: worstBg, color: worstColor }}>worst: {worstLabel === '✓' ? 'Current' : worstLabel === '—' ? 'No data' : `${worstLabel === 'WO' ? 'Written-off' : `${worstLabel} mo late`}`}</span>
                       </div>
                       <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: acc.PerformanceStatus === 'Performing' ? '#dcfce7' : '#fef3c7', color: acc.PerformanceStatus === 'Performing' ? '#16a34a' : '#d97706' }}>{acc.PerformanceStatus}</span>
                     </button>
-                    {(expanded === ai || payHistory.length <= 2) && (
+                    {(expanded === ai || autoExpand) && (
                       <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginTop: 6 }}>
                         {Array.from({ length: 24 }, (_, i) => {
                           const mKey = `M${String(i + 1).padStart(2, '0')}`;
@@ -877,7 +930,8 @@ function BureauTab({ customer, bureauResults, onRefresh }) {
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -945,25 +999,57 @@ function BureauTab({ customer, bureauResults, onRefresh }) {
 
 // ── Scorecard tab ─────────────────────────────────────────────────────────────
 
-function ScorecardTab({ customer, statements, bvnResults, ninResults, bureauResults, discrepancies }) {
+function ScorecardTab({ customer, statements, bvnResults, ninResults, bureauResults, discrepancies, setTab }) {
   const latestStatement = statements.find(s => s.status === 'success');
   const latestBVN = bvnResults.find(r => r.status === 'success');
   const latestNIN = ninResults.find(r => r.status === 'success');
   const latestBureau = bureauResults.find(r => r.status === 'success');
 
-  const risk = latestStatement?.result?.overallRiskScore || {};
-  const cashFlow = latestStatement?.result?.cashFlowAnalysis || {};
-  const income = latestStatement?.result?.incomeSourceAnalysis || {};
-  const debt = latestStatement?.result?.debtServicing || {};
-  const bureauData = latestBureau?.result || {};
-  const bureauScore = bureauData.creditScore ?? bureauData.summary?.creditScore;
+  const d   = latestStatement?.result || {};
+  const risk       = d.overallRiskScore || {};
+  const cashFlow   = d.cashFlowAnalysis || {};
+  const income     = d.incomeSourceAnalysis || {};
+  const spending   = d.spendingPatterns || {};
+  const debt       = d.debtServicing || {};
+  const expense    = d.expenseAnalysis || {};
+  const behavioral = d.behavioralAnalysis || {};
+  const meta       = d.metaData || {};
+
+  const bureauSec        = latestBureau ? parseBureauSections(latestBureau.result) : null;
+  const bureauScoring    = bureauSec?.Scoring?.[0];
+  const bureauSummaryRaw = bureauSec?.CreditAccountSummary?.[0];
+  const bureauDelinq     = (bureauSec?.DeliquencyInformation || []).filter(di => di.SubscriberName || di.AccountNo);
+  const bureauScore      = bureauScoring?.TotalConsumerScore ?? null;
+  const bureauScoreNum   = bureauScore ? parseInt(bureauScore, 10) : null;
+  const bureauScoreColor = bureauScoreNum >= 650 ? '#16a34a' : bureauScoreNum >= 500 ? '#d97706' : bureauScoreNum != null ? '#dc2626' : '#94a3b8';
+  const bureauBand       = bureauScoreNum >= 650 ? 'Good' : bureauScoreNum >= 500 ? 'Fair' : bureauScoreNum != null ? 'Poor' : null;
 
   const fmt = (v) => (v !== undefined && v !== null ? Number(v).toLocaleString() : '—');
   const GRADE_COLOR = { A: '#16a34a', B: '#0ea5e9', C: '#f59e0b', D: '#ef4444', E: '#7f1d1d' };
-  const gradeColor = GRADE_COLOR[risk.overallRiskScore] || '#94a3b8';
+  const gradeColor  = GRADE_COLOR[risk.overallRiskScore] || '#94a3b8';
 
   const bvnPhoto = latestBVN?.result?.image;
   const ninPhoto = latestNIN?.result?.photo;
+
+  // Derived metrics for inferences
+  const totalInflow    = cashFlow.totalCashInflow || 0;
+  const totalOutflow   = cashFlow.totalCashOutflow || 0;
+  const netCashFlow    = totalInflow - totalOutflow;
+  const savingsRateNum = totalInflow > 0 ? (netCashFlow / totalInflow) * 100 : null;
+  const expenseRatioNum = totalInflow > 0 ? (totalOutflow / totalInflow) * 100 : null;
+  const dtiRaw         = parseFloat(debt.loanRepayments?.DebtToIncomeRatio) || null;
+  const highRiskFlags  = (expense.highRiskExpenseFlags || []).filter(f => f.amount > 0);
+  const activeArrears  = parseInt(bureauSummaryRaw?.TotalAccountarrear || 0);
+  const hasJudgement   = parseInt(bureauSummaryRaw?.TotalNumberofJudgement || 0) > 0;
+
+  // Sub-score → letter grade helper
+  function subGrade(score, max = 25) {
+    if (score == null) return null;
+    const pct = (score / max) * 100;
+    return pct >= 84 ? 'A' : pct >= 64 ? 'B' : pct >= 44 ? 'C' : pct >= 24 ? 'D' : 'E';
+  }
+
+  const sb = risk.scoreBreakdown || {};
 
   async function handleExport() {
     const { exportScorecardPDF } = await import('../services/exportScorecardPDF');
@@ -974,33 +1060,77 @@ function ScorecardTab({ customer, statements, bvnResults, ninResults, bureauResu
     return <div style={s.card}><div style={s.empty}>No successful analyses yet. Run checks on this customer first.</div></div>;
   }
 
+  // ── Score dimension card ──────────────────────────────────────────────────
+  const DimCard = ({ label, score, max = 25, metric, inference, accentColor, wide }) => {
+    const grade = subGrade(score, max);
+    const gc    = GRADE_COLOR[grade] || accentColor || '#94a3b8';
+    const pct   = score != null ? Math.round((score / max) * 100) : null;
+    return (
+      <div style={{ background: '#fff', border: `1px solid #e2e8f0`, borderTop: `3px solid ${gc}`, borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, ...(wide ? { gridColumn: 'span 2' } : {}) }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.8 }}>{label}</div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          {score != null
+            ? <><span style={{ fontSize: 28, fontWeight: 900, color: gc, lineHeight: 1 }}>{score}</span><span style={{ fontSize: 13, color: '#94a3b8' }}>/{max}</span></>
+            : <span style={{ fontSize: 22, fontWeight: 900, color: '#94a3b8' }}>—</span>
+          }
+          {grade && <span style={{ marginLeft: 'auto', fontSize: 18, fontWeight: 900, color: gc }}>{grade}</span>}
+        </div>
+        {/* Progress bar */}
+        {pct != null && (
+          <div style={{ height: 4, background: '#f1f5f9', borderRadius: 2, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${pct}%`, background: gc, borderRadius: 2 }} />
+          </div>
+        )}
+        {metric   && <div style={{ fontSize: 12, fontWeight: 600, color: '#334155', marginTop: 2 }}>{metric}</div>}
+        {inference && <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.4 }}>{inference}</div>}
+      </div>
+    );
+  };
+
+  // ── Identity status pill ──────────────────────────────────────────────────
+  const IdPill = ({ label, verified, detail }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: verified ? '#f0fdf4' : '#fef2f2', border: `1px solid ${verified ? '#bbf7d0' : '#fca5a5'}`, borderRadius: 10 }}>
+      <span style={{ fontSize: 18 }}>{verified ? '✓' : '✗'}</span>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: verified ? '#16a34a' : '#dc2626' }}>{label}</div>
+        {detail && <div style={{ fontSize: 11, color: '#64748b' }}>{detail}</div>}
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button style={s.btn} onClick={handleExport}>⬇ Export Scorecard PDF</button>
+      {/* Actions */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <button style={{ ...s.btn, background: '#475569' }} onClick={() => window.print()}>🖨 Print</button>
+        <button style={s.btn} onClick={handleExport}>⬇ Export PDF</button>
       </div>
 
-      {/* Header */}
+      {/* ── Header ───────────────────────────────────────────────────────────── */}
       <div style={s.scorecardHeader}>
         <div style={{ display: 'flex', gap: 16, alignItems: 'center', flex: 1 }}>
           {(bvnPhoto || ninPhoto) && (
-            <img
-              src={`data:image/jpeg;base64,${bvnPhoto || ninPhoto}`}
-              alt={customer.name}
-              style={{ width: 72, height: 86, borderRadius: 10, objectFit: 'cover', border: '3px solid rgba(255,255,255,0.2)', flexShrink: 0 }}
-            />
+            <img src={`data:image/jpeg;base64,${bvnPhoto || ninPhoto}`} alt={customer.name}
+              style={{ width: 72, height: 86, borderRadius: 10, objectFit: 'cover', border: '3px solid rgba(255,255,255,0.2)', flexShrink: 0 }} />
           )}
           <div>
-            <div style={s.scLabel}>CUSTOMER SCORECARD</div>
+            <div style={s.scLabel}>CUSTOMER SCORECARD · {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
             <div style={s.scName}>{customer.name}</div>
             <div style={s.scMeta}>
               {customer.email && <span>{customer.email}</span>}
               {customer.phone && <span> · {customer.phone}</span>}
-              {customer.address && <span> · {customer.address}</span>}
+              {customer.bvn && <span> · BVN ••••{customer.bvn.slice(-4)}</span>}
+              {latestStatement?.bankName && <span> · {latestStatement.bankName}</span>}
+              {latestStatement && <span> · Analysed {new Date(latestStatement.createdAt).toLocaleDateString()}</span>}
             </div>
+            {risk.recommendation && (
+              <div style={{ marginTop: 8, display: 'inline-block', background: 'rgba(14,165,233,0.2)', color: '#38bdf8', fontSize: 12, fontWeight: 700, padding: '3px 12px', borderRadius: 20 }}>
+                {risk.recommendation}
+              </div>
+            )}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           {discrepancies.length > 0 && (
             <div style={{ background: '#fef3c7', borderRadius: 10, padding: '0.75rem 1rem', textAlign: 'center' }}>
               <div style={{ fontSize: 20, fontWeight: 800, color: '#d97706' }}>⚠</div>
@@ -1013,127 +1143,300 @@ function ScorecardTab({ customer, statements, bvnResults, ninResults, bureauResu
               <div style={s.gradeLabel}>RISK GRADE</div>
             </div>
           )}
-          {bureauScore && (
-            <div style={{ ...s.gradeBox, background: '#6d28d9' }}>
+          {bureauScoreNum != null && (
+            <div style={{ ...s.gradeBox, background: bureauScoreColor }}>
               <div style={s.gradeVal}>{bureauScore}</div>
               <div style={s.gradeLabel}>BUREAU SCORE</div>
+            </div>
+          )}
+          {income.monthlyAverageIncome > 0 && (
+            <div style={{ ...s.gradeBox, background: '#0284c7', minWidth: 100 }}>
+              <div style={{ ...s.gradeVal, fontSize: 18 }}>₦{Number(income.monthlyAverageIncome).toLocaleString()}</div>
+              <div style={s.gradeLabel}>AVG MONTHLY INCOME</div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Discrepancies */}
-      {discrepancies.length > 0 && (
-        <div style={{ ...s.card, borderLeft: '4px solid #ef4444' }}>
-          <div style={s.sectionTitle}>⚠ Data Discrepancies Detected</div>
-          <table style={s.table}>
-            <thead><tr>{['Field', 'BVN Record', 'NIN Record', 'Severity'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
-            <tbody>
-              {discrepancies.map((d, i) => (
-                <tr key={i} style={{ background: i % 2 ? '#fafafa' : '#fff' }}>
-                  <td style={{ ...s.td, fontWeight: 600 }}>{d.field}</td>
-                  <td style={s.td}>{d.bvn || '—'}</td>
-                  <td style={s.td}>{d.nin || '—'}</td>
-                  <td style={s.td}>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: d.severity === 'high' ? '#fee2e2' : '#fef3c7', color: d.severity === 'high' ? '#dc2626' : '#d97706' }}>{d.severity.toUpperCase()}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Identity */}
+      {/* ── Identity status (verdict only, no data repeat) ────────────────────── */}
       {(latestBVN || latestNIN) && (
         <div style={s.card}>
-          <div style={s.sectionTitle}>Identity Verification</div>
-          <div style={{ display: 'grid', gridTemplateColumns: latestBVN && latestNIN ? '1fr 1fr' : '1fr', gap: 20 }}>
-            {latestBVN && <IdentityPanel title="BVN Record" data={latestBVN.result} color="#16a34a" photoKey="image" />}
-            {latestNIN && <IdentityPanel title="NIN Record" data={latestNIN.result} color="#6d28d9" photoKey="photo" />}
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Identity Verification</div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <IdPill label="BVN Verified" verified={!!latestBVN} detail={latestBVN ? `${latestBVN.result?.firstName || ''} ${latestBVN.result?.lastName || ''}`.trim() || null : 'Not run'} />
+            <IdPill label="NIN Verified" verified={!!latestNIN} detail={latestNIN ? `${latestNIN.result?.firstName || ''} ${latestNIN.result?.lastName || ''}`.trim() || null : 'Not run'} />
+            {latestBVN && latestNIN && (() => {
+              const norm = s => (s || '').toString().trim().toLowerCase();
+              const bvnName = norm(`${latestBVN.result?.firstName || ''} ${latestBVN.result?.lastName || ''}`);
+              const ninName = norm(`${latestNIN.result?.firstName || ''} ${latestNIN.result?.lastName || ''}`);
+              const nameMatch = bvnName && ninName && bvnName === ninName;
+              const bvnDOB = norm(latestBVN.result?.dateOfBirth || '');
+              const ninDOB = norm(latestNIN.result?.dateOfBirth || '');
+              const dobMatch = bvnDOB && ninDOB && bvnDOB === ninDOB;
+              return (<>
+                <IdPill
+                  label="Name Match"
+                  verified={nameMatch}
+                  detail={nameMatch ? 'BVN and NIN names consistent' : `BVN: ${latestBVN.result?.firstName} ${latestBVN.result?.lastName} · NIN: ${latestNIN.result?.firstName} ${latestNIN.result?.lastName}`}
+                />
+                {(bvnDOB || ninDOB) && (
+                  <IdPill
+                    label="DOB Match"
+                    verified={dobMatch}
+                    detail={dobMatch ? latestBVN.result?.dateOfBirth : `BVN: ${latestBVN.result?.dateOfBirth || '—'} · NIN: ${latestNIN.result?.dateOfBirth || '—'}`}
+                  />
+                )}
+              </>);
+            })()}
           </div>
         </div>
       )}
 
-      {/* Bureau */}
-      {latestBureau && (
-        <div style={s.card}>
-          <div style={s.sectionTitle}>Credit Bureau</div>
-          <div style={s.infoGrid}>
-            {[
-              ['Credit Score', bureauScore],
-              ['Total Facilities', bureauData.totalFacilities ?? bureauData.summary?.totalFacilities],
-              ['Active Loans', bureauData.activeLoans ?? bureauData.summary?.activeLoans],
-              ['Total Outstanding', bureauData.totalOutstanding !== undefined ? `₦${fmt(bureauData.totalOutstanding)}` : undefined],
-              ['Overdue Amount', bureauData.overdueAmount !== undefined ? `₦${fmt(bureauData.overdueAmount)}` : undefined],
-              ['Delinquency', bureauData.delinquencyStatus ?? bureauData.summary?.delinquencyStatus],
-            ].filter(([, v]) => v !== undefined && v !== null).map(([label, value]) => (
-              <div key={label} style={s.infoCell}>
-                <div style={s.infoLabel}>{label}</div>
-                <div style={s.infoValue}>{String(value)}</div>
-              </div>
-            ))}
-          </div>
+      {/* ── Discrepancy details (only if present) ────────────────────────────── */}
+      {discrepancies.length > 0 && (
+        <div style={{ ...s.card, borderLeft: '4px solid #ef4444', background: '#fef2f2' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>⚠ Identity Discrepancies</div>
+          {discrepancies.map((dc, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: i < discrepancies.length - 1 ? '1px solid #fca5a5' : 'none' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: dc.severity === 'high' ? '#fee2e2' : '#fef3c7', color: dc.severity === 'high' ? '#dc2626' : '#d97706', flexShrink: 0 }}>{dc.severity.toUpperCase()}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#7f1d1d' }}>{dc.field}:</span>
+              <span style={{ fontSize: 12, color: '#7f1d1d' }}>BVN says <strong>{dc.bvn || '—'}</strong> · NIN says <strong>{dc.nin || '—'}</strong></span>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Statement */}
+      {/* ── Score dimensions grid ─────────────────────────────────────────────── */}
       {latestStatement && (
         <div style={s.card}>
-          <div style={s.sectionTitle}>Statement Analysis</div>
-          <div style={s.infoGrid}>
-            {[
-              ['Account', latestStatement.accountName],
-              ['Bank', latestStatement.bankName],
-              ['Recommendation', risk.recommendation],
-              ['Total Cash Inflow', cashFlow.totalCashInflow !== undefined ? `₦${fmt(cashFlow.totalCashInflow)}` : undefined],
-              ['Total Cash Outflow', cashFlow.totalCashOutflow !== undefined ? `₦${fmt(cashFlow.totalCashOutflow)}` : undefined],
-              ['Monthly Avg Income', income.monthlyAverageIncome !== undefined ? `₦${fmt(income.monthlyAverageIncome)}` : undefined],
-              ['Salary Earner', income.isSalaryEarner !== undefined ? (income.isSalaryEarner ? 'Yes' : 'No') : undefined],
-              ['Debt-to-Income', debt.loanRepayments?.DebtToIncomeRatio !== undefined ? `${debt.loanRepayments.DebtToIncomeRatio}%` : undefined],
-            ].filter(([, v]) => v !== undefined && v !== null).map(([label, value]) => (
-              <div key={label} style={s.infoCell}>
-                <div style={s.infoLabel}>{label}</div>
-                <div style={s.infoValue}>{value}</div>
-              </div>
-            ))}
+          <div style={{ fontSize: 11, fontWeight: 700, color: gradeColor, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>Risk Score Breakdown</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+            <DimCard
+              label="Income Stability"
+              score={sb.incomeStability}
+              metric={income.monthlyAverageIncome > 0 ? `₦${fmt(income.monthlyAverageIncome)}/mo avg` : undefined}
+              inference={
+                income.isSalaryEarner != null
+                  ? `${income.isSalaryEarner ? 'Salary earner' : 'Non-salary income'}${income.numberOfIncomeSources > 1 ? ` · ${income.numberOfIncomeSources} income sources` : ''}`
+                  : undefined
+              }
+            />
+            <DimCard
+              label="Debt Servicing"
+              score={sb.debtServicing}
+              metric={dtiRaw != null ? `DTI: ${dtiRaw}%` : undefined}
+              inference={
+                dtiRaw != null
+                  ? dtiRaw <= 30 ? 'Healthy debt load' : dtiRaw <= 50 ? 'Moderate — monitor closely' : 'High debt burden'
+                  : undefined
+              }
+            />
+            <DimCard
+              label="Spending Behaviour"
+              score={sb.spendingBehavior}
+              metric={expenseRatioNum != null ? `${expenseRatioNum.toFixed(0)}% expense ratio` : undefined}
+              inference={
+                highRiskFlags.length > 0
+                  ? `${highRiskFlags.length} high-risk spend category${highRiskFlags.length > 1 ? 'ies' : 'y'} flagged`
+                  : expenseRatioNum != null
+                    ? expenseRatioNum <= 70 ? 'Spending well within income' : expenseRatioNum <= 85 ? 'Spending is elevated' : 'Spending exceeds safe threshold'
+                    : undefined
+              }
+            />
+            <DimCard
+              label="Liquidity"
+              score={sb.liquidity}
+              metric={savingsRateNum != null ? `${savingsRateNum.toFixed(1)}% savings rate` : netCashFlow !== 0 ? `Net ₦${fmt(netCashFlow)}` : undefined}
+              inference={
+                savingsRateNum != null
+                  ? savingsRateNum >= 20 ? 'Strong cash surplus' : savingsRateNum >= 10 ? 'Adequate buffer' : 'Thin liquidity — low headroom'
+                  : undefined
+              }
+            />
           </div>
-          {risk.scoreBreakdown && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 16 }}>
-              {[['Income Stability', risk.scoreBreakdown.incomeStability], ['Debt Servicing', risk.scoreBreakdown.debtServicing], ['Spending Behavior', risk.scoreBreakdown.spendingBehavior], ['Liquidity', risk.scoreBreakdown.liquidity]].map(([label, score]) => (
-                <div key={label} style={s.scoreCard}>
-                  <div style={s.scoreVal}>{score ?? '—'}</div>
-                  <div style={s.scoreLbl}>{label}</div>
-                  <div style={s.scoreBar}><div style={{ ...s.scoreFill, width: `${Math.min(((score || 0) / 25) * 100, 100)}%`, background: (score || 0) >= 20 ? '#16a34a' : (score || 0) >= 12 ? '#f59e0b' : '#ef4444' }} /></div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
 
-      <LoanReviewSection
-        latestBVN={latestBVN}
-        latestNIN={latestNIN}
-        latestBureau={latestBureau}
-        latestStatement={latestStatement}
-        discrepancies={discrepancies}
-        risk={risk}
-        cashFlow={cashFlow}
-        income={income}
-        debt={debt}
-        bureauData={bureauData}
-      />
+      {/* ── Bureau score card ─────────────────────────────────────────────────── */}
+      {latestBureau && bureauSec && (
+        <div style={s.card}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>Credit Bureau — FirstCentral</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+            {/* XScore card */}
+            <div style={{ background: 'linear-gradient(135deg, #0f172a, #1e3a5f)', borderRadius: 10, padding: '16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.8 }}>XScore</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <span style={{ fontSize: 36, fontWeight: 900, color: bureauScoreColor, lineHeight: 1 }}>{bureauScore ?? '—'}</span>
+                <span style={{ fontSize: 11, color: '#64748b' }}>/850</span>
+              </div>
+              {bureauBand && <div style={{ fontSize: 12, fontWeight: 700, color: bureauScoreColor }}>{bureauBand}</div>}
+              {bureauScoring?.Description && <div style={{ fontSize: 11, color: '#94a3b8' }}>{bureauScoring.Description}</div>}
+            </div>
+            {/* Account health card */}
+            {bureauSummaryRaw && (
+              <div style={{ background: '#fff', border: `1px solid #e2e8f0`, borderTop: `3px solid ${activeArrears > 0 || hasJudgement ? '#ef4444' : '#16a34a'}`, borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>Account Health</div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: activeArrears > 0 || hasJudgement ? '#ef4444' : '#16a34a', lineHeight: 1, marginBottom: 4 }}>
+                  {activeArrears > 0 || hasJudgement ? 'At Risk' : 'Clean'}
+                </div>
+                <div style={{ fontSize: 11, color: '#64748b' }}>
+                  {bureauSummaryRaw.TotalAccounts} total account{bureauSummaryRaw.TotalAccounts != 1 ? 's' : ''}{activeArrears > 0 ? ` · ${activeArrears} in arrears` : ''}{hasJudgement ? ' · judgement on file' : ''}
+                </div>
+                {bureauDelinq.length > 0 && (
+                  <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: '#dc2626' }}>⚠ {bureauDelinq.length} delinquency record{bureauDelinq.length > 1 ? 's' : ''}</div>
+                )}
+              </div>
+            )}
+            {/* Outstanding obligations card */}
+            {bureauSummaryRaw && (
+              <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderTop: '3px solid #7c3aed', borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>Obligations</div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', lineHeight: 1, marginBottom: 4 }}>
+                  {parseFloat(bureauSummaryRaw.TotalMonthlyInstalment) > 0
+                    ? `₦${Number(bureauSummaryRaw.TotalMonthlyInstalment).toLocaleString()}/mo`
+                    : '₦0/mo'}
+                </div>
+                <div style={{ fontSize: 11, color: '#64748b' }}>
+                  {parseFloat(bureauSummaryRaw.TotalOutstandingdebt) > 0
+                    ? `₦${Number(bureauSummaryRaw.TotalOutstandingdebt).toLocaleString()} outstanding`
+                    : 'No outstanding balance'}
+                </div>
+                {bureauScoring && [
+                  ['Repayment', bureauScoring.RepaymentHistoryScore],
+                  ['Amount Owed', bureauScoring.TotalAmountOwedScore],
+                ].filter(([, v]) => v).map(([lbl, val]) => (
+                  <div key={lbl} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                    <span>{lbl}</span><span style={{ fontWeight: 700, color: '#334155' }}>{val}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Enquiry / history card */}
+            {bureauScoring && (
+              <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderTop: '3px solid #0ea5e9', borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>Credit History</div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', lineHeight: 1, marginBottom: 4 }}>
+                  {bureauSummaryRaw?.Rating || bureauScoring.Description || '—'}
+                </div>
+                {[
+                  ['Credit Types', bureauScoring.TypesOfCreditScore],
+                  ['History Length', bureauScoring.LengthOfCreditHistoryScore],
+                ].filter(([, v]) => v).map(([lbl, val]) => (
+                  <div key={lbl} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                    <span>{lbl}</span><span style={{ fontWeight: 700, color: '#334155' }}>{val}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Key alerts (only shown if there are flags) ───────────────────────── */}
+      {(highRiskFlags.length > 0 || behavioral.spendingHabits?.length > 0 || bureauDelinq.length > 0) && (
+        <div style={s.card}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#d97706', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Key Flags & Insights</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {bureauDelinq.map((di, i) => (
+              <div key={`delinq-${i}`} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 12px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8 }}>
+                <span style={{ fontSize: 13, flexShrink: 0 }}>🔴</span>
+                <span style={{ fontSize: 12, color: '#7f1d1d' }}><strong>Bureau delinquency:</strong> {di.SubscriberName} — {di.MonthsinArrears} month{di.MonthsinArrears != 1 ? 's' : ''} in arrears</span>
+              </div>
+            ))}
+            {highRiskFlags.map((f, i) => (
+              <div key={`flag-${i}`} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8 }}>
+                <span style={{ fontSize: 13, flexShrink: 0 }}>⚠️</span>
+                <span style={{ fontSize: 12, color: '#78350f' }}><strong>{f.category}:</strong> ₦{fmt(f.amount)} spent ({f.percentageOfIncome != null ? `${Number(f.percentageOfIncome).toFixed(1)}%` : '—'} of income)</span>
+              </div>
+            ))}
+            {behavioral.spendingHabits?.map((h, i) => (
+              <div key={`habit-${i}`} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                <span style={{ fontSize: 13, flexShrink: 0 }}>→</span>
+                <span style={{ fontSize: 12, color: '#334155' }}>{h}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Loan Review CTA ──────────────────────────────────────────────────── */}
+      <div style={{ background: 'linear-gradient(135deg, #f5f3ff, #ede9fe)', border: '1px solid #c4b5fd', borderRadius: 12, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#4c1d95', marginBottom: 3 }}>Ready to assess loan eligibility?</div>
+          <div style={{ fontSize: 12, color: '#6d28d9' }}>Run a full review with identity, bureau, income, and DTI analysis.</div>
+        </div>
+        <button style={{ ...s.btn, background: '#6d28d9', whiteSpace: 'nowrap' }} onClick={() => setTab('Loan Review')}>
+          Open Loan Review <span style={{ fontSize: 9, fontWeight: 800, background: 'rgba(255,255,255,0.25)', padding: '1px 5px', borderRadius: 20, marginLeft: 4 }}>BETA</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Score Breakdown Cards (expandable) ───────────────────────────────────────
+function ScoreBreakdownCards({ breakdown }) {
+  const [expanded, setExpanded] = useState(null);
+  const keys = [
+    ['incomeStability', 'Income Stability', breakdown.incomeStability],
+    ['debtServicing', 'Debt Servicing', breakdown.debtServicing],
+    ['spendingBehavior', 'Spending Behaviour', breakdown.spendingBehavior],
+    ['liquidity', 'Liquidity', breakdown.liquidity],
+  ];
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 16 }}>
+      {keys.map(([key, label, score]) => {
+        const pct = Math.min(((score || 0) / 25) * 100, 100);
+        const color = (score || 0) >= 20 ? '#16a34a' : (score || 0) >= 12 ? '#f59e0b' : '#ef4444';
+        const detail = SCORE_DETAIL[key];
+        const isOpen = expanded === key;
+        const rangeDesc = detail?.ranges.find(([lo, hi]) => (score || 0) >= lo && (score || 0) <= hi)?.[2];
+        return (
+          <div key={key} style={{ ...s.scoreCard, cursor: 'pointer', gridColumn: isOpen ? 'span 4' : 'span 1', transition: 'all 0.15s' }} onClick={() => setExpanded(isOpen ? null : key)}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div>
+                <div style={{ ...s.scoreVal, color }}>{score ?? '—'}<span style={{ fontSize: 12, fontWeight: 500, color: '#94a3b8' }}>/25</span></div>
+                <div style={s.scoreLbl}>{label}</div>
+              </div>
+              <span style={{ fontSize: 16, color: '#94a3b8' }}>{isOpen ? '▲' : '▼'}</span>
+            </div>
+            <div style={s.scoreBar}><div style={{ ...s.scoreFill, width: `${pct}%`, background: color }} /></div>
+            {isOpen && detail && (
+              <div style={{ marginTop: 12, borderTop: '1px solid #e2e8f0', paddingTop: 12, textAlign: 'left' }}>
+                <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.6, marginBottom: 10 }}>{detail.what}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>
+                  {detail.ranges.map(([lo, hi, desc]) => {
+                    const active = (score || 0) >= lo && (score || 0) <= hi;
+                    return (
+                      <div key={lo} style={{ background: active ? `${color}18` : '#f8fafc', border: `1.5px solid ${active ? color : '#e2e8f0'}`, borderRadius: 8, padding: '8px 12px' }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: active ? color : '#94a3b8', marginBottom: 3 }}>{lo}–{hi} / 25 {active ? '← current' : ''}</div>
+                        <div style={{ fontSize: 12, color: active ? '#334155' : '#94a3b8' }}>{desc}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 // ── Loan Eligibility Logic ────────────────────────────────────────────────────
 
-function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, bureauData, proposedMonthlyPayment }) {
+function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, proposedMonthlyPayment, loanTenor, annualRate }) {
   const flags = [];
   const conditions = [];
   const analysis = {}; // per-category detailed reasoning
+
+  // Parse FirstCentral bureau sections from the stored result
+  const bureauSec = latestBureau ? parseBureauSections(latestBureau.result) : null;
+  const bureauScoring = bureauSec?.Scoring?.[0];
+  const bureauSummary = bureauSec?.CreditAccountSummary?.[0];
+  const bureauAgreements = bureauSec?.CreditAgreementSummary || [];
+  const bureauDelinquency = (bureauSec?.DeliquencyInformation || []).filter(d => d.SubscriberName || d.AccountNo);
 
   // ── Identity Integrity ───────────────────────────────────────────────────
   let identityScore = 50;
@@ -1181,48 +1484,54 @@ function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement
   }
   analysis.identityIntegrity = identityReasons;
 
-  // ── Credit History (Bureau) ──────────────────────────────────────────────
+  // ── Credit History (Bureau — FirstCentral) ──────────────────────────────
   let creditScore = 50;
   let creditStatus = 'WARN';
   let creditNotes = 'No bureau data available — credit history is unknown.';
   const creditReasons = [];
 
-  if (latestBureau) {
-    const bScore = bureauData.creditScore ?? bureauData.summary?.creditScore;
-    const delinquency = (bureauData.delinquencyStatus ?? bureauData.summary?.delinquencyStatus ?? '').toLowerCase();
-    const overdue = bureauData.overdueAmount ?? bureauData.summary?.overdueAmount ?? 0;
-    const totalFacilities = bureauData.totalFacilities ?? bureauData.summary?.totalFacilities ?? 0;
-    const activeLoans = bureauData.activeLoans ?? bureauData.summary?.activeLoans ?? 0;
-    const totalOutstanding = bureauData.totalOutstanding ?? bureauData.summary?.totalOutstanding ?? 0;
+  if (latestBureau && bureauSec) {
+    const bScore = bureauScoring?.TotalConsumerScore ? parseInt(bureauScoring.TotalConsumerScore, 10) : null;
+    const scoreDesc = bureauScoring?.Description || '';
+    const hasDelinquency = bureauDelinquency.length > 0;
+    const amountArrear = parseFloat(bureauSummary?.Amountarrear || 0);
+    const accountsInArrear = parseInt(bureauSummary?.TotalAccountarrear || 0, 10);
+    const totalAccounts = parseInt(bureauSummary?.TotalAccounts || 0, 10);
+    const goodAccounts = parseInt(bureauSummary?.TotalaccountinGoodcondition || bureauSummary?.TotalaccountinGodcondition || 0, 10);
+    const totalOutstanding = parseFloat(bureauSummary?.TotalOutstandingdebt || 0);
+    const totalJudgements = parseInt(bureauSummary?.TotalNumberofJudgement || 0, 10);
+    const rating = bureauSummary?.Rating || '';
+    const nonPerforming = bureauAgreements.filter(a => a.PerformanceStatus && a.PerformanceStatus !== 'Performing' && a.PerformanceStatus !== '');
 
-    const isDelinquent = delinquency && !['performing', 'current', 'none', 'nil', 'no delinquency', ''].includes(delinquency);
-
-    if (isDelinquent || overdue > 0) {
-      creditScore = overdue > 500000 ? 5 : overdue > 100000 ? 20 : 35;
+    if (hasDelinquency || accountsInArrear > 0 || amountArrear > 0) {
+      creditScore = amountArrear > 500000 ? 5 : amountArrear > 100000 ? 20 : 35;
       creditStatus = 'FAIL';
-      creditNotes = `Active delinquency on record — customer has unpaid obligations.`;
-      creditReasons.push(`Bureau status is "${delinquency}" — this indicates the customer is currently in default or has missed repayments on existing credit.`);
-      if (overdue > 0) creditReasons.push(`₦${Number(overdue).toLocaleString()} is overdue across existing facilities. Lending additional funds before resolution is high risk.`);
-      flags.push(`Bureau delinquency status: "${delinquency}"${overdue > 0 ? ` with ₦${Number(overdue).toLocaleString()} overdue` : ''}.`);
+      creditNotes = 'Active delinquency on record — customer has unpaid obligations.';
+      if (hasDelinquency) creditReasons.push(`${bureauDelinquency.length} delinquency record${bureauDelinquency.length > 1 ? 's' : ''} on file with lenders: ${bureauDelinquency.map(d => d.SubscriberName).filter(Boolean).join(', ') || 'undisclosed'}.`);
+      if (amountArrear > 0) creditReasons.push(`₦${Number(amountArrear).toLocaleString()} in arrears across ${accountsInArrear} account${accountsInArrear !== 1 ? 's' : ''}. Lending additional funds before resolution is high risk.`);
+      flags.push(`Active delinquency: ₦${Number(amountArrear).toLocaleString()} overdue across ${accountsInArrear} account(s).`);
     } else {
-      if (bScore !== undefined && bScore !== null) {
+      if (bScore !== null) {
         if (bScore >= 650) {
           creditScore = 90; creditStatus = 'PASS';
-          creditReasons.push(`Credit score of ${bScore} is strong — indicates a history of responsible borrowing and timely repayment.`);
+          creditReasons.push(`FirstCentral score of ${bScore} (${scoreDesc}) is strong — indicates responsible borrowing and timely repayment history.`);
         } else if (bScore >= 500) {
           creditScore = 62; creditStatus = 'WARN';
-          creditReasons.push(`Credit score of ${bScore} is moderate. Repayment history is acceptable but not exceptional — closer monitoring is advisable.`);
-          conditions.push('Monitor repayment closely given moderate credit score.');
+          creditReasons.push(`FirstCentral score of ${bScore} (${scoreDesc}) is moderate. Repayment history is acceptable but not exceptional — monitor closely.`);
+          conditions.push('Monitor repayment closely given moderate credit bureau score.');
         } else {
           creditScore = 28; creditStatus = 'FAIL';
-          creditReasons.push(`Credit score of ${bScore} is low, indicating poor credit history. High probability of default based on past behaviour.`);
-          flags.push(`Low credit bureau score: ${bScore}.`);
+          creditReasons.push(`FirstCentral score of ${bScore} (${scoreDesc}) is low — indicates poor credit history and elevated default risk.`);
+          flags.push(`Low FirstCentral credit score: ${bScore} (${scoreDesc}).`);
         }
       } else {
         creditScore = 62; creditStatus = 'PASS';
-        creditReasons.push('No delinquency or overdue amounts detected. Bureau check passed without red flags.');
+        creditReasons.push('Bureau check completed with no delinquency or arrears detected.');
       }
-      if (totalFacilities > 0) creditReasons.push(`Customer has ${totalFacilities} total credit facilit${totalFacilities > 1 ? 'ies' : 'y'} on record, ${activeLoans} currently active${totalOutstanding > 0 ? ` with ₦${Number(totalOutstanding).toLocaleString()} total outstanding` : ''}.`);
+      if (totalAccounts > 0) creditReasons.push(`${totalAccounts} total credit facilit${totalAccounts > 1 ? 'ies' : 'y'} on record — ${goodAccounts} in good standing${totalOutstanding > 0 ? `, ₦${Number(totalOutstanding).toLocaleString()} total outstanding debt` : ''}.`);
+      if (nonPerforming.length > 0) { creditScore = Math.max(creditScore - 20, 20); creditStatus = creditStatus === 'PASS' ? 'WARN' : creditStatus; creditReasons.push(`${nonPerforming.length} credit agreement${nonPerforming.length > 1 ? 's' : ''} listed as non-performing: ${nonPerforming.map(a => a.SubscriberName).filter(Boolean).slice(0, 3).join(', ')}.`); conditions.push('Resolve non-performing credit agreements before disbursement.'); }
+      if (totalJudgements > 0) { creditScore = Math.max(creditScore - 25, 10); creditStatus = 'FAIL'; creditReasons.push(`${totalJudgements} legal judgement${totalJudgements > 1 ? 's' : ''} on record — indicates unresolved legal credit disputes.`); flags.push(`${totalJudgements} court judgement(s) on credit record.`); }
+      if (rating) creditReasons.push(`Credit account rating: ${rating}.`);
     }
     creditNotes = creditReasons[0] || creditNotes;
   } else {
@@ -1288,12 +1597,25 @@ function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement
   const existingDTI = debt.loanRepayments?.DebtToIncomeRatio ?? null;
   const debtServiceScore = risk.scoreBreakdown?.debtServicing ?? 0;
 
+  // Prefer bureau's actual monthly instalment figure over DTI-derived estimate
+  const bureauMonthlyInstalment = parseFloat(bureauSummary?.TotalMonthlyInstalment || 0);
+  const bureauInstalment = bureauMonthlyInstalment > 0 ? bureauMonthlyInstalment : null;
+
   if (monthlyIncome > 0 && proposedMonthlyPayment > 0) {
-    existingDebtMonthly = existingDTI !== null ? (monthlyIncome * existingDTI) / 100 : 0;
+    if (bureauInstalment !== null) {
+      // Use bureau's actual instalment — most accurate source of existing obligations
+      existingDebtMonthly = bureauInstalment;
+      debtReasons.push(`Bureau reports ₦${Number(bureauInstalment).toLocaleString()}/month in existing credit instalments. Adding the proposed payment of ₦${Number(proposedMonthlyPayment).toLocaleString()}/month gives total monthly debt obligations.`);
+    } else if (existingDTI !== null) {
+      existingDebtMonthly = (monthlyIncome * existingDTI) / 100;
+      debtReasons.push(`Existing monthly debt estimated at ₦${Number(existingDebtMonthly).toLocaleString()} from statement DTI of ${existingDTI}% (no bureau instalment data). Adding proposed payment of ₦${Number(proposedMonthlyPayment).toLocaleString()}/month.`);
+    } else {
+      debtReasons.push(`No existing debt data from bureau or statement. Evaluating proposed payment of ₦${Number(proposedMonthlyPayment).toLocaleString()}/month in isolation.`);
+    }
     totalDebtMonthly = existingDebtMonthly + proposedMonthlyPayment;
     effectiveDTI = Math.round((totalDebtMonthly / monthlyIncome) * 100);
 
-    debtReasons.push(`Proposed monthly payment of ₦${Number(proposedMonthlyPayment).toLocaleString()} added to existing obligations of ₦${Number(existingDebtMonthly).toLocaleString()}/month (existing DTI: ${existingDTI ?? 0}%) gives a total DTI of ${effectiveDTI}%.`);
+    debtReasons[0] += ` Total monthly debt service: ₦${Number(totalDebtMonthly).toLocaleString()} → DTI of ${effectiveDTI}%.`;
 
     if (effectiveDTI > 60) {
       debtScore = 15; debtStatus = 'FAIL';
@@ -1311,12 +1633,21 @@ function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement
       debtReasons.push(`Total DTI of ${effectiveDTI}% is excellent — well below the 40% comfort threshold. Customer has strong repayment capacity for this loan.`);
     }
     if (debtServiceScore > 0) debtReasons.push(`Statement debt servicing score is ${debtServiceScore}/25, reflecting how well the customer has handled existing debt payments in the analysed period.`);
-  } else if (latestStatement) {
+  } else if (latestStatement || bureauInstalment !== null) {
     if (proposedMonthlyPayment === 0) {
       debtReasons.push('No proposed monthly payment entered. Enter the estimated repayment amount above to calculate the true post-loan DTI.');
       debtNotes = 'Enter proposed monthly payment to calculate DTI.';
     }
-    if (existingDTI !== null) {
+    if (bureauInstalment !== null) {
+      debtReasons.push(`Bureau shows ₦${Number(bureauInstalment).toLocaleString()}/month in existing credit instalments — customer already carries active debt obligations.`);
+      const bureauDTI = monthlyIncome > 0 ? Math.round((bureauInstalment / monthlyIncome) * 100) : null;
+      if (bureauDTI !== null) {
+        debtScore = bureauDTI > 60 ? 20 : bureauDTI > 40 ? 50 : 75;
+        debtStatus = bureauDTI > 60 ? 'FAIL' : bureauDTI > 40 ? 'WARN' : 'PASS';
+        debtReasons.push(`Current bureau DTI (before this loan) is ~${bureauDTI}%.`);
+        if (bureauDTI > 60) flags.push(`Existing bureau instalment DTI of ${bureauDTI}% is already above the safe threshold.`);
+      }
+    } else if (existingDTI !== null) {
       debtReasons.push(`Existing DTI from statement is ${existingDTI}% (before this loan). This is the baseline — the new loan will increase this.`);
       debtScore = existingDTI > 60 ? 20 : existingDTI > 40 ? 50 : 75;
       debtStatus = existingDTI > 60 ? 'FAIL' : existingDTI > 40 ? 'WARN' : 'PASS';
@@ -1380,13 +1711,39 @@ function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement
   let loanAmountReasoning = null;
 
   if (verdict !== 'NOT_ELIGIBLE' && monthlyIncome > 0) {
-    const dtiUsed = effectiveDTI ?? (existingDTI ?? 30);
-    const headroom = Math.max(50 - dtiUsed, 5);
-    affordableMonthly = Math.round(monthlyIncome * (headroom / 100));
+    // Combine both sources; take the higher to avoid double-counting while staying conservative.
+    // Bureau = formal reported credit obligations; statement DTI = all observed debt outflows
+    // (informal loans, undeclared obligations, etc. the bureau may not capture).
+    const statementDerivedDebt = existingDTI !== null ? (monthlyIncome * existingDTI) / 100 : 0;
+    const bothSources = [bureauInstalment, statementDerivedDebt > 0 ? statementDerivedDebt : null].filter(v => v !== null);
+    const existingMonthlyForAffordability = bothSources.length > 0 ? Math.round(bothSources.reduce((a, b) => a + b, 0) / bothSources.length) : 0;
+    const maxAffordableTotal = monthlyIncome * 0.40; // 40% DTI ceiling
+    affordableMonthly = Math.max(Math.round(maxAffordableTotal - existingMonthlyForAffordability), 0);
+    const headroomPct = Math.round((affordableMonthly / monthlyIncome) * 100);
     const multiplier = verdict === 'ELIGIBLE' ? 6 : 3;
     suggestedMaxAmount = Math.round((affordableMonthly * multiplier) / 5000) * 5000;
     suggestedMinAmount = Math.round(suggestedMaxAmount * 0.4 / 5000) * 5000;
-    loanAmountReasoning = `₦${Number(affordableMonthly).toLocaleString()}/month available after existing obligations (${headroom}% of income). At a ${multiplier}-month repayment horizon, total principal capacity is ₦${Number(affordableMonthly * multiplier).toLocaleString()}.`;
+    const sourceNote = bureauInstalment !== null && statementDerivedDebt > 0
+      ? `avg of bureau ₦${Number(bureauInstalment).toLocaleString()}/mo and statement-derived ₦${Number(statementDerivedDebt).toLocaleString()}/mo`
+      : bureauInstalment !== null
+        ? `bureau reports ₦${Number(bureauInstalment).toLocaleString()}/mo in existing instalments`
+        : existingDTI !== null
+          ? `estimated ₦${Number(statementDerivedDebt).toLocaleString()}/mo from statement DTI of ${existingDTI}%`
+          : 'no existing debt data';
+    loanAmountReasoning = `₦${Number(affordableMonthly).toLocaleString()}/month spare capacity (${sourceNote}) → ${headroomPct}% of income available. At a ${multiplier}-month horizon, suggested principal up to ₦${Number(suggestedMaxAmount).toLocaleString()}.`;
+  }
+
+  // ── Repayment schedule (if tenor + rate provided) ────────────────────────
+  let suggestedMonthlyPayment = null;
+  let totalRepayment = null;
+  let totalInterest = null;
+
+  if (suggestedMaxAmount && loanTenor > 0 && annualRate >= 0) {
+    // Flat rate (common for Nigerian MFIs)
+    const interest = suggestedMaxAmount * (annualRate / 100) * (loanTenor / 12);
+    totalInterest = Math.round(interest);
+    totalRepayment = suggestedMaxAmount + totalInterest;
+    suggestedMonthlyPayment = Math.round(totalRepayment / loanTenor);
   }
 
   const verdictReason = {
@@ -1402,6 +1759,11 @@ function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement
     suggestedMaxAmount,
     affordableMonthly,
     loanAmountReasoning,
+    suggestedMonthlyPayment,
+    totalRepayment,
+    totalInterest,
+    loanTenor,
+    annualRate,
     summary: verdictReason[verdict],
     effectiveDTI,
     existingDTI,
@@ -1421,13 +1783,69 @@ function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement
   };
 }
 
-function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, bureauData }) {
+// ── Loan Review Tab ───────────────────────────────────────────────────────────
+function LoanReviewTab({ customer, statements, bvnResults, ninResults, bureauResults, discrepancies }) {
+  const latestStatement = statements.find(s => s.status === 'success');
+  const latestBVN = bvnResults.find(r => r.status === 'success');
+  const latestNIN = ninResults.find(r => r.status === 'success');
+  const latestBureau = bureauResults.find(r => r.status === 'success');
+  const risk = latestStatement?.result?.overallRiskScore || {};
+  const cashFlow = latestStatement?.result?.cashFlowAnalysis || {};
+  const income = latestStatement?.result?.incomeSourceAnalysis || {};
+  const debt = latestStatement?.result?.debtServicing || {};
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Beta notice */}
+      <div style={{ background: 'linear-gradient(135deg, #4c1d95, #6d28d9)', borderRadius: 12, padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: 16 }}>
+        <span style={{ fontSize: 22 }}>🧪</span>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <span style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>Loan Eligibility Review</span>
+            <span style={{ fontSize: 10, fontWeight: 800, background: 'rgba(255,255,255,0.2)', color: '#e9d5ff', padding: '2px 8px', borderRadius: 20, letterSpacing: 0.5 }}>BETA</span>
+          </div>
+          <p style={{ margin: 0, fontSize: 13, color: '#c4b5fd', lineHeight: 1.5 }}>
+            This feature is in beta. Eligibility scores and loan amount suggestions are computed algorithmically from available data and are intended to assist — not replace — human credit judgement. Always verify findings against your institution's lending policy.
+          </p>
+        </div>
+      </div>
+
+      {/* Data coverage warning if anything is missing */}
+      {(!latestStatement || !latestBVN || !latestBureau) && (
+        <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 10, padding: '10px 16px', fontSize: 13, color: '#92400e' }}>
+          ⚠ For the most accurate review, complete all checks first:
+          {!latestBVN && <span style={{ marginLeft: 8, fontWeight: 600 }}>BVN verification missing.</span>}
+          {!latestStatement && <span style={{ marginLeft: 8, fontWeight: 600 }}>Bank statement analysis missing.</span>}
+          {!latestBureau && <span style={{ marginLeft: 8, fontWeight: 600 }}>Credit bureau check missing.</span>}
+        </div>
+      )}
+
+      <LoanReviewSection
+        latestBVN={latestBVN}
+        latestNIN={latestNIN}
+        latestBureau={latestBureau}
+        latestStatement={latestStatement}
+        discrepancies={discrepancies}
+        risk={risk}
+        cashFlow={cashFlow}
+        income={income}
+        debt={debt}
+      />
+    </div>
+  );
+}
+
+function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt }) {
   const [proposedPayment, setProposedPayment] = useState('');
+  const [loanTenor, setLoanTenor] = useState('12');
+  const [annualRate, setAnnualRate] = useState('');
   const [review, setReview] = useState(null);
 
   function generate() {
     const proposed = parseFloat(proposedPayment.replace(/,/g, '')) || 0;
-    setReview(computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, bureauData, proposedMonthlyPayment: proposed }));
+    const tenor = parseInt(loanTenor, 10) || 0;
+    const rate = parseFloat(annualRate) || 0;
+    setReview(computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, proposedMonthlyPayment: proposed, loanTenor: tenor, annualRate: rate }));
   }
 
   const VERDICT_COLOR = { ELIGIBLE: '#16a34a', CONDITIONAL: '#d97706', NOT_ELIGIBLE: '#dc2626' };
@@ -1438,29 +1856,27 @@ function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement
   const CAT_LABEL = { identityIntegrity: 'Identity Integrity', creditHistory: 'Credit History', incomeAndCashFlow: 'Income & Cash Flow', debtServicing: 'Debt Servicing', riskProfile: 'Risk Profile' };
   const fmt = (v) => (v !== undefined && v !== null ? Number(v).toLocaleString() : null);
 
+  const inputBox = (label, prefix, value, onChange, placeholder, width = 130) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>{label}</label>
+      <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid #6d28d9', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+        <span style={{ padding: '0 10px', fontSize: 13, fontWeight: 700, color: '#6d28d9', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{prefix}</span>
+        <input type="text" inputMode="numeric" placeholder={placeholder} value={value} onChange={e => onChange(e.target.value)} onKeyDown={e => e.key === 'Enter' && generate()} style={{ border: 'none', outline: 'none', padding: '9px 10px', fontSize: 14, width }} />
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ ...s.card, borderTop: '3px solid #6d28d9' }}>
       <div style={{ marginBottom: 20 }}>
         <div style={s.sectionTitle}>Loan Eligibility Review</div>
         <div style={{ fontSize: 13, color: '#64748b', marginTop: 4, marginBottom: 16 }}>
-          Analyses identity, bureau, and financial data. Enter the proposed monthly repayment to calculate post-loan DTI.
+          Analyses identity, bureau, and financial data. Enter loan parameters to compute eligibility, DTI, and full repayment schedule.
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <label style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>Proposed Monthly Repayment (₦)</label>
-            <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid #6d28d9', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
-              <span style={{ padding: '0 10px', fontSize: 14, fontWeight: 700, color: '#6d28d9', borderRight: '1px solid #e2e8f0' }}>₦</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="e.g. 50,000"
-                value={proposedPayment}
-                onChange={e => setProposedPayment(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && generate()}
-                style={{ border: 'none', outline: 'none', padding: '9px 12px', fontSize: 14, width: 160 }}
-              />
-            </div>
-          </div>
+          {inputBox('Proposed Monthly Repayment (₦)', '₦', proposedPayment, setProposedPayment, 'e.g. 50,000')}
+          {inputBox('Loan Tenure', 'months', loanTenor, setLoanTenor, '12', 60)}
+          {inputBox('Annual Interest Rate', '%', annualRate, setAnnualRate, 'e.g. 24', 60)}
           <button style={{ ...s.btn, background: '#6d28d9', height: 38 }} onClick={generate}>
             {review ? '↻ Re-run Review' : '▶ Run Eligibility Review'}
           </button>
@@ -1500,6 +1916,28 @@ function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement
               </div>
             )}
           </div>
+
+          {/* Repayment schedule */}
+          {review.suggestedMonthlyPayment != null && (
+            <div style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)', borderRadius: 14, padding: '1.25rem 1.75rem' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#a5b4fc', marginBottom: 14 }}>
+                Repayment Schedule · {review.loanTenor} months @ {review.annualRate}% p.a. (flat rate)
+              </div>
+              <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+                {[
+                  ['Suggested Monthly Payment', `₦${fmt(review.suggestedMonthlyPayment)}`, '#fff'],
+                  ['Total Repayment', `₦${fmt(review.totalRepayment)}`, '#c7d2fe'],
+                  ['Total Interest Cost', `₦${fmt(review.totalInterest)}`, '#fca5a5'],
+                  ['Principal Amount', `₦${fmt(review.suggestedMaxAmount)}`, '#86efac'],
+                ].map(([label, value, color]) => (
+                  <div key={label}>
+                    <div style={{ fontSize: 10, color: '#818cf8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Summary */}
           <div style={{ background: '#f8fafc', borderRadius: 10, padding: '1rem 1.25rem', fontSize: 14, color: '#334155', lineHeight: 1.7, borderLeft: `4px solid ${VERDICT_COLOR[review.verdict] || '#94a3b8'}` }}>

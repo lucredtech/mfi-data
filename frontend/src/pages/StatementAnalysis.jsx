@@ -75,7 +75,7 @@ export default function StatementAnalysis() {
   return (
     <div>
       <h1 style={s.h1}>Bank Statement Analysis</h1>
-      <p style={s.sub}>Upload a borrower's bank statement (PDF or image) to get income, spending, and creditworthiness analysis.</p>
+      <p style={s.sub}>Upload a borrower's bank statement to get income, spending, and creditworthiness analysis.</p>
 
       <div style={s.grid}>
         {/* Upload form */}
@@ -104,7 +104,7 @@ export default function StatementAnalysis() {
                 <div>
                   <div style={{ fontSize: 36, marginBottom: 12 }}>📂</div>
                   <div style={{ fontWeight: 600, color: '#334155', marginBottom: 4 }}>Drop bank statement here</div>
-                  <div style={{ fontSize: 13, color: '#94a3b8' }}>or click to browse · PDF, JPEG, PNG · max 10MB</div>
+                  <div style={{ fontSize: 13, color: '#94a3b8' }}>or click to browse · PDF, XLSX, XLS, CSV, DOCX · max 10MB</div>
                 </div>
               )}
             </div>

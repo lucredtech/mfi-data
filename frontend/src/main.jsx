@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { Analytics } from '@vercel/analytics/react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -69,5 +70,5 @@ function App() {
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <AdminProvider><AuthProvider><App /></AuthProvider></AdminProvider>
+  <AdminProvider><AuthProvider><App /><Analytics /></AuthProvider></AdminProvider>
 );

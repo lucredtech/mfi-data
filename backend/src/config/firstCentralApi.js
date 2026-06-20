@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const BASE_URL = process.env.FIRSTCENTRAL_BASE_URL || 'https://iremedy.firstcentralcreditbureau.com/firstCentralrestv2';
+const BASE_URL = process.env.FIRSTCENTRAL_BASE_URL || 'https://online.firstcentralcreditbureau.com/firstcentralrestv2';
 
 // Cache the DataTicket for 50 minutes (UAT tokens typically expire in 60 min)
 let _cachedTicket = null;
@@ -27,12 +27,13 @@ async function getDataTicket() {
 
   console.log('[Bureau] login response:', JSON.stringify(data));
 
-  const ticket = data?.DataTicket ?? data?.dataTicket ?? data?.Token ?? data?.token
-    ?? data?.data?.DataTicket ?? data?.data?.Token;
+  const payload = Array.isArray(data) ? data[0] : data;
+  const ticket = payload?.DataTicket ?? payload?.dataTicket ?? payload?.Token ?? payload?.token
+    ?? payload?.data?.DataTicket ?? payload?.data?.Token;
   if (!ticket) throw new Error(`FirstCentral login returned no DataTicket. Response: ${JSON.stringify(data)}`);
 
   _cachedTicket = ticket;
-  _ticketExpiry = Date.now() + 50 * 60 * 1000;
+  _ticketExpiry = Date.now() + 270 * 60 * 1000; // 4.5 hours (ticket expires every 5 hours)
   return ticket;
 }
 
@@ -50,7 +51,24 @@ async function withRetry(fn) {
   }
 }
 
-async function getXScoreConsumerReport({ consumerID, consumerMergeList, enquiryReason = 'Credit Application' }) {
+const ENQUIRY_REASON = 'Application of Existing Credit by a Borrower';
+
+async function matchConsumer({ bvn, name, dateOfBirth, phone }) {
+  return withRetry(async () => {
+    const DataTicket = await getDataTicket();
+    const body = {
+      DataTicket,
+      EnquiryReason: ENQUIRY_REASON,
+      ConsumerName: name || '',
+      DateOfBirth: dateOfBirth || '',
+      Identification: bvn || phone || '',
+    };
+    const { data } = await axios.post(`${BASE_URL}/connectConsumerMatch`, body, { timeout: 30000 });
+    return data;
+  });
+}
+
+async function getXScoreConsumerReport({ consumerID, consumerMergeList, subscriberEnquiryEngineID }) {
   return withRetry(async () => {
     const DataTicket = await getDataTicket();
     const body = {
@@ -58,26 +76,11 @@ async function getXScoreConsumerReport({ consumerID, consumerMergeList, enquiryR
       consumerID: consumerID || '',
       consumerMergeList: consumerMergeList || '',
       EnquiryID: `LCR-${Date.now()}`,
-      EnquiryReason: enquiryReason,
+      EnquiryReason: ENQUIRY_REASON,
     };
-    if (process.env.FIRSTCENTRAL_SUBSCRIBER_ID) body.SubscriberEnquiryEngineID = process.env.FIRSTCENTRAL_SUBSCRIBER_ID;
+    // SubscriberEnquiryEngineID must come from the match response per FirstCentral requirements
+    if (subscriberEnquiryEngineID) body.SubscriberEnquiryEngineID = subscriberEnquiryEngineID;
     const { data } = await axios.post(`${BASE_URL}/GetXScoreConsumerFullCreditReport`, body, { timeout: 60000 });
-    return data;
-  });
-}
-
-async function matchConsumer({ bvn, name, dateOfBirth, phone }) {
-  return withRetry(async () => {
-    const DataTicket = await getDataTicket();
-    const body = {
-      DataTicket,
-      EnquiryReason: 'Credit Application',
-      ConsumerName: name || '',
-      DateOfBirth: dateOfBirth || '',
-      Identification: bvn || phone || '',
-    };
-    if (process.env.FIRSTCENTRAL_SUBSCRIBER_ID) body.SubscriberEnquiryEngineID = process.env.FIRSTCENTRAL_SUBSCRIBER_ID;
-    const { data } = await axios.post(`${BASE_URL}/connectConsumerMatch`, body, { timeout: 30000 });
     return data;
   });
 }

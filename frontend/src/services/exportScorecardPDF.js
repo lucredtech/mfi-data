@@ -8,6 +8,16 @@ const GRADE_COLOR = {
   D: [239, 68, 68], E: [127, 29, 29],
 };
 
+function parseBureauSections(result) {
+  const arr = result?.data ?? (Array.isArray(result) ? result : []);
+  const sec = {};
+  arr.forEach(item => {
+    const key = Object.keys(item || {})[0];
+    if (key) sec[key] = item[key];
+  });
+  return sec;
+}
+
 export function exportScorecardPDF({ customer, statement, bvnResult, ninResult, bureauResult, discrepancies = [] }) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const W = 210;
@@ -21,8 +31,16 @@ export function exportScorecardPDF({ customer, statement, bvnResult, ninResult, 
   const behavioral = d.behavioralAnalysis || {};
   const bvn = bvnResult?.result || {};
   const nin = ninResult?.result || {};
-  const bureau = bureauResult?.result || {};
-  const bureauScore = bureau.creditScore ?? bureau.summary?.creditScore;
+
+  // Parse FirstCentral bureau sections
+  const bureauSec = bureauResult ? parseBureauSections(bureauResult.result) : null;
+  const bureauScoring = bureauSec?.Scoring?.[0];
+  const bureauSummaryPDF = bureauSec?.CreditAccountSummary?.[0];
+  const bureauDelinquencyPDF = (bureauSec?.DeliquencyInformation || []).filter(d => d.SubscriberName || d.AccountNo);
+  const bureauScore = bureauScoring?.TotalConsumerScore ?? null;
+  const bureauScoreNum = bureauScore ? parseInt(bureauScore, 10) : null;
+  const bureauScoreColor = bureauScoreNum >= 650 ? [22, 163, 74] : bureauScoreNum >= 500 ? [245, 158, 11] : [220, 38, 38];
+
   const bvnPhoto = bvn.image;
   const ninPhoto = nin.photo;
 
@@ -68,9 +86,9 @@ export function exportScorecardPDF({ customer, statement, bvnResult, ninResult, 
 
   // Grade boxes
   let boxX = W - 14;
-  if (bureauScore) {
+  if (bureauScore != null) {
     boxX -= 32;
-    doc.setFillColor(109, 40, 217);
+    doc.setFillColor(...bureauScoreColor);
     doc.roundedRect(boxX, 6, 30, 36, 3, 3, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
@@ -187,27 +205,86 @@ export function exportScorecardPDF({ customer, statement, bvnResult, ninResult, 
     y = doc.lastAutoTable.finalY + 10;
   }
 
-  // ── Bureau Summary ──────────────────────────────────────────────
-  if (bureauResult) {
-    sectionTitle(doc, 'Credit Bureau Check', y);
+  // ── Bureau Summary (FirstCentral) ──────────────────────────────
+  if (bureauResult && bureauSec) {
+    sectionTitle(doc, 'Credit Bureau — FirstCentral XScore', y);
     y += 8;
 
-    autoTable(doc, {
-      startY: y,
-      margin: { left: 14, right: 14 },
-      head: [['Credit Score', 'Total Facilities', 'Active Loans', 'Total Outstanding', 'Overdue', 'Delinquency']],
-      body: [[
-        bureauScore ?? '—',
-        bureau.totalFacilities ?? bureau.summary?.totalFacilities ?? '—',
-        bureau.activeLoans ?? bureau.summary?.activeLoans ?? '—',
-        bureau.totalOutstanding !== undefined ? `₦${fmt(bureau.totalOutstanding)}` : bureau.summary?.totalOutstanding !== undefined ? `₦${fmt(bureau.summary.totalOutstanding)}` : '—',
-        bureau.overdueAmount !== undefined ? `₦${fmt(bureau.overdueAmount)}` : '—',
-        bureau.delinquencyStatus ?? bureau.summary?.delinquencyStatus ?? '—',
-      ]],
-      headStyles: { fillColor: [109, 40, 217], textColor: [255, 255, 255], fontSize: 8 },
-      bodyStyles: { fontSize: 9, textColor: [51, 65, 85] },
-    });
-    y = doc.lastAutoTable.finalY + 10;
+    // Score + sub-components
+    if (bureauScoring) {
+      autoTable(doc, {
+        startY: y,
+        margin: { left: 14, right: 14 },
+        head: [['Total Score', 'Description', 'Repayment History', 'Amount Owed', 'Credit Types', 'Credit History']],
+        body: [[
+          bureauScoring.TotalConsumerScore ?? '—',
+          bureauScoring.Description ?? '—',
+          bureauScoring.RepaymentHistoryScore ?? '—',
+          bureauScoring.TotalAmountOwedScore ?? '—',
+          bureauScoring.TypesOfCreditScore ?? '—',
+          bureauScoring.LengthOfCreditHistoryScore ?? '—',
+        ]],
+        headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 8 },
+        bodyStyles: { fontSize: 9, textColor: [51, 65, 85] },
+        didParseCell: (data) => {
+          if (data.column.index === 0 && data.section === 'body') {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.textColor = bureauScoreColor;
+            data.cell.styles.fontSize = 11;
+          }
+        },
+      });
+      y = doc.lastAutoTable.finalY + 4;
+    }
+
+    // Account summary
+    if (bureauSummaryPDF) {
+      autoTable(doc, {
+        startY: y,
+        margin: { left: 14, right: 14 },
+        head: [['Total Accounts', 'In Good Standing', 'In Arrears', 'Amount in Arrears', 'Outstanding Debt', 'Monthly Instalment', 'Rating']],
+        body: [[
+          bureauSummaryPDF.TotalAccounts ?? '—',
+          bureauSummaryPDF.TotalaccountinGoodcondition || bureauSummaryPDF.TotalaccountinGodcondition || '—',
+          bureauSummaryPDF.TotalAccountarrear ?? '—',
+          parseFloat(bureauSummaryPDF.Amountarrear || 0) > 0 ? `₦${Number(bureauSummaryPDF.Amountarrear).toLocaleString()}` : '₦0',
+          bureauSummaryPDF.TotalOutstandingdebt && bureauSummaryPDF.TotalOutstandingdebt !== '0.00' ? `₦${Number(bureauSummaryPDF.TotalOutstandingdebt).toLocaleString()}` : '₦0',
+          parseFloat(bureauSummaryPDF.TotalMonthlyInstalment || 0) > 0 ? `₦${Number(bureauSummaryPDF.TotalMonthlyInstalment).toLocaleString()}` : '—',
+          bureauSummaryPDF.Rating ?? '—',
+        ]],
+        headStyles: { fillColor: [109, 40, 217], textColor: [255, 255, 255], fontSize: 7 },
+        bodyStyles: { fontSize: 9, textColor: [51, 65, 85] },
+        didParseCell: (data) => {
+          if (data.column.index === 2 && data.section === 'body' && parseInt(data.cell.text[0], 10) > 0) {
+            data.cell.styles.textColor = [220, 38, 38];
+            data.cell.styles.fontStyle = 'bold';
+          }
+        },
+      });
+      y = doc.lastAutoTable.finalY + 4;
+    }
+
+    // Delinquency records
+    if (bureauDelinquencyPDF.length > 0) {
+      doc.setFillColor(255, 235, 235);
+      doc.rect(14, y, W - 28, 6, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(220, 38, 38);
+      doc.text(`⚠ DELINQUENCY — ${bureauDelinquencyPDF.length} record(s) on file`, 16, y + 4);
+      y += 8;
+      autoTable(doc, {
+        startY: y,
+        margin: { left: 14, right: 14 },
+        head: [['Lender', 'Account No', 'Period', 'Months in Arrears']],
+        body: bureauDelinquencyPDF.map(d => [d.SubscriberName || '—', d.AccountNo || '—', d.PeriodNum || '—', d.MonthsinArrears || '—']),
+        headStyles: { fillColor: [220, 38, 38], textColor: [255, 255, 255], fontSize: 8 },
+        bodyStyles: { fontSize: 9, textColor: [51, 65, 85] },
+      });
+      y = doc.lastAutoTable.finalY + 4;
+    }
+
+    y += 6;
   }
 
   // ── Statement Analysis ──────────────────────────────────────────

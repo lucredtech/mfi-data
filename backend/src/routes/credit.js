@@ -44,9 +44,10 @@ router.post('/credit-bureau/check', logUsage('/v1/credit-bureau/check'), async (
 
       const consumerID = matchResult?.consumerID ?? matchResult?.ConsumerID ?? '';
       const consumerMergeList = matchResult?.consumerMergeList ?? matchResult?.ConsumerMergeList ?? '';
+      const subscriberEnquiryEngineID = matchResult?.SubscriberEnquiryEngineID ?? matchResult?.subscriberEnquiryEngineID ?? '';
 
-      // Step 2: pull full XScore report
-      upstreamData = await getXScoreConsumerReport({ consumerID, consumerMergeList });
+      // Step 2: pull full XScore report, passing SubscriberEnquiryEngineID from match response
+      upstreamData = await getXScoreConsumerReport({ consumerID, consumerMergeList, subscriberEnquiryEngineID });
     } catch (upstreamErr) {
       const errBody = upstreamErr.response?.data || { message: upstreamErr.message };
       console.error('[Bureau] upstream error:', {
