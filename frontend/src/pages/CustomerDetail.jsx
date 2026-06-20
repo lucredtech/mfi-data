@@ -1901,13 +1901,24 @@ function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement
   const [loanTenor, setLoanTenor] = useState('12');
   const [annualRate, setAnnualRate] = useState('');
   const [review, setReview] = useState(null);
+  const [hasRun, setHasRun] = useState(false);
+
+  function compute(payment, tenor, rate) {
+    const proposed = parseFloat((payment || '').replace(/,/g, '')) || 0;
+    const tenorNum  = parseInt(tenor, 10) || 0;
+    const rateNum   = parseFloat(rate) || 0;
+    return computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, proposedMonthlyPayment: proposed, loanTenor: tenorNum, annualRate: rateNum });
+  }
 
   function generate() {
-    const proposed = parseFloat(proposedPayment.replace(/,/g, '')) || 0;
-    const tenor = parseInt(loanTenor, 10) || 0;
-    const rate = parseFloat(annualRate) || 0;
-    setReview(computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, proposedMonthlyPayment: proposed, loanTenor: tenor, annualRate: rate }));
+    setHasRun(true);
+    setReview(compute(proposedPayment, loanTenor, annualRate));
   }
+
+  useEffect(() => {
+    if (!hasRun) return;
+    setReview(compute(proposedPayment, loanTenor, annualRate));
+  }, [proposedPayment, loanTenor, annualRate]);
 
   const VERDICT_COLOR = { ELIGIBLE: '#16a34a', CONDITIONAL: '#d97706', NOT_ELIGIBLE: '#dc2626' };
   const VERDICT_BG = { ELIGIBLE: '#dcfce7', CONDITIONAL: '#fef3c7', NOT_ELIGIBLE: '#fee2e2' };
