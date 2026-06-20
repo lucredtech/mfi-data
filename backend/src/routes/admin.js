@@ -39,7 +39,8 @@ router.post('/login', async (req, res) => {
     );
     res.json({ token, admin: { id: admin._id, name: admin.name, email: admin.email } });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -52,7 +53,8 @@ router.post('/seed', async (req, res) => {
     const admin = await Admin.create({ name, email, password });
     res.status(201).json({ message: 'Admin created', email: admin.email });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -73,7 +75,8 @@ router.get('/clients', async (req, res) => {
     );
     res.json(withStats);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -89,7 +92,8 @@ router.get('/clients/:id', async (req, res) => {
     ]);
     res.json({ ...client, keys, recentLogs, totalRequests });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -103,7 +107,8 @@ router.patch('/clients/:id/status', async (req, res) => {
     if (!client) return res.status(404).json({ error: 'Client not found' });
     res.json({ message: `Client ${status}`, client });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -143,7 +148,8 @@ router.get('/stats', async (req, res) => {
       bureau: { total: totalBureau, failed: failedBureau },
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -170,7 +176,8 @@ router.get('/clients/:id/analyses', async (req, res) => {
       bureau: { total: bureau, failed: failedBureau },
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

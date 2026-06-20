@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { parseApiError } from '../utils/apiError';
 
 export default function ApiKeys() {
   const [keys, setKeys] = useState([]);
@@ -20,7 +21,7 @@ export default function ApiKeys() {
       setLabel('');
       toast.success('API key created');
       load();
-    } catch { toast.error('Failed to create key'); }
+    } catch (err) { toast.error(parseApiError(err, { default: 'Failed to create API key. Please try again.' })); }
     finally { setCreating(false); }
   };
 
@@ -30,7 +31,7 @@ export default function ApiKeys() {
       await api.delete(`/api/keys/${id}`);
       toast.success('Key revoked');
       load();
-    } catch { toast.error('Failed to revoke key'); }
+    } catch (err) { toast.error(parseApiError(err, { default: 'Failed to revoke key. Please try again.' })); }
   };
 
   const copy = (text) => { navigator.clipboard.writeText(text); toast.success('Copied!'); };

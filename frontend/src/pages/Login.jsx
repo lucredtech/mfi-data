@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { parseApiError } from '../utils/apiError';
 
 export default function Login() {
   const { login } = useAuth();
@@ -16,7 +17,11 @@ export default function Login() {
       await login(form.email, form.password);
       navigate('/dashboard');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Login failed');
+      toast.error(parseApiError(err, {
+        401: 'Incorrect email or password. Please try again.',
+        429: 'Too many sign-in attempts. Please wait 15 minutes and try again.',
+        default: 'Sign-in failed. Please try again.',
+      }));
     } finally {
       setLoading(false);
     }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { parseApiError, isUnauthorized } from '../utils/apiError';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -54,8 +55,9 @@ export default function CustomerDetail() {
     try {
       const { data: res } = await axios.get(`${API}/api/customers/${id}`, { headers: authHeaders() });
       setData(res);
-    } catch {
-      toast.error('Failed to load customer');
+    } catch (err) {
+      if (isUnauthorized(err)) { navigate('/login'); return; }
+      toast.error('Failed to load customer data. Please refresh the page.');
     } finally {
       setLoading(false);
     }
@@ -117,7 +119,7 @@ export default function CustomerDetail() {
               style={{ ...s.discrepancyBadge, background: discrepancies.some(d => d.severity === 'high') ? '#fee2e2' : '#fef3c7', color: discrepancies.some(d => d.severity === 'high') ? '#dc2626' : '#d97706', cursor: 'pointer' }}
               onClick={() => setTab('Overview')}
             >
-              ⚠ {discrepancies.length} discrepanc{discrepancies.length === 1 ? 'y' : 'ies'}
+              {discrepancies.length} discrepanc{discrepancies.length === 1 ? 'y' : 'ies'}
             </div>
           )}
           <div style={s.statPill}>{(statements || []).length} Statements</div>
@@ -385,7 +387,11 @@ function StatementTab({ customer, statements, onRefresh }) {
         window.__lucredCountdownInterval = interval;
       }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Upload failed');
+      if (isUnauthorized(err)) { toast.error('Your session has expired. Please sign in again.'); navigate('/login'); return; }
+      toast.error(parseApiError(err, {
+        400: 'The statement could not be processed. Please check the file and try again.',
+        default: 'Statement upload failed. Please try again.',
+      }));
     } finally {
       setUploading(false);
     }
@@ -468,10 +474,13 @@ function BVNTab({ customer, bvnResults, onRefresh }) {
     setLoading(true);
     try {
       await axios.post(`${API}/v1/identity/verify-bvn`, { bvn, customerId: customer._id }, { headers: { 'X-Api-Key': apiKey } });
-      toast.success('BVN verified');
+      toast.success('BVN verified successfully');
       onRefresh();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Verification failed');
+      toast.error(parseApiError(err, {
+        404: 'No record found for this BVN. Please verify the number is correct.',
+        default: 'BVN verification failed. Please try again.',
+      }));
     } finally {
       setLoading(false);
     }
@@ -539,10 +548,13 @@ function NINTab({ customer, ninResults, onRefresh }) {
     setLoading(true);
     try {
       await axios.post(`${API}/v1/identity/verify-nin`, { nin, customerId: customer._id }, { headers: { 'X-Api-Key': apiKey } });
-      toast.success('NIN verified');
+      toast.success('NIN verified successfully');
       onRefresh();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Verification failed');
+      toast.error(parseApiError(err, {
+        404: 'No record found for this NIN. Please verify the number is correct.',
+        default: 'NIN verification failed. Please try again.',
+      }));
     } finally {
       setLoading(false);
     }
@@ -613,7 +625,7 @@ function parseBureauSections(result) {
 // Payment history cell colour
 function paymentColor(code) {
   if (code === '#' || code == null) return { bg: '#f1f5f9', color: '#94a3b8', label: '—' };
-  if (code === '0') return { bg: '#dcfce7', color: '#16a34a', label: '✓' };
+  if (code === '0') return { bg: '#dcfce7', color: '#16a34a', label: 'OK' };
   if (code === '101') return { bg: '#450a0a', color: '#fca5a5', label: 'WO' };
   const n = parseInt(code, 10);
   if (n >= 3) return { bg: '#dc2626', color: '#fff', label: code };
@@ -645,7 +657,10 @@ function BureauTab({ customer, bureauResults, onRefresh }) {
       toast.success('Bureau check complete');
       onRefresh();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Bureau check failed');
+      toast.error(parseApiError(err, {
+        404: 'No credit record found for this individual in the bureau.',
+        default: 'Bureau check failed. Please try again shortly.',
+      }));
     } finally {
       setLoading(false);
     }
@@ -825,7 +840,7 @@ function BureauTab({ customer, bureauResults, onRefresh }) {
           {/* Delinquency */}
           {delinquency.length > 0 && (
             <div style={{ ...s.card, borderLeft: '4px solid #ef4444' }}>
-              <div style={{ ...s.cardTitle, color: '#dc2626' }}>⚠ Delinquency Information</div>
+              <div style={{ ...s.cardTitle, color: '#dc2626' }}>Delinquency Information</div>
               <table style={s.table}>
                 <thead><tr>{['Lender', 'Account No', 'Period', 'Months in Arrears'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
                 <tbody>
@@ -891,7 +906,7 @@ function BureauTab({ customer, bureauResults, onRefresh }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <div style={s.cardTitle}>24-Month Payment History</div>
                 <div style={{ display: 'flex', gap: 10, fontSize: 11 }}>
-                  {[['✓ Current', '#dcfce7', '#16a34a'], ['1-2 Late', '#fef3c7', '#d97706'], ['3+ Late', '#fee2e2', '#dc2626'], ['WO Written-off', '#450a0a', '#fca5a5'], ['— N/A', '#f1f5f9', '#94a3b8']].map(([lbl, bg, color]) => (
+                  {[['OK Current', '#dcfce7', '#16a34a'], ['1-2 Late', '#fef3c7', '#d97706'], ['3+ Late', '#fee2e2', '#dc2626'], ['WO Written-off', '#450a0a', '#fca5a5'], ['— N/A', '#f1f5f9', '#94a3b8']].map(([lbl, bg, color]) => (
                     <span key={lbl} style={{ background: bg, color, padding: '2px 8px', borderRadius: 20, fontWeight: 600 }}>{lbl}</span>
                   ))}
                 </div>
@@ -899,7 +914,7 @@ function BureauTab({ customer, bureauResults, onRefresh }) {
               <div style={{ overflowX: 'auto' }}>
                 {payHistory.map((acc, ai) => {
                   const worst = worstPaymentCode(acc);
-                  const { bg: worstBg, color: worstColor, label: worstLabel } = worst ? paymentColor(worst) : { bg: '#dcfce7', color: '#16a34a', label: '✓' };
+                  const { bg: worstBg, color: worstColor, label: worstLabel } = worst ? paymentColor(worst) : { bg: '#dcfce7', color: '#16a34a', label: 'OK' };
                   const autoExpand = payHistory.length <= 3;
                   return (
                   <div key={ai} style={{ marginBottom: 16 }}>
@@ -911,7 +926,7 @@ function BureauTab({ customer, bureauResults, onRefresh }) {
                         <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{acc.SubscriberName}</span>
                         <span style={{ fontSize: 11, color: '#94a3b8' }}>{acc.AccountNo}</span>
                         <span style={{ fontSize: 11, color: '#64748b' }}>{acc.DateAccountOpened} → {acc.ClosedDate || 'Open'}</span>
-                        <span title="Worst payment in 24 months" style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: worstBg, color: worstColor }}>worst: {worstLabel === '✓' ? 'Current' : worstLabel === '—' ? 'No data' : `${worstLabel === 'WO' ? 'Written-off' : `${worstLabel} mo late`}`}</span>
+                        <span title="Worst payment in 24 months" style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: worstBg, color: worstColor }}>worst: {worstLabel === 'OK' ? 'Current' : worstLabel === '—' ? 'No data' : `${worstLabel === 'WO' ? 'Written-off' : `${worstLabel} mo late`}`}</span>
                       </div>
                       <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: acc.PerformanceStatus === 'Performing' ? '#dcfce7' : '#fef3c7', color: acc.PerformanceStatus === 'Performing' ? '#16a34a' : '#d97706' }}>{acc.PerformanceStatus}</span>
                     </button>
@@ -1145,7 +1160,7 @@ function ScorecardTab({ customer, statements, bvnResults, ninResults, bureauResu
   // ── Identity status pill ──────────────────────────────────────────────────
   const IdPill = ({ label, verified, detail }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: verified ? '#f0fdf4' : '#fef2f2', border: `1px solid ${verified ? '#bbf7d0' : '#fca5a5'}`, borderRadius: 10 }}>
-      <span style={{ fontSize: 18 }}>{verified ? '✓' : '✗'}</span>
+      <div style={{ width: 20, height: 20, borderRadius: '50%', background: verified ? '#16a34a' : '#dc2626', flexShrink: 0 }} />
       <div>
         <div style={{ fontSize: 12, fontWeight: 700, color: verified ? '#16a34a' : '#dc2626' }}>{label}</div>
         {detail && <div style={{ fontSize: 11, color: '#64748b' }}>{detail}</div>}
@@ -1157,8 +1172,8 @@ function ScorecardTab({ customer, statements, bvnResults, ninResults, bureauResu
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Actions */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-        <button style={{ ...s.btn, background: '#475569' }} onClick={() => window.print()}>🖨 Print</button>
-        <button style={s.btn} onClick={handleExport}>⬇ Export PDF</button>
+        <button style={{ ...s.btn, background: '#475569' }} onClick={() => window.print()}>Print</button>
+        <button style={s.btn} onClick={handleExport}>Export PDF</button>
       </div>
 
       {/* ── Header ───────────────────────────────────────────────────────────── */}
@@ -1188,8 +1203,8 @@ function ScorecardTab({ customer, statements, bvnResults, ninResults, bureauResu
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           {discrepancies.length > 0 && (
             <div style={{ background: '#fef3c7', borderRadius: 10, padding: '0.75rem 1rem', textAlign: 'center' }}>
-              <div style={{ fontSize: 20, fontWeight: 800, color: '#d97706' }}>⚠</div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: '#d97706', textTransform: 'uppercase' }}>{discrepancies.length} Issue{discrepancies.length > 1 ? 's' : ''}</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: '#d97706' }}>{discrepancies.length}</div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: '#d97706', textTransform: 'uppercase' }}>Issue{discrepancies.length > 1 ? 's' : ''}</div>
             </div>
           )}
           {risk.overallRiskScore && (
@@ -1250,7 +1265,7 @@ function ScorecardTab({ customer, statements, bvnResults, ninResults, bureauResu
       {/* ── Discrepancy details (only if present) ────────────────────────────── */}
       {discrepancies.length > 0 && (
         <div style={{ ...s.card, borderLeft: '4px solid #ef4444', background: '#fef2f2' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>⚠ Identity Discrepancies</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Identity Discrepancies</div>
           {discrepancies.map((dc, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: i < discrepancies.length - 1 ? '1px solid #fca5a5' : 'none' }}>
               <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: dc.severity === 'high' ? '#fee2e2' : '#fef3c7', color: dc.severity === 'high' ? '#dc2626' : '#d97706', flexShrink: 0 }}>{dc.severity.toUpperCase()}</span>
@@ -1344,7 +1359,7 @@ function ScorecardTab({ customer, statements, bvnResults, ninResults, bureauResu
                   {bureauSummaryRaw.TotalAccounts} total account{bureauSummaryRaw.TotalAccounts != 1 ? 's' : ''}{activeArrears > 0 ? ` · ${activeArrears} in arrears` : ''}{hasJudgement ? ' · judgement on file' : ''}
                 </div>
                 {bureauDelinq.length > 0 && (
-                  <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: '#dc2626' }}>⚠ {bureauDelinq.length} delinquency record{bureauDelinq.length > 1 ? 's' : ''}</div>
+                  <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: '#dc2626' }}>{bureauDelinq.length} delinquency record{bureauDelinq.length > 1 ? 's' : ''}</div>
                 )}
               </div>
             )}
@@ -1400,13 +1415,13 @@ function ScorecardTab({ customer, statements, bvnResults, ninResults, bureauResu
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {bureauDelinq.map((di, i) => (
               <div key={`delinq-${i}`} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 12px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8 }}>
-                <span style={{ fontSize: 13, flexShrink: 0 }}>🔴</span>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#dc2626', flexShrink: 0, marginTop: 2 }} />
                 <span style={{ fontSize: 12, color: '#7f1d1d' }}><strong>Bureau delinquency:</strong> {di.SubscriberName} — {di.MonthsinArrears} month{di.MonthsinArrears != 1 ? 's' : ''} in arrears</span>
               </div>
             ))}
             {highRiskFlags.map((f, i) => (
               <div key={`flag-${i}`} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8 }}>
-                <span style={{ fontSize: 13, flexShrink: 0 }}>⚠️</span>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#d97706', flexShrink: 0, marginTop: 2 }} />
                 <span style={{ fontSize: 12, color: '#78350f' }}><strong>{f.category}:</strong> ₦{fmt(f.amount)} spent ({f.percentageOfIncome != null ? `${Number(f.percentageOfIncome).toFixed(1)}%` : '—'} of income)</span>
               </div>
             ))}
@@ -1873,7 +1888,7 @@ function LoanReviewTab({ customer, statements, bvnResults, ninResults, bureauRes
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Beta notice */}
       <div style={{ background: 'linear-gradient(135deg, #4c1d95, #6d28d9)', borderRadius: 12, padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: 16 }}>
-        <span style={{ fontSize: 22 }}>🧪</span>
+        <div style={{ width: 6, height: 40, borderRadius: 3, background: '#a78bfa', flexShrink: 0 }} />
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
             <span style={{ fontSize: 15, fontWeight: 800, color: '#fff' }}>Loan Eligibility Review</span>
@@ -1888,7 +1903,7 @@ function LoanReviewTab({ customer, statements, bvnResults, ninResults, bureauRes
       {/* Data coverage warning if anything is missing */}
       {(!latestStatement || !latestBVN || !latestBureau) && (
         <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 10, padding: '10px 16px', fontSize: 13, color: '#92400e' }}>
-          ⚠ For the most accurate review, complete all checks first:
+          For the most accurate review, complete all checks first:
           {!latestBVN && <span style={{ marginLeft: 8, fontWeight: 600 }}>BVN verification missing.</span>}
           {!latestStatement && <span style={{ marginLeft: 8, fontWeight: 600 }}>Bank statement analysis missing.</span>}
           {!latestBureau && <span style={{ marginLeft: 8, fontWeight: 600 }}>Credit bureau check missing.</span>}
@@ -1942,7 +1957,7 @@ function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement
 
   const VERDICT_COLOR = { ELIGIBLE: '#16a34a', CONDITIONAL: '#d97706', NOT_ELIGIBLE: '#dc2626' };
   const VERDICT_BG = { ELIGIBLE: '#dcfce7', CONDITIONAL: '#fef3c7', NOT_ELIGIBLE: '#fee2e2' };
-  const VERDICT_LABEL = { ELIGIBLE: '✓ Eligible', CONDITIONAL: '⚡ Conditional', NOT_ELIGIBLE: '✗ Not Eligible' };
+  const VERDICT_LABEL = { ELIGIBLE: 'Eligible', CONDITIONAL: 'Conditional', NOT_ELIGIBLE: 'Not Eligible' };
   const STATUS_COLOR = { PASS: '#16a34a', WARN: '#d97706', FAIL: '#dc2626' };
   const STATUS_BG = { PASS: '#dcfce7', WARN: '#fef3c7', FAIL: '#fee2e2' };
   const CAT_LABEL = { identityIntegrity: 'Identity Integrity', creditHistory: 'Credit History', incomeAndCashFlow: 'Income & Cash Flow', debtServicing: 'Debt Servicing', riskProfile: 'Risk Profile' };
@@ -2094,7 +2109,7 @@ function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement
               {review.flags.length > 0 && (
                 <div style={{ background: '#fee2e2', borderRadius: 10, padding: '1rem 1.25rem' }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Risk Flags</div>
-                  {review.flags.map((f, i) => <div key={i} style={{ fontSize: 13, color: '#7f1d1d', marginBottom: 6, lineHeight: 1.5 }}>⚠ {f}</div>)}
+                  {review.flags.map((f, i) => <div key={i} style={{ fontSize: 13, color: '#7f1d1d', marginBottom: 6, lineHeight: 1.5 }}>{f}</div>)}
                 </div>
               )}
             </div>
@@ -2104,7 +2119,7 @@ function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             {Object.entries(review.dataAvailability).map(([k, v]) => (
               <span key={k} style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20, background: v ? '#dcfce7' : '#f1f5f9', color: v ? '#16a34a' : '#94a3b8' }}>
-                {v ? '✓' : '✗'} {k.toUpperCase()}
+                {k.toUpperCase()}: {v ? 'Yes' : 'No'}
               </span>
             ))}
             <span style={{ fontSize: 11, color: '#94a3b8' }}>— data sources used</span>
@@ -2125,7 +2140,7 @@ function VerificationResultCard({ result, accentColor, photoKey, fields, verifie
     <div style={{ background: '#fff', border: `1.5px solid ${accentColor}40`, borderRadius: 14, padding: '1.5rem', borderLeft: `4px solid ${accentColor}` }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <span style={{ fontSize: 12, fontWeight: 700, background: `${accentColor}15`, color: accentColor, padding: '3px 12px', borderRadius: 20 }}>
-          ✓ {label} Verified
+          {label} Verified
         </span>
         <span style={{ fontSize: 12, color: '#94a3b8' }}>
           {new Date(verifiedAt).toLocaleString()}

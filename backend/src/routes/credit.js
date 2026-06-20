@@ -1,6 +1,12 @@
 const router = require('express').Router();
 const rateLimit = require('express-rate-limit');
 const { requireApiKey, logUsage } = require('../middleware/auth');
+
+function stripBiometrics(result) {
+  if (!result || typeof result !== 'object') return result;
+  const { image, photo, ...safe } = result;
+  return safe;
+}
 const lucredApi = require('../config/lucredApi');
 const dojahApi = require('../config/dojahApi');
 const { matchConsumer, getXScoreConsumerReport } = require('../config/firstCentralApi');
@@ -88,7 +94,8 @@ router.post('/credit-bureau/check', logUsage('/v1/credit-bureau/check'), async (
 
     res.json({ success: true, data: upstreamData, resultId: saved._id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[credit] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -153,13 +160,14 @@ router.post('/identity/verify-bvn', logUsage('/v1/identity/verify-bvn'), async (
       client: req.apiKey.client,
       customer: customerId || undefined,
       bvn,
-      result: normalized,
+      result: stripBiometrics(normalized), // biometric image never persisted
       status: 'success',
     });
 
     res.json({ success: true, data: normalized, resultId: saved._id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[credit] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -208,13 +216,14 @@ router.post('/identity/verify-nin', logUsage('/v1/identity/verify-nin'), async (
       client: req.apiKey.client,
       customer: customerId || undefined,
       nin,
-      result: normalized,
+      result: stripBiometrics(normalized), // biometric photo never persisted
       status: 'success',
     });
 
     res.json({ success: true, data: normalized, resultId: saved._id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[credit] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

@@ -24,6 +24,7 @@ import CustomerDetail from './pages/CustomerDetail';
 import Layout from './components/Layout';
 import AdminLayout from './components/AdminLayout';
 import AdminLogin from './pages/admin/AdminLogin';
+import Privacy from './pages/Privacy';
 import AdminOverview from './pages/admin/AdminOverview';
 import AdminClients from './pages/admin/AdminClients';
 import AdminClientDetail from './pages/admin/AdminClientDetail';
@@ -60,6 +61,7 @@ function App() {
         <Route path="/dashboard/customers/:id" element={<PrivateRoute><Layout><CustomerDetail /></Layout></PrivateRoute>} />
         <Route path="/dashboard/usage" element={<PrivateRoute><Layout><Usage /></Layout></PrivateRoute>} />
         <Route path="/dashboard/docs" element={<PrivateRoute><Layout><Docs /></Layout></PrivateRoute>} />
+        <Route path="/dashboard/privacy" element={<PrivateRoute><Layout><Privacy /></Layout></PrivateRoute>} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin" element={<AdminRoute><AdminLayout><AdminOverview /></AdminLayout></AdminRoute>} />
         <Route path="/admin/clients" element={<AdminRoute><AdminLayout><AdminClients /></AdminLayout></AdminRoute>} />

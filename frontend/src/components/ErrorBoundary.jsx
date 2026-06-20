@@ -14,7 +14,7 @@ export default class ErrorBoundary extends Component {
     if (this.state.error) {
       return (
         <div style={{ padding: '3rem 2rem', textAlign: 'center' }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#fef2f2', border: '2px solid #fca5a5', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: 22, color: '#dc2626', fontWeight: 700 }}>!</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>
             Something went wrong
           </div>

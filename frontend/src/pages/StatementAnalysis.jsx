@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import CustomerSelect from '../components/CustomerSelect';
+import { parseApiError } from '../utils/apiError';
 
 const BANKS = [
   { value: "moniepoint", label: "Moniepoint" },
@@ -66,7 +67,12 @@ export default function StatementAnalysis() {
       setResult(data.data);
       toast.success('Analysis complete');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Analysis failed');
+      toast.error(parseApiError(err, {
+        400: 'The statement could not be processed. Please check the file and try again.',
+        413: 'The file is too large. Please upload a file under 10MB.',
+        415: 'Unsupported file format. Please upload a PDF, Excel, or CSV statement.',
+        default: 'Statement analysis failed. Please try again or contact support if the issue persists.',
+      }));
     } finally {
       setLoading(false);
     }
@@ -93,7 +99,7 @@ export default function StatementAnalysis() {
                 onChange={(e) => e.target.files[0] && validateAndSet(e.target.files[0])} />
               {file ? (
                 <div>
-                  <div style={s.fileIcon}>📄</div>
+                  <div style={s.fileIcon}>PDF</div>
                   <div style={s.fileName}>{file.name}</div>
                   <div style={s.fileSize}>{(file.size / 1024).toFixed(0)} KB</div>
                   <button type="button" onClick={(e) => { e.stopPropagation(); setFile(null); }} style={s.removeBtn}>
@@ -102,7 +108,6 @@ export default function StatementAnalysis() {
                 </div>
               ) : (
                 <div>
-                  <div style={{ fontSize: 36, marginBottom: 12 }}>📂</div>
                   <div style={{ fontWeight: 600, color: '#334155', marginBottom: 4 }}>Drop bank statement here</div>
                   <div style={{ fontSize: 13, color: '#94a3b8' }}>or click to browse · PDF, XLSX, XLS, CSV, DOCX · max 10MB</div>
                 </div>
@@ -162,7 +167,6 @@ export default function StatementAnalysis() {
         <div>
           {!result && !loading && (
             <div style={s.emptyResult}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
               <div style={{ fontWeight: 600, color: '#334155' }}>Results will appear here</div>
               <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>Upload a statement and click Analyse</div>
             </div>

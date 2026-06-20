@@ -4,6 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { exportNINHistoryCSV } from '../services/exportCSV';
 import CustomerSelect from '../components/CustomerSelect';
+import { parseApiError, isUnauthorized } from '../utils/apiError';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -59,7 +60,12 @@ export default function NINVerification() {
       toast.success('NIN verified and saved');
       fetchHistory();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Verification failed');
+      if (isUnauthorized(err)) { toast.error('Your session has expired. Please sign in again.'); navigate('/login'); return; }
+      toast.error(parseApiError(err, {
+        400: 'Invalid NIN format. Please check the number and try again.',
+        404: 'No record found for this NIN. Please verify the number is correct.',
+        default: 'NIN verification failed. Please try again.',
+      }));
     } finally {
       setLoading(false);
     }

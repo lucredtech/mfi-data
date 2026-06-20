@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { parseApiError } from '../utils/apiError';
 
 export default function Register() {
   const { register } = useAuth();
@@ -19,7 +20,11 @@ export default function Register() {
       toast.success(`Welcome! Your API key: ${data.apiKey}`);
       navigate('/dashboard');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Registration failed');
+      toast.error(parseApiError(err, {
+        409: 'An account with this email already exists. Please sign in instead.',
+        429: 'Too many registration attempts. Please try again in a few minutes.',
+        default: 'Registration failed. Please check your details and try again.',
+      }));
     } finally {
       setLoading(false);
     }

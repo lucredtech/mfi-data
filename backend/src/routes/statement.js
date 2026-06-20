@@ -93,7 +93,8 @@ router.get('/api/statements', requireJWT, async (req, res) => {
     const total = await StatementResult.countDocuments({ client: req.client.id });
     res.json({ total, statements });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -104,7 +105,8 @@ router.get('/api/statements/:id', requireJWT, async (req, res) => {
     if (!statement) return res.status(404).json({ error: 'Not found' });
     res.json(statement);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

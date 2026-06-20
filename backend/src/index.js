@@ -1,7 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 const mongoose = require('mongoose');
 
 const authRoutes = require('./routes/auth');
@@ -14,6 +16,7 @@ const customerRoutes = require('./routes/customers');
 
 const app = express();
 
+app.use(helmet());
 app.use(cors({
   origin: [
     'https://mfi-data.vercel.app',
@@ -22,11 +25,26 @@ app.use(cors({
   ],
   credentials: true,
 }));
-app.use(express.json());
-app.use(morgan('dev'));
+app.use(express.json({ limit: '1mb' }));
+
+// Log requests without exposing sensitive body fields
+morgan.token('safe-body', (req) => {
+  const { password, bvn, nin, ...safe } = req.body || {};
+  return JSON.stringify(safe);
+});
+app.use(morgan(':method :url :status :response-time ms - body::safe-body'));
+
+// Brute-force protection on auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Public routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Protected dashboard routes

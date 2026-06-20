@@ -2,22 +2,18 @@ import { Link } from 'react-router-dom';
 
 const FEATURES = [
   {
-    icon: '📄',
     title: 'Bank Statement Analysis',
     desc: 'Upload bank statements and get instant income, spending, and repayment capacity analysis powered by Lucred\'s AI engine.',
   },
   {
-    icon: '🏦',
     title: 'Credit Bureau Access',
     desc: 'Pull comprehensive credit history and outstanding obligations for any borrower in seconds.',
   },
   {
-    icon: '✅',
     title: 'BVN & NIN Verification',
     desc: 'Verify borrower identity instantly with Nigeria\'s national identity infrastructure.',
   },
   {
-    icon: '📊',
     title: 'Credit Scoring',
     desc: 'Get Lucred\'s proprietary credit score and lending decision with suggested loan amount and tenor.',
   },
@@ -72,7 +68,6 @@ export default function Landing() {
           <div style={s.featGrid}>
             {FEATURES.map((f) => (
               <div key={f.title} style={s.featCard}>
-                <div style={s.featIcon}>{f.icon}</div>
                 <h3 style={s.featTitle}>{f.title}</h3>
                 <p style={s.featDesc}>{f.desc}</p>
               </div>

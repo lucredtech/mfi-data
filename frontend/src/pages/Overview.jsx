@@ -128,7 +128,6 @@ export default function Overview() {
 
         {!searching && statements.length === 0 && (
           <div style={s.empty}>
-            <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
             <div style={{ fontWeight: 600, color: '#334155' }}>No analyses yet</div>
             <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>
               {search ? 'No results for that search.' : 'Upload a bank statement to get started.'}

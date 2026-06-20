@@ -25,8 +25,6 @@ async function getDataTicket() {
     headers: { 'Content-Type': 'application/json' },
   });
 
-  console.log('[Bureau] login response:', JSON.stringify(data));
-
   const payload = Array.isArray(data) ? data[0] : data;
   const ticket = payload?.DataTicket ?? payload?.dataTicket ?? payload?.Token ?? payload?.token
     ?? payload?.data?.DataTicket ?? payload?.data?.Token;

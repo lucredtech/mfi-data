@@ -6,15 +6,16 @@ import { useAuth } from '../context/AuthContext';
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
 const NAV = [
-  { path: '/dashboard', label: 'Overview', icon: '⊞' },
-  { path: '/dashboard/customers', label: 'Customers', icon: '👤' },
-  { path: '/dashboard/statement', label: 'Statement Analysis', icon: '📄' },
-  { path: '/dashboard/bvn', label: 'BVN Verification', icon: '✅' },
-  { path: '/dashboard/nin', label: 'NIN Verification', icon: '🪪' },
-  { path: '/dashboard/credit-bureau', label: 'Credit Bureau', icon: '🏦' },
-  { path: '/dashboard/api-keys', label: 'API Keys', icon: '🔑' },
-  { path: '/dashboard/usage', label: 'Usage', icon: '📊' },
-  { path: '/dashboard/docs', label: 'Docs', icon: '📖' },
+  { path: '/dashboard', label: 'Overview', abbr: 'OV' },
+  { path: '/dashboard/customers', label: 'Customers', abbr: 'CU' },
+  { path: '/dashboard/statement', label: 'Statement Analysis', abbr: 'ST' },
+  { path: '/dashboard/bvn', label: 'BVN Verification', abbr: 'BV' },
+  { path: '/dashboard/nin', label: 'NIN Verification', abbr: 'NI' },
+  { path: '/dashboard/credit-bureau', label: 'Credit Bureau', abbr: 'CB' },
+  { path: '/dashboard/api-keys', label: 'API Keys', abbr: 'AK' },
+  { path: '/dashboard/usage', label: 'Usage', abbr: 'US' },
+  { path: '/dashboard/docs', label: 'Docs', abbr: 'DO' },
+  { path: '/dashboard/privacy', label: 'Privacy & Data', abbr: 'PR' },
 ];
 
 const TYPE_LABEL = { statement: 'Statement', bvn: 'BVN', bureau: 'Bureau' };
@@ -78,7 +79,7 @@ export default function Layout({ children }) {
 
         {/* Nav */}
         <nav style={{ flex: 1, overflowY: 'auto' }}>
-          {NAV.map(({ path, label, icon }) => {
+          {NAV.map(({ path, label, abbr }) => {
             const active = path === '/dashboard' ? pathname === path : pathname.startsWith(path);
             return (
               <Link
@@ -97,8 +98,10 @@ export default function Layout({ children }) {
                   transition: 'background 0.15s',
                 }}
               >
-                <span style={{ fontSize: 15, flexShrink: 0 }}>{icon}</span>
-                {!collapsed && <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>}
+                {collapsed
+                  ? <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, flexShrink: 0 }}>{abbr}</span>
+                  : <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+                }
               </Link>
             );
           })}

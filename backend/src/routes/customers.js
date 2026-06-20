@@ -7,10 +7,25 @@ const StatementResult = require('../models/StatementResult');
 const BVNResult = require('../models/BVNResult');
 const BureauResult = require('../models/BureauResult');
 const NINResult = require('../models/NINResult');
+const MFIClient = require('../models/MFIClient');
+const ApiKey = require('../models/ApiKey');
+const UsageLog = require('../models/UsageLog');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 router.use(requireJWT);
+
+// Escape user input before using in RegExp to prevent injection
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Strip biometric fields from identity results before persisting
+function stripBiometrics(result) {
+  if (!result || typeof result !== 'object') return result;
+  const { image, photo, ...safe } = result;
+  return safe;
+}
 
 // List customers for the logged-in MFI client
 router.get('/', async (req, res) => {
@@ -18,17 +33,19 @@ router.get('/', async (req, res) => {
     const { q } = req.query;
     const filter = { client: req.client.id };
     if (q) {
+      const safe = escapeRegex(q);
       filter.$or = [
-        { name: new RegExp(q, 'i') },
-        { email: new RegExp(q, 'i') },
-        { phone: new RegExp(q, 'i') },
-        { bvn: new RegExp(q, 'i') },
+        { name: new RegExp(safe, 'i') },
+        { email: new RegExp(safe, 'i') },
+        { phone: new RegExp(safe, 'i') },
+        { bvn: new RegExp(safe, 'i') },
       ];
     }
     const customers = await Customer.find(filter).sort({ createdAt: -1 }).lean();
     res.json({ customers });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -40,7 +57,8 @@ router.post('/', async (req, res) => {
     const customer = await Customer.create({ client: req.client.id, name, email, bvn, nin, phone, customerType: customerType || 'individual' });
     res.status(201).json({ customer });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -59,7 +77,8 @@ router.get('/:id', async (req, res) => {
 
     res.json({ customer, statements, bvnResults, ninResults, bureauResults });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -75,18 +94,29 @@ router.patch('/:id', async (req, res) => {
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
     res.json({ customer });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// Delete customer
+// Delete customer — cascade-deletes all associated analysis records
 router.delete('/:id', async (req, res) => {
   try {
     const customer = await Customer.findOneAndDelete({ _id: req.params.id, client: req.client.id });
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
+
+    // Hard-delete all records tied to this customer (NDPR right-to-erasure)
+    await Promise.all([
+      BVNResult.deleteMany({ customer: customer._id }),
+      NINResult.deleteMany({ customer: customer._id }),
+      BureauResult.deleteMany({ customer: customer._id }),
+      StatementResult.deleteMany({ customer: customer._id }),
+    ]);
+
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -97,7 +127,7 @@ router.get('/analyses/bvn', async (req, res) => {
   try {
     const { q } = req.query;
     const filter = { client: req.client.id };
-    if (q) filter.bvn = new RegExp(q, 'i');
+    if (q) filter.bvn = new RegExp(escapeRegex(q), 'i');
     const results = await BVNResult.find(filter)
       .populate('customer', 'name email')
       .sort({ createdAt: -1 })
@@ -106,7 +136,8 @@ router.get('/analyses/bvn', async (req, res) => {
     const total = await BVNResult.countDocuments({ client: req.client.id });
     res.json({ total, results });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -115,7 +146,7 @@ router.get('/analyses/nin', async (req, res) => {
   try {
     const { q } = req.query;
     const filter = { client: req.client.id };
-    if (q) filter.nin = new RegExp(q, 'i');
+    if (q) filter.nin = new RegExp(escapeRegex(q), 'i');
     const results = await NINResult.find(filter)
       .populate('customer', 'name email')
       .sort({ createdAt: -1 })
@@ -124,7 +155,8 @@ router.get('/analyses/nin', async (req, res) => {
     const total = await NINResult.countDocuments({ client: req.client.id });
     res.json({ total, results });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -133,7 +165,7 @@ router.get('/analyses/bureau', async (req, res) => {
   try {
     const { q } = req.query;
     const filter = { client: req.client.id };
-    if (q) filter.bvn = new RegExp(q, 'i');
+    if (q) filter.bvn = new RegExp(escapeRegex(q), 'i');
     const results = await BureauResult.find(filter)
       .populate('customer', 'name email')
       .sort({ createdAt: -1 })
@@ -142,7 +174,8 @@ router.get('/analyses/bureau', async (req, res) => {
     const total = await BureauResult.countDocuments({ client: req.client.id });
     res.json({ total, results });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -171,7 +204,37 @@ router.get('/analyses/stats', async (req, res) => {
       bureau: { total: bureau, failed: buFailed },
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Export all data for this MFI (NDPR data portability)
+router.get('/export/all', async (req, res) => {
+  try {
+    const clientId = req.client.id;
+    const [customers, bvnResults, ninResults, bureauResults, statements] = await Promise.all([
+      Customer.find({ client: clientId }).lean(),
+      BVNResult.find({ client: clientId }).lean(),
+      NINResult.find({ client: clientId }).lean(),
+      BureauResult.find({ client: clientId }).lean(),
+      StatementResult.find({ client: clientId }).lean(),
+    ]);
+
+    res.setHeader('Content-Disposition', 'attachment; filename="lucred-data-export.json"');
+    res.setHeader('Content-Type', 'application/json');
+    res.json({
+      exportedAt: new Date().toISOString(),
+      organization: req.client.organizationName,
+      customers,
+      bvnResults,
+      ninResults,
+      bureauResults,
+      statements,
+    });
+  } catch (err) {
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -203,7 +266,7 @@ router.post('/verify/bvn', async (req, res) => {
         nin: e.nin,
         watchListed: e.watch_listed,
         levelOfAccount: e.level_of_account,
-        image: e.image,
+        image: e.image, // returned to caller but not stored in DB
       };
     } catch (upstreamErr) {
       await BVNResult.create({
@@ -221,13 +284,14 @@ router.post('/verify/bvn', async (req, res) => {
       client: req.client.id,
       customer: customerId || undefined,
       bvn,
-      result: normalized,
+      result: stripBiometrics(normalized), // biometric image never persisted
       status: 'success',
     });
 
     res.json({ success: true, data: normalized, resultId: saved._id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -258,7 +322,7 @@ router.post('/verify/nin', async (req, res) => {
         religion: e.religion,
         maritalStatus: e.marital_status,
         watchListed: e.watch_listed,
-        photo: e.photo,
+        photo: e.photo, // returned to caller but not stored in DB
       };
     } catch (upstreamErr) {
       await NINResult.create({
@@ -276,13 +340,14 @@ router.post('/verify/nin', async (req, res) => {
       client: req.client.id,
       customer: customerId || undefined,
       nin,
-      result: normalized,
+      result: stripBiometrics(normalized), // biometric photo never persisted
       status: 'success',
     });
 
     res.json({ success: true, data: normalized, resultId: saved._id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -383,7 +448,8 @@ Based on all available data, provide a JSON response (and ONLY JSON, no other te
     const review = JSON.parse(jsonMatch[0]);
     res.json({ success: true, review });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

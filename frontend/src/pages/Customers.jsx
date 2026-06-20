@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { exportCustomersCSV } from '../services/exportCSV';
+import { parseApiError, isUnauthorized } from '../utils/apiError';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -24,8 +25,9 @@ export default function Customers() {
         headers: authHeaders(),
       });
       setCustomers(data.customers);
-    } catch {
-      toast.error('Failed to load customers');
+    } catch (err) {
+      if (isUnauthorized(err)) { navigate('/login'); return; }
+      toast.error('Failed to load customers. Please refresh the page.');
     } finally {
       setLoading(false);
     }
@@ -117,7 +119,7 @@ function AddCustomerForm({ onClose, onCreated }) {
       toast.success('Customer created');
       onCreated(data.customer);
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to create customer');
+      toast.error(parseApiError(err, { default: 'Failed to create customer. Please try again.' }));
     } finally {
       setSaving(false);
     }
@@ -133,7 +135,7 @@ function AddCustomerForm({ onClose, onCreated }) {
         <form onSubmit={handleSubmit}>
           {/* Customer type selector */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-            {[['individual', '👤 Individual'], ['business', '🏢 Business (SME)']].map(([val, label]) => (
+            {[['individual', 'Individual'], ['business', 'Business (SME)']].map(([val, label]) => (
               <button
                 key={val}
                 type="button"

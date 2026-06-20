@@ -4,6 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { exportBureauHistoryCSV } from '../services/exportCSV';
 import CustomerSelect from '../components/CustomerSelect';
+import { parseApiError, isUnauthorized } from '../utils/apiError';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -71,7 +72,12 @@ export default function CreditBureau() {
       toast.success('Bureau check complete and saved');
       fetchHistory();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Bureau check failed');
+      if (isUnauthorized(err)) { toast.error('Your session has expired. Please sign in again.'); navigate('/login'); return; }
+      toast.error(parseApiError(err, {
+        400: 'Please check the BVN and borrower details and try again.',
+        404: 'No credit record found for this individual in the bureau.',
+        default: 'Bureau check failed. Please try again shortly.',
+      }));
     } finally {
       setLoading(false);
     }

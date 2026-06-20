@@ -90,7 +90,7 @@ export default function StatementDetail() {
       {/* Top bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <button onClick={() => navigate('/dashboard')} style={s.back}>← Back to analyses</button>
-        <button onClick={async () => { const { exportStatementPDF } = await import('../services/exportPDF'); exportStatementPDF(statement); }} style={s.exportBtn}>⬇ Export PDF</button>
+        <button onClick={async () => { const { exportStatementPDF } = await import('../services/exportPDF'); exportStatementPDF(statement); }} style={s.exportBtn}>Export PDF</button>
       </div>
 
       {/* ── Header ───────────────────────────────────────────────────────── */}
@@ -262,7 +262,7 @@ export default function StatementDetail() {
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
             {[['Salary Earner', income.isSalaryEarner], ['Gig Worker', income.isGigWorker], ['Other Income', income.hasOtherIncome]].map(([lbl, val]) => (
               <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 8, background: val ? '#f0fdf4' : '#f8fafc', border: `1px solid ${val ? '#bbf7d0' : '#e2e8f0'}`, borderRadius: 10, padding: '8px 14px' }}>
-                <span style={{ fontSize: 16 }}>{val ? '✅' : '❌'}</span>
+                <div style={{ width: 14, height: 14, borderRadius: '50%', background: val ? '#16a34a' : '#dc2626', flexShrink: 0 }} />
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{lbl}</span>
               </div>
             ))}
@@ -303,7 +303,7 @@ export default function StatementDetail() {
                   <div style={{ fontSize: 22, fontWeight: 800, color: detail.score >= 60 ? '#16a34a' : detail.score >= 30 ? '#f59e0b' : '#ef4444' }}>{fmtN(detail.score, 1)}<span style={{ fontSize: 12, fontWeight: 400, color: '#94a3b8' }}>/100</span></div>
                   {detail.months_present != null && <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{detail.months_present}/{detail.total_months} months present</div>}
                   {detail.flags?.map((f, i) => (
-                    <div key={i} style={{ fontSize: 11, color: '#d97706', marginTop: 5 }}>⚠ {f}</div>
+                    <div key={i} style={{ fontSize: 11, color: '#d97706', marginTop: 5 }}>Note: {f}</div>
                   ))}
                 </div>
               ))}
@@ -492,7 +492,7 @@ export default function StatementDetail() {
                   const flagged = f.amount > 0;
                   return (
                     <div key={i} style={{ background: flagged ? '#fef2f2' : '#f0fdf4', border: `1px solid ${flagged ? '#fca5a5' : '#bbf7d0'}`, borderRadius: 10, padding: '8px 14px', fontSize: 13 }}>
-                      <span style={{ fontWeight: 600, color: flagged ? '#dc2626' : '#16a34a' }}>{flagged ? '⚠' : '✓'} {f.category}</span>
+                      <span style={{ fontWeight: 600, color: flagged ? '#dc2626' : '#16a34a' }}>{f.category}</span>
                       {flagged && <span style={{ color: '#64748b', marginLeft: 8 }}>₦{fmt(f.amount)} ({(f.percentageOfIncome * 100).toFixed(1)}% of income)</span>}
                     </div>
                   );
@@ -547,7 +547,7 @@ export default function StatementDetail() {
           {/* Status banner */}
           <div style={{ background: sweep.accountSweepDetected ? '#fef2f2' : '#f0fdf4', border: `1px solid ${sweep.accountSweepDetected ? '#fca5a5' : '#bbf7d0'}`, borderRadius: 12, padding: '1.25rem 1.5rem', marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{ fontSize: 32 }}>{sweep.accountSweepDetected ? '⚠️' : '✅'}</div>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: sweep.accountSweepDetected ? '#dc2626' : '#16a34a', flexShrink: 0 }} />
               <div>
                 <div style={{ fontWeight: 700, fontSize: 15, color: sweep.accountSweepDetected ? '#dc2626' : '#16a34a', marginBottom: 4 }}>{sweep.sweepDescription}</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: 13, color: '#64748b' }}>
