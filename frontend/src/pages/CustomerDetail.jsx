@@ -1502,7 +1502,7 @@ function ScoreBreakdownCards({ breakdown }) {
 
 // ── Loan Eligibility Logic ────────────────────────────────────────────────────
 
-function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, proposedMonthlyPayment, proposedLoanAmount, loanTenor, annualRate }) {
+function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, behavioral, sweep, proposedMonthlyPayment, proposedLoanAmount, loanTenor, annualRate }) {
   const flags = [];
   const conditions = [];
   const analysis = {}; // per-category detailed reasoning
@@ -1762,8 +1762,81 @@ function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement
   }
   analysis.riskProfile = riskReasons;
 
+  // ── Behavioural Analysis ─────────────────────────────────────────────────
+  let behaviorScore = 50;
+  let behaviorStatus = 'WARN';
+  let behaviorNotes = 'No behavioural data available.';
+  const behaviorReasons = [];
+
+  if (latestStatement) {
+    const spendBehaviorScore = risk.scoreBreakdown?.spendingBehavior ?? null;
+    const habits = behavioral?.spendingHabits || [];
+    const savings = behavioral?.savingsHabits || {};
+    const sweepDetected = sweep?.accountSweepDetected ?? false;
+    const sweepSeverity = sweep?.sweepSeverity || '';
+
+    if (spendBehaviorScore !== null) {
+      behaviorScore = Math.round((spendBehaviorScore / 25) * 100);
+      behaviorReasons.push(`Spending behaviour score from statement engine: ${spendBehaviorScore}/25.`);
+    }
+
+    // Savings = strong positive signal
+    if (savings.totalSaved > 0) {
+      behaviorScore = Math.min(behaviorScore + 12, 100);
+      behaviorReasons.push(`Customer saved ₦${Number(savings.totalSaved).toLocaleString()} during the period${savings.savingsFrequency ? ` (${savings.savingsFrequency} savings habit)` : ''} — demonstrates financial discipline.`);
+    }
+
+    // Parse spending habits
+    const savingsHabit = habits.find(h => /savings/i.test(h));
+    const gamblingHabit = habits.find(h => /gambling|betting|casino|lottery/i.test(h));
+    const highDiscretionary = habits.filter(h => /high spend on (airtime|online shopping|entertainment|recreation)/i.test(h));
+    const p2pHabit = habits.find(h => /peer.to.peer|p2p/i.test(h));
+    const remainingHabits = habits.filter(h => h !== savingsHabit && h !== gamblingHabit && !highDiscretionary.includes(h) && h !== p2pHabit);
+
+    if (savingsHabit) {
+      behaviorScore = Math.min(behaviorScore + 8, 100);
+      behaviorReasons.push(`"${savingsHabit}" — active savings pattern is a positive indicator of financial management and repayment discipline.`);
+    }
+    if (gamblingHabit) {
+      behaviorScore = Math.max(behaviorScore - 35, 5);
+      behaviorReasons.push(`Gambling/betting activity detected: "${gamblingHabit}" — high-risk behaviour that significantly increases default probability.`);
+      flags.push('Gambling or betting spend detected in transaction history.');
+    }
+    if (highDiscretionary.length > 0) {
+      behaviorScore = Math.max(behaviorScore - 8 * highDiscretionary.length, 10);
+      behaviorReasons.push(`High discretionary spend in ${highDiscretionary.length} categor${highDiscretionary.length > 1 ? 'ies' : 'y'}: ${highDiscretionary.join('; ')}. Suggests difficulty controlling non-essential expenses.`);
+    }
+    if (p2pHabit) {
+      behaviorScore = Math.max(behaviorScore - 5, 10);
+      behaviorReasons.push(`"${p2pHabit}" — high P2P transfer volumes may indicate informal debt obligations or family support commitments not captured in bureau data.`);
+      conditions.push('Clarify the purpose of high P2P transfer volumes — may represent undisclosed debt obligations.');
+    }
+    if (remainingHabits.length > 0) {
+      behaviorReasons.push(`Other observed patterns: ${remainingHabits.join('; ')}.`);
+    }
+
+    // Account sweep is a major behavioural red flag
+    if (sweepDetected) {
+      const penalty = sweepSeverity === 'HIGH' ? 30 : sweepSeverity === 'MEDIUM' ? 20 : 10;
+      behaviorScore = Math.max(behaviorScore - penalty, 5);
+      behaviorReasons.push(`Account sweep detected (${sweepSeverity} severity, ${sweep.numberOfSweepEvents} event(s), ₦${Number(sweep.totalSweptAmount || 0).toLocaleString()} swept) — funds are being systematically withdrawn shortly after credits arrive. Suggests the account may be under third-party control or the borrower has undisclosed obligations diverting income.`);
+      flags.push(`Account sweep detected (${sweepSeverity} severity) — ₦${Number(sweep.totalSweptAmount || 0).toLocaleString()} swept across ${sweep.numberOfSweepEvents} event(s).`);
+    }
+
+    if (habits.length === 0 && !sweepDetected && savings.totalSaved <= 0) {
+      behaviorReasons.push('No strong behavioural signals detected from spending habits or savings data.');
+    }
+
+    behaviorStatus = behaviorScore >= 70 ? 'PASS' : behaviorScore >= 45 ? 'WARN' : 'FAIL';
+    behaviorNotes = behaviorReasons[0] || 'Behavioural data available but no strong signals detected.';
+    if (behaviorScore < 45) flags.push('Concerning spending behaviour patterns flagged in statement analysis.');
+  } else {
+    behaviorReasons.push('No bank statement analysed — spending behaviour and savings patterns cannot be assessed.');
+  }
+  analysis.behavioralAnalysis = behaviorReasons;
+
   // ── Verdict & Suggested Loan Amount ─────────────────────────────────────
-  const scores = [identityScore, creditScore, incomeScore, debtScore, riskScore];
+  const scores = [identityScore, creditScore, incomeScore, debtScore, riskScore, behaviorScore];
   const avgScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
   const statuses = [identityStatus, creditStatus, incomeStatus, debtStatus, riskStatus];
   const failCount = statuses.filter(st => st === 'FAIL').length;
@@ -1836,7 +1909,7 @@ function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement
   const verdictReason = {
     ELIGIBLE: `All or most eligibility criteria are satisfied with a combined score of ${avgScore}/100. ${bvnVerified || ninVerified ? 'Identity is verified' : 'Identity data is limited'}. ${latestStatement ? `Risk grade ${risk.overallRiskScore || 'N/A'}` : 'No statement data'}. ${effectiveDTI !== null ? `Post-loan DTI would be ${effectiveDTI}%` : 'DTI not calculated'}.`,
     CONDITIONAL: `Customer scores ${avgScore}/100 overall with ${failCount} failing categor${failCount !== 1 ? 'ies' : 'y'} and ${conditions.length} condition${conditions.length !== 1 ? 's' : ''} to satisfy. Approval can proceed once conditions are met and flagged items are resolved.`,
-    NOT_ELIGIBLE: `Customer fails ${failCount} of 5 eligibility categories with a combined score of ${avgScore}/100. ${watchlisted ? 'Watchlist status is an automatic disqualifier.' : `Core issues are in: ${statuses.map((st, i) => st === 'FAIL' ? ['Identity Integrity', 'Credit History', 'Income & Cash Flow', 'Debt Servicing', 'Risk Profile'][i] : null).filter(Boolean).join(', ')}.`}`,
+    NOT_ELIGIBLE: `Customer fails ${failCount} of 6 eligibility categories with a combined score of ${avgScore}/100. ${watchlisted ? 'Watchlist status is an automatic disqualifier.' : `Core issues are in: ${statuses.map((st, i) => st === 'FAIL' ? ['Identity Integrity', 'Credit History', 'Income & Cash Flow', 'Debt Servicing', 'Risk Profile', 'Behavioural Analysis'][i] : null).filter(Boolean).join(', ')}.`}`,
   };
 
   return {
@@ -1865,6 +1938,7 @@ function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement
       incomeAndCashFlow: { score: incomeScore, status: incomeStatus, notes: incomeNotes },
       debtServicing: { score: debtScore, status: debtStatus, notes: debtNotes },
       riskProfile: { score: riskScore, status: riskStatus, notes: riskNotes },
+      behavioralAnalysis: { score: behaviorScore, status: behaviorStatus, notes: behaviorNotes },
     },
     analysis,
     conditions,
@@ -1883,6 +1957,8 @@ function LoanReviewTab({ customer, statements, bvnResults, ninResults, bureauRes
   const cashFlow = latestStatement?.result?.cashFlowAnalysis || {};
   const income = latestStatement?.result?.incomeSourceAnalysis || {};
   const debt = latestStatement?.result?.debtServicing || {};
+  const behavioral = latestStatement?.result?.behavioralAnalysis || {};
+  const sweep = latestStatement?.result?.account_sweep_analysis || {};
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1920,12 +1996,14 @@ function LoanReviewTab({ customer, statements, bvnResults, ninResults, bureauRes
         cashFlow={cashFlow}
         income={income}
         debt={debt}
+        behavioral={behavioral}
+        sweep={sweep}
       />
     </div>
   );
 }
 
-function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt }) {
+function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, behavioral, sweep }) {
   const [proposedPayment, setProposedPayment] = useState('');
   const [loanTenor, setLoanTenor] = useState('12');
   const [annualRate, setAnnualRate] = useState('');
@@ -1942,7 +2020,7 @@ function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement
       const interest = principal * (rateNum / 100) * (tenorNum / 12);
       proposedMonthlyPayment = Math.round((principal + interest) / tenorNum);
     }
-    return computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, proposedMonthlyPayment, proposedLoanAmount: principal, loanTenor: tenorNum, annualRate: rateNum });
+    return computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, behavioral, sweep, proposedMonthlyPayment, proposedLoanAmount: principal, loanTenor: tenorNum, annualRate: rateNum });
   }
 
   function generate() {
@@ -1960,7 +2038,7 @@ function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement
   const VERDICT_LABEL = { ELIGIBLE: 'Eligible', CONDITIONAL: 'Conditional', NOT_ELIGIBLE: 'Not Eligible' };
   const STATUS_COLOR = { PASS: '#16a34a', WARN: '#d97706', FAIL: '#dc2626' };
   const STATUS_BG = { PASS: '#dcfce7', WARN: '#fef3c7', FAIL: '#fee2e2' };
-  const CAT_LABEL = { identityIntegrity: 'Identity Integrity', creditHistory: 'Credit History', incomeAndCashFlow: 'Income & Cash Flow', debtServicing: 'Debt Servicing', riskProfile: 'Risk Profile' };
+  const CAT_LABEL = { identityIntegrity: 'Identity Integrity', creditHistory: 'Credit History', incomeAndCashFlow: 'Income & Cash Flow', debtServicing: 'Debt Servicing', riskProfile: 'Risk Profile', behavioralAnalysis: 'Behavioural Analysis' };
   const fmt = (v) => (v !== undefined && v !== null ? Number(v).toLocaleString() : null);
 
   const inputBox = (label, prefix, value, onChange, placeholder, width = 130) => (
