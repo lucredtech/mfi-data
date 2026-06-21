@@ -150,7 +150,7 @@ export default function Terms() {
               'Pay all fees when due and maintain a valid payment method on file',
               'Accept that all fees are non-refundable except as expressly provided in our refund policy or required by law',
               'Understand that failure to pay within 14 days of the due date may result in suspension of API access',
-              'Accept that Lucred may modify pricing with 30 days' written notice; continued use after the effective date constitutes acceptance',
+              'Accept that Lucred may modify pricing with 30 days\' written notice; continued use after the effective date constitutes acceptance',
             ]} />
           </Section>
 
