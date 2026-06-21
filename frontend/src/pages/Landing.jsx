@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import Footer from '../components/Footer';
 
 const FEATURES = [
   {
@@ -129,13 +130,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer style={s.footer}>
-        <div style={s.footerInner}>
-          <div style={s.logo}>Lucred</div>
-          <div style={{ fontSize: 13, color: '#64748b' }}>© {new Date().getFullYear()} Lucred Technology LLC. All rights reserved.</div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

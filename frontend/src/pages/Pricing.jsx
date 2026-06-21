@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import Footer from '../components/Footer';
 
 const PLANS = [
   {
@@ -191,13 +192,7 @@ export default function Pricing() {
         <Link to="/register" style={s.ctaBtn}>Create free account →</Link>
       </section>
 
-      {/* Footer */}
-      <footer style={s.footer}>
-        <div style={s.footerInner}>
-          <div style={{ fontSize: 18, fontWeight: 800, color: '#a5b4fc' }}>Lucred</div>
-          <div style={{ fontSize: 13, color: '#64748b' }}>© {new Date().getFullYear()} Lucred Technology LLC.</div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
