@@ -13,6 +13,7 @@ const { matchConsumer, getXScoreConsumerReport } = require('../config/firstCentr
 const BVNResult = require('../models/BVNResult');
 const BureauResult = require('../models/BureauResult');
 const NINResult = require('../models/NINResult');
+const AuditLog = require('../models/AuditLog');
 
 const limiter = rateLimit({ windowMs: 60 * 1000, max: 60, keyGenerator: (req) => req.apiKey?.key });
 
@@ -92,6 +93,7 @@ router.post('/credit-bureau/check', logUsage('/v1/credit-bureau/check'), async (
       status: 'success',
     });
 
+    AuditLog.create({ client: req.apiKey.client, action: 'BUREAU_CHECK', entityType: 'BureauResult', entityId: saved._id, label: `Credit bureau check: ****${(bvn || '').slice(-4)}`, meta: { bvnLast4: (bvn || '').slice(-4), customerId } }).catch(() => {});
     res.json({ success: true, data: upstreamData, resultId: saved._id });
   } catch (err) {
     console.error("[credit] unhandled error:", err);

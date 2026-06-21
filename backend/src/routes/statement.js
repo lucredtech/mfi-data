@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 const { requireApiKey, requireJWT, logUsage } = require('../middleware/auth');
 const lucredApi = require('../config/lucredApi');
 const StatementResult = require('../models/StatementResult');
+const AuditLog = require('../models/AuditLog');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -46,7 +47,7 @@ router.post(
       );
 
       // Persist result for history
-      await StatementResult.create({
+      const saved = await StatementResult.create({
         client: req.client._id,
         customer: customerId || undefined,
         email,
@@ -57,6 +58,7 @@ router.post(
         status: 'success',
       });
 
+      AuditLog.create({ client: req.client._id, action: 'STATEMENT_ANALYSIS', entityType: 'StatementResult', entityId: saved._id, label: `Statement analysis: ${accountName || email || req.file.originalname}`, meta: { bankName, filename: req.file.originalname, customerId } }).catch(() => {});
       res.json({ success: true, data });
     } catch (err) {
       // Save failed attempt too
@@ -107,6 +109,70 @@ router.get('/api/statements/:id', requireJWT, async (req, res) => {
   } catch (err) {
     console.error("[route] unhandled error:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Re-analyse a statement — re-run the same file through the upstream engine
+// Only works for statements that were originally file-uploaded (not monoId)
+const reanalyzeUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_, file, cb) => {
+    const allowed = ['application/pdf', 'image/jpeg', 'image/png'];
+    if (allowed.includes(file.mimetype)) return cb(null, true);
+    cb(new Error('Only PDF, JPEG, and PNG files are accepted'));
+  },
+});
+
+router.post('/api/statements/:id/reanalyze', requireJWT, reanalyzeUpload.single('statement'), async (req, res) => {
+  try {
+    const existing = await StatementResult.findOne({ _id: req.params.id, client: req.client.id });
+    if (!existing) return res.status(404).json({ error: 'Statement not found' });
+    if (!req.file) return res.status(400).json({ error: 'Upload a new statement file to re-analyse' });
+
+    const form = new FormData();
+    form.append('file', req.file.buffer, {
+      filename: req.file.originalname,
+      contentType: req.file.mimetype,
+    });
+    if (existing.bankName) form.append('bank', existing.bankName);
+    if (req.body.password) form.append('password', req.body.password);
+
+    const { data } = await lucredApi.post(
+      process.env.LUCRED_STATEMENT_ANALYZE_PATH || '/metrics/file_transactions',
+      form,
+      { headers: form.getHeaders() }
+    );
+
+    existing.result = data;
+    existing.status = 'success';
+    existing.filename = req.file.originalname;
+    existing.updatedAt = new Date();
+    await existing.save();
+
+    AuditLog.create({ client: req.client.id, action: 'STATEMENT_REANALYSIS', entityType: 'StatementResult', entityId: existing._id, label: `Re-analysed statement: ${existing.accountName || existing.email}`, meta: { bankName: existing.bankName, filename: req.file.originalname } }).catch(() => {});
+    res.json({ success: true, data });
+  } catch (err) {
+    const status = err.response?.status || 502;
+    res.status(status).json({ error: err.response?.data || err.message || 'Upstream error' });
+  }
+});
+
+// Audit log for this MFI client (dashboard)
+router.get('/api/audit', requireJWT, async (req, res) => {
+  try {
+    const AuditLog = require('../models/AuditLog');
+    const { action, limit = 100, skip = 0 } = req.query;
+    const filter = { client: req.client.id };
+    if (action) filter.action = action;
+    const [logs, total] = await Promise.all([
+      AuditLog.find(filter).sort({ createdAt: -1 }).limit(Number(limit)).skip(Number(skip)).lean(),
+      AuditLog.countDocuments(filter),
+    ]);
+    res.json({ total, logs });
+  } catch (err) {
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

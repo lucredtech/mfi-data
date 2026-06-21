@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import api from '../services/api';
+import toast from 'react-hot-toast';
 
 const GRADE_COLOR = { A: '#16a34a', B: '#0ea5e9', C: '#f59e0b', D: '#ef4444', E: '#7f1d1d' };
 const GRADE_BG   = { A: '#dcfce7', B: '#e0f2fe', C: '#fef3c7', D: '#fee2e2', E: '#fce7f3' };
@@ -19,10 +20,34 @@ export default function StatementDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [statement, setStatement] = useState(null);
+  const [reanalyzing, setReanalyzing] = useState(false);
+  const fileRef = useRef(null);
 
   useEffect(() => {
     api.get(`/api/statements/${id}`).then(({ data }) => setStatement(data)).catch(() => {});
   }, [id]);
+
+  async function handleReanalyze(file) {
+    if (!file) return;
+    setReanalyzing(true);
+    try {
+      const form = new FormData();
+      form.append('statement', file);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app'}/api/statements/${id}/reanalyze`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Re-analysis failed'); }
+      const { data } = await res.json();
+      setStatement(prev => ({ ...prev, result: data, status: 'success' }));
+      toast.success('Statement re-analysed successfully');
+    } catch (err) {
+      toast.error(err.message || 'Re-analysis failed');
+    }
+    setReanalyzing(false);
+  }
 
   if (!statement) return <p style={{ color: '#94a3b8', padding: '2rem' }}>Loading…</p>;
 
@@ -91,6 +116,10 @@ export default function StatementDetail() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <button onClick={() => navigate('/dashboard')} style={s.back}>← Back to analyses</button>
         <button onClick={async () => { const { exportStatementPDF } = await import('../services/exportPDF'); exportStatementPDF(statement); }} style={s.exportBtn}>Export PDF</button>
+        <input ref={fileRef} type="file" accept=".pdf,.xlsx,.xls,.csv,.docx" style={{ display: 'none' }} onChange={e => { if (e.target.files[0]) handleReanalyze(e.target.files[0]); e.target.value = ''; }} />
+        <button onClick={() => fileRef.current?.click()} disabled={reanalyzing} style={{ ...s.exportBtn, background: '#f1f5f9', color: '#334155', border: '1px solid #e2e8f0' }}>
+          {reanalyzing ? 'Re-analysing…' : 'Re-analyse'}
+        </button>
       </div>
 
       {/* ── Header ───────────────────────────────────────────────────────── */}

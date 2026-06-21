@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { parseApiError, isUnauthorized } from '../utils/apiError';
+import { exportLoanReviewPDF } from '../services/exportLoanReviewPDF';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -142,7 +143,7 @@ export default function CustomerDetail() {
       </div>
 
       <div>
-        {tab === 'Overview' && <OverviewTab customer={customer} statements={statements || []} bvnResults={bvnResults || []} ninResults={ninResults || []} bureauResults={bureauResults || []} discrepancies={discrepancies} setTab={setTab} />}
+        {tab === 'Overview' && <OverviewTab customer={customer} statements={statements || []} bvnResults={bvnResults || []} ninResults={ninResults || []} bureauResults={bureauResults || []} discrepancies={discrepancies} setTab={setTab} customerId={id} />}
         {tab === 'Statement Analysis' && <StatementTab customer={customer} statements={statements || []} onRefresh={load} />}
         {tab === 'BVN Verification' && <BVNTab customer={customer} bvnResults={bvnResults || []} onRefresh={load} />}
         {tab === 'NIN Verification' && <NINTab customer={customer} ninResults={ninResults || []} onRefresh={load} />}
@@ -189,7 +190,7 @@ function worstPaymentCode(acc) {
 
 // ── Overview ─────────────────────────────────────────────────────────────────
 
-function OverviewTab({ customer, statements, bvnResults, ninResults, bureauResults, discrepancies, setTab }) {
+function OverviewTab({ customer, statements, bvnResults, ninResults, bureauResults, discrepancies, setTab, customerId }) {
   const latestStatement = statements[0];
   const latestBVN = bvnResults.find(r => r.status === 'success');
   const latestNIN = ninResults.find(r => r.status === 'success');
@@ -197,6 +198,38 @@ function OverviewTab({ customer, statements, bvnResults, ninResults, bureauResul
   const risk = latestStatement?.result?.overallRiskScore || {};
   const bureauSecOverview = latestBureau ? parseBureauSections(latestBureau.result) : null;
   const creditScore = bureauSecOverview?.Scoring?.[0]?.TotalConsumerScore ?? latestBureau?.result?.creditScore ?? latestBureau?.result?.summary?.creditScore;
+
+  const [notes, setNotes] = useState([]);
+  const [noteText, setNoteText] = useState('');
+  const [noteAuthor, setNoteAuthor] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
+
+  useEffect(() => {
+    axios.get(`${API}/api/customers/${customerId}/notes`, { headers: authHeaders() })
+      .then(r => setNotes(r.data.notes || []))
+      .catch(() => {});
+  }, [customerId]);
+
+  async function addNote() {
+    if (!noteText.trim()) return;
+    setSavingNote(true);
+    try {
+      const { data } = await axios.post(`${API}/api/customers/${customerId}/notes`, { text: noteText, author: noteAuthor || undefined }, { headers: authHeaders() });
+      setNotes(prev => [data.note, ...prev]);
+      setNoteText('');
+      toast.success('Note saved');
+    } catch { toast.error('Failed to save note'); }
+    setSavingNote(false);
+  }
+
+  async function deleteNote(noteId) {
+    try {
+      await axios.delete(`${API}/api/customers/${customerId}/notes/${noteId}`, { headers: authHeaders() });
+      setNotes(prev => prev.filter(n => n._id !== noteId));
+    } catch { toast.error('Failed to delete note'); }
+  }
+
+  const hasHighDisc = discrepancies.some(d => d.severity === 'high');
 
   return (
     <div>
@@ -207,34 +240,37 @@ function OverviewTab({ customer, statements, bvnResults, ninResults, bureauResul
         <SummaryCard label="Bureau Score" value={creditScore ?? '—'} sub={latestBureau ? 'From bureau check' : 'No bureau check'} color="#f59e0b" onClick={() => setTab('Credit Bureau')} />
       </div>
 
-      {/* Discrepancy panel */}
+      {/* Discrepancy alert banner */}
       {discrepancies.length > 0 && (
-        <div style={s.card}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-            <div style={s.cardTitle}>Data Discrepancies</div>
-            <span style={{ fontSize: 12, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '2px 10px', borderRadius: 20 }}>
-              {discrepancies.filter(d => d.severity === 'high').length} high · {discrepancies.filter(d => d.severity === 'medium').length} medium · {discrepancies.filter(d => d.severity === 'low').length} low
+        <div style={{ background: hasHighDisc ? '#7f1d1d' : '#78350f', borderRadius: 12, padding: '1rem 1.5rem', marginBottom: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: hasHighDisc ? '#f87171' : '#fbbf24', flexShrink: 0 }} />
+            <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>
+              {hasHighDisc ? 'HIGH-SEVERITY IDENTITY DISCREPANCIES DETECTED' : 'Identity Data Discrepancies Detected'}
+            </span>
+            <span style={{ fontSize: 11, fontWeight: 700, background: 'rgba(255,255,255,0.15)', color: '#fff', padding: '2px 10px', borderRadius: 20 }}>
+              {discrepancies.filter(d => d.severity === 'high').length} HIGH · {discrepancies.filter(d => d.severity === 'medium').length} MED · {discrepancies.filter(d => d.severity === 'low').length} LOW
             </span>
           </div>
-          <p style={{ fontSize: 13, color: '#64748b', marginTop: 0, marginBottom: 16 }}>
-            The following fields differ between the customer's BVN and NIN records. These may indicate identity fraud or data entry errors.
+          <p style={{ fontSize: 12, color: hasHighDisc ? '#fca5a5' : '#fde68a', margin: '0 0 14px' }}>
+            The following fields differ between BVN and NIN records. {hasHighDisc ? 'High-severity mismatches may indicate identity fraud — verify manually before disbursement.' : 'Review and clarify with the customer before proceeding.'}
           </p>
-          <table style={s.table}>
+          <table style={{ ...s.table, background: 'transparent' }}>
             <thead>
-              <tr>{['Field', 'BVN Record', 'NIN Record', 'Profile', 'Severity'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
+              <tr>{['Field', 'BVN Record', 'NIN Record', 'Profile', 'Severity'].map(h => <th key={h} style={{ ...s.th, background: 'rgba(255,255,255,0.1)', color: '#e2e8f0' }}>{h}</th>)}</tr>
             </thead>
             <tbody>
               {discrepancies.map((d, i) => (
-                <tr key={i} style={{ background: i % 2 ? '#fafafa' : '#fff' }}>
-                  <td style={{ ...s.td, fontWeight: 600, color: '#0f172a' }}>{d.field}</td>
-                  <td style={s.td}>{d.bvn || '—'}</td>
-                  <td style={s.td}>{d.nin || '—'}</td>
-                  <td style={s.td}>{d.profile || '—'}</td>
+                <tr key={i} style={{ background: i % 2 ? 'rgba(255,255,255,0.05)' : 'transparent' }}>
+                  <td style={{ ...s.td, fontWeight: 700, color: '#f1f5f9' }}>{d.field}</td>
+                  <td style={{ ...s.td, color: '#e2e8f0' }}>{d.bvn || '—'}</td>
+                  <td style={{ ...s.td, color: '#e2e8f0' }}>{d.nin || '—'}</td>
+                  <td style={{ ...s.td, color: '#94a3b8' }}>{d.profile || '—'}</td>
                   <td style={s.td}>
                     <span style={{
-                      fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20,
-                      background: d.severity === 'high' ? '#fee2e2' : d.severity === 'medium' ? '#fef3c7' : '#f0fdf4',
-                      color: d.severity === 'high' ? '#dc2626' : d.severity === 'medium' ? '#d97706' : '#16a34a',
+                      fontSize: 10, fontWeight: 800, padding: '2px 10px', borderRadius: 20, letterSpacing: 0.5,
+                      background: d.severity === 'high' ? '#dc2626' : d.severity === 'medium' ? '#d97706' : '#16a34a',
+                      color: '#fff',
                     }}>
                       {d.severity.toUpperCase()}
                     </span>
@@ -280,6 +316,63 @@ function OverviewTab({ customer, statements, bvnResults, ninResults, bureauResul
         {(statements.length + bvnResults.length + ninResults.length + bureauResults.length) === 0 && (
           <div style={s.empty}>No analyses yet. Use the tabs above to run checks.</div>
         )}
+      </div>
+
+      {/* Credit Officer Notes */}
+      <div style={s.card}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={s.cardTitle}>Credit Officer Notes</div>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>{notes.length} note{notes.length !== 1 ? 's' : ''}</span>
+        </div>
+
+        {/* Add note form */}
+        <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'flex-start' }}>
+          <div style={{ flex: 1 }}>
+            <textarea
+              value={noteText}
+              onChange={e => setNoteText(e.target.value)}
+              placeholder="Add an internal note about this customer..."
+              rows={3}
+              style={{ width: '100%', border: '1.5px solid #e2e8f0', borderRadius: 8, padding: '10px 12px', fontSize: 13, resize: 'vertical', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+              onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) addNote(); }}
+            />
+            <input
+              value={noteAuthor}
+              onChange={e => setNoteAuthor(e.target.value)}
+              placeholder="Author (optional)"
+              style={{ marginTop: 6, border: '1px solid #e2e8f0', borderRadius: 6, padding: '6px 10px', fontSize: 12, width: '100%', boxSizing: 'border-box', outline: 'none' }}
+            />
+          </div>
+          <button
+            onClick={addNote}
+            disabled={savingNote || !noteText.trim()}
+            style={{ ...s.btn, flexShrink: 0, background: noteText.trim() ? '#0f172a' : '#e2e8f0', color: noteText.trim() ? '#fff' : '#94a3b8', cursor: noteText.trim() ? 'pointer' : 'default' }}
+          >
+            {savingNote ? 'Saving…' : 'Add Note'}
+          </button>
+        </div>
+
+        {/* Note list */}
+        {notes.length === 0 && <div style={s.empty}>No notes yet. Add a note above to record observations about this customer.</div>}
+        {notes.map(note => (
+          <div key={note._id} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 14px', marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: '0 0 8px', fontSize: 13, color: '#334155', lineHeight: 1.6 }}>{note.text}</p>
+                <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                  {note.author || 'Credit Officer'} · {new Date(note.createdAt).toLocaleString()}
+                </div>
+              </div>
+              <button
+                onClick={() => deleteNote(note._id)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1', fontSize: 16, padding: '0 4px', lineHeight: 1, flexShrink: 0 }}
+                title="Delete note"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1987,6 +2080,7 @@ function LoanReviewTab({ customer, statements, bvnResults, ninResults, bureauRes
       )}
 
       <LoanReviewSection
+        customer={customer}
         latestBVN={latestBVN}
         latestNIN={latestNIN}
         latestBureau={latestBureau}
@@ -2003,7 +2097,7 @@ function LoanReviewTab({ customer, statements, bvnResults, ninResults, bureauRes
   );
 }
 
-function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, behavioral, sweep }) {
+function LoanReviewSection({ customer, latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, behavioral, sweep }) {
   const [proposedPayment, setProposedPayment] = useState('');
   const [loanTenor, setLoanTenor] = useState('12');
   const [annualRate, setAnnualRate] = useState('');
@@ -2065,6 +2159,14 @@ function LoanReviewSection({ latestBVN, latestNIN, latestBureau, latestStatement
           <button style={{ ...s.btn, background: '#6d28d9', height: 38 }} onClick={generate}>
             {review ? '↻ Re-run Review' : '▶ Run Eligibility Review'}
           </button>
+          {review && (
+            <button
+              style={{ ...s.btn, background: '#0f172a', height: 38 }}
+              onClick={() => exportLoanReviewPDF({ customer, review, loanParams: { amount: parseFloat((proposedPayment || '').replace(/,/g, '')) || 0, tenor: parseInt(loanTenor, 10) || 0, rate: parseFloat(annualRate) || 0 } })}
+            >
+              Export PDF
+            </button>
+          )}
         </div>
       </div>
 

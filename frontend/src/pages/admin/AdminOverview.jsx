@@ -1,17 +1,48 @@
 import { useEffect, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
+} from 'recharts';
 import adminApi from '../../services/adminApi';
+
+const SERVICE_COLORS = ['#6d28d9', '#0ea5e9', '#16a34a', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+const ACTION_LABELS = {
+  BVN_CHECK: 'BVN Verification',
+  NIN_CHECK: 'NIN Verification',
+  BUREAU_CHECK: 'Bureau Check',
+  STATEMENT_ANALYSIS: 'Statement Analysis',
+  STATEMENT_REANALYSIS: 'Re-analysis',
+  CUSTOMER_CREATED: 'Customer Created',
+  CUSTOMER_DELETED: 'Customer Deleted',
+  NOTE_ADDED: 'Note Added',
+};
 
 export default function AdminOverview() {
   const [stats, setStats] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
 
   useEffect(() => {
     adminApi.get('/api/admin/stats').then(({ data }) => setStats(data)).catch(() => {});
+    adminApi.get('/api/admin/analytics').then(({ data }) => setAnalytics(data)).catch(() => {});
   }, []);
 
-  const chartData = stats?.byEndpoint?.map((e) => ({
-    name: e._id.replace('/v1/', ''),
-    requests: e.count,
+  const dailyData = analytics?.dailyVolume?.map(d => ({
+    date: d._id.slice(5), // MM-DD
+    total: d.total,
+    success: d.success,
+    failed: d.failed,
+  })) || [];
+
+  const serviceData = analytics?.serviceBreakdown?.map((e, i) => ({
+    name: e._id.replace('/v1/', '').replace('/api/', ''),
+    value: e.count,
+    color: SERVICE_COLORS[i % SERVICE_COLORS.length],
+  })) || [];
+
+  const auditData = analytics?.auditActions?.map(a => ({
+    name: ACTION_LABELS[a._id] || a._id,
+    count: a.count,
   })) || [];
 
   return (
@@ -21,15 +52,28 @@ export default function AdminOverview() {
           <h1 style={s.h1}>Platform Overview</h1>
           <p style={s.sub}>Real-time stats across all MFI clients</p>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {analytics && (
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '8px 18px' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{analytics.totalLast30Days?.toLocaleString() || '—'}</div>
+                <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>API CALLS (30D)</div>
+              </div>
+              <div style={{ width: 1, height: 32, background: '#e2e8f0' }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: analytics.successRate >= 95 ? '#16a34a' : analytics.successRate >= 80 ? '#f59e0b' : '#dc2626' }}>{analytics.successRate}%</div>
+                <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>SUCCESS RATE</div>
+              </div>
+            </div>
+          )}
           <button
             style={s.exportBtn}
             onClick={async () => {
-            const { default: exportSummaryPDF } = await import('../../services/exportSummaryPDF');
-            exportSummaryPDF({ stats, isAdmin: true });
-          }}
+              const { default: exportSummaryPDF } = await import('../../services/exportSummaryPDF');
+              exportSummaryPDF({ stats, isAdmin: true });
+            }}
           >
-            ↓ Export PDF
+            Export PDF
           </button>
         </div>
       </div>
@@ -46,48 +90,87 @@ export default function AdminOverview() {
       {/* Analysis stats */}
       <div style={s.sectionLabel}>Analysis Volume (Platform-wide)</div>
       <div style={s.statRow}>
-        <StatCard
-          label="Customers"
-          value={stats?.totalCustomers ?? '—'}
-          sub="Borrower profiles created"
-          color="#0ea5e9"
-        />
-        <StatCard
-          label="Statement Analyses"
-          value={stats?.statements?.total ?? '—'}
-          sub={stats?.statements ? `${stats.statements.failed ?? 0} failed` : ''}
-          color="#6d28d9"
-        />
-        <StatCard
-          label="BVN Verifications"
-          value={stats?.bvn?.total ?? '—'}
-          sub={stats?.bvn ? `${stats.bvn.failed ?? 0} failed` : ''}
-          color="#16a34a"
-        />
-        <StatCard
-          label="NIN Verifications"
-          value={stats?.nin?.total ?? '—'}
-          sub={stats?.nin ? `${stats.nin.failed ?? 0} failed` : ''}
-          color="#6d28d9"
-        />
-        <StatCard
-          label="Bureau Checks"
-          value={stats?.bureau?.total ?? '—'}
-          sub={stats?.bureau ? `${stats.bureau.failed ?? 0} failed` : ''}
-          color="#f59e0b"
-        />
+        <StatCard label="Customers" value={stats?.totalCustomers ?? '—'} sub="Borrower profiles" color="#0ea5e9" />
+        <StatCard label="Statement Analyses" value={stats?.statements?.total ?? '—'} sub={stats?.statements ? `${stats.statements.failed ?? 0} failed` : ''} color="#6d28d9" />
+        <StatCard label="BVN Verifications" value={stats?.bvn?.total ?? '—'} sub={stats?.bvn ? `${stats.bvn.failed ?? 0} failed` : ''} color="#16a34a" />
+        <StatCard label="NIN Verifications" value={stats?.nin?.total ?? '—'} sub={stats?.nin ? `${stats.nin.failed ?? 0} failed` : ''} color="#6d28d9" />
+        <StatCard label="Bureau Checks" value={stats?.bureau?.total ?? '—'} sub={stats?.bureau ? `${stats.bureau.failed ?? 0} failed` : ''} color="#f59e0b" />
       </div>
 
-      {/* Endpoint chart */}
-      {chartData.length > 0 && (
+      {/* Daily volume chart */}
+      {dailyData.length > 0 && (
         <div style={s.chartBox}>
-          <h3 style={s.chartTitle}>Requests by Endpoint</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={s.chartTitle}>Daily API Call Volume (Last 30 Days)</h3>
+            <div style={{ display: 'flex', gap: 16, fontSize: 12 }}>
+              <span style={{ color: '#6d28d9', fontWeight: 600 }}>Total</span>
+              <span style={{ color: '#16a34a', fontWeight: 600 }}>Success</span>
+              <span style={{ color: '#ef4444', fontWeight: 600 }}>Failed</span>
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={chartData}>
-              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
+            <BarChart data={dailyData} margin={{ left: 0, right: 0 }}>
+              <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={4} />
+              <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Bar dataKey="requests" fill="#6d28d9" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="success" stackId="a" fill="#16a34a" radius={[0,0,0,0]} />
+              <Bar dataKey="failed" stackId="a" fill="#ef4444" radius={[4,4,0,0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Service breakdown + top clients */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+        {serviceData.length > 0 && (
+          <div style={s.chartBox}>
+            <h3 style={s.chartTitle}>Service Breakdown (30 Days)</h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={serviceData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}>
+                  {serviceData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                </Pie>
+                <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 11 }}>{v}</span>} />
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {analytics?.topClients?.length > 0 && (
+          <div style={s.chartBox}>
+            <h3 style={s.chartTitle}>Top Clients by Usage (30 Days)</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
+              {analytics.topClients.map((c, i) => {
+                const max = analytics.topClients[0]?.count || 1;
+                const pct = Math.round((c.count / max) * 100);
+                return (
+                  <div key={i}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                      <span style={{ fontWeight: 600, color: '#0f172a' }}>{c.organizationName}</span>
+                      <span style={{ color: '#6d28d9', fontWeight: 700 }}>{c.count.toLocaleString()}</span>
+                    </div>
+                    <div style={{ height: 6, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: SERVICE_COLORS[i % SERVICE_COLORS.length], borderRadius: 99 }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Audit actions chart */}
+      {auditData.length > 0 && (
+        <div style={s.chartBox}>
+          <h3 style={s.chartTitle}>Platform Actions by Type (30 Days)</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={auditData} layout="vertical" margin={{ left: 100, right: 20 }}>
+              <XAxis type="number" tick={{ fontSize: 11 }} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={100} />
+              <Tooltip />
+              <Bar dataKey="count" fill="#6d28d9" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -140,7 +223,7 @@ const s = {
   statRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 28 },
   card: { background: '#fff', borderRadius: 12, padding: '1.25rem 1.5rem', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' },
   chartBox: { background: '#fff', borderRadius: 12, padding: '1.5rem', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 24 },
-  chartTitle: { fontSize: 15, fontWeight: 600, color: '#0f172a', marginTop: 0, marginBottom: 16 },
+  chartTitle: { fontSize: 15, fontWeight: 600, color: '#0f172a', marginTop: 0, marginBottom: 4 },
   tableBox: { background: '#fff', borderRadius: 12, padding: '1.5rem', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' },
   th: { textAlign: 'left', padding: '8px 12px', borderBottom: '1px solid #e2e8f0', color: '#64748b', fontWeight: 600 },
   td: { padding: '10px 12px', borderBottom: '1px solid #f1f5f9', color: '#334155' },

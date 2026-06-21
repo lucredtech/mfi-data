@@ -9,6 +9,7 @@ const StatementResult = require('../models/StatementResult');
 const BVNResult = require('../models/BVNResult');
 const NINResult = require('../models/NINResult');
 const BureauResult = require('../models/BureauResult');
+const AuditLog = require('../models/AuditLog');
 
 // Admin JWT middleware
 const requireAdmin = (req, res, next) => {
@@ -150,6 +151,91 @@ router.get('/stats', async (req, res) => {
   } catch (err) {
     console.error("[route] unhandled error:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Analytics — daily call volumes, service breakdown, top clients (last 30 days)
+router.get('/analytics', async (req, res) => {
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [dailyVolume, serviceBreakdown, topClients, successRate, auditActions] = await Promise.all([
+      // Daily call volumes for last 30 days
+      UsageLog.aggregate([
+        { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+        { $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          total: { $sum: 1 },
+          success: { $sum: { $cond: [{ $lt: ['$statusCode', 400] }, 1, 0] } },
+          failed: { $sum: { $cond: [{ $gte: ['$statusCode', 400] }, 1, 0] } },
+        }},
+        { $sort: { _id: 1 } },
+      ]),
+      // Breakdown by service (endpoint grouping)
+      UsageLog.aggregate([
+        { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+        { $group: { _id: '$endpoint', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 },
+      ]),
+      // Top 5 clients by usage (last 30 days)
+      UsageLog.aggregate([
+        { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+        { $group: { _id: '$client', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 5 },
+        { $lookup: { from: 'mficlients', localField: '_id', foreignField: '_id', as: 'client' } },
+        { $unwind: '$client' },
+        { $project: { organizationName: '$client.organizationName', email: '$client.email', count: 1 } },
+      ]),
+      // Overall success rate last 30 days
+      UsageLog.aggregate([
+        { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+        { $group: {
+          _id: null,
+          total: { $sum: 1 },
+          success: { $sum: { $cond: [{ $lt: ['$statusCode', 400] }, 1, 0] } },
+        }},
+      ]),
+      // Audit action counts (platform-wide)
+      AuditLog.aggregate([
+        { $match: { createdAt: { $gte: thirtyDaysAgo } } },
+        { $group: { _id: '$action', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]),
+    ]);
+
+    const sr = successRate[0] || { total: 0, success: 0 };
+    res.json({
+      dailyVolume,
+      serviceBreakdown,
+      topClients,
+      successRate: sr.total > 0 ? Math.round((sr.success / sr.total) * 100) : 100,
+      totalLast30Days: sr.total,
+      auditActions,
+    });
+  } catch (err) {
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Admin audit log (all clients)
+router.get('/audit', async (req, res) => {
+  try {
+    const { clientId, action, limit = 100, skip = 0 } = req.query;
+    const filter = {};
+    if (clientId) filter.client = clientId;
+    if (action) filter.action = action;
+    const [logs, total] = await Promise.all([
+      AuditLog.find(filter).sort({ createdAt: -1 }).limit(Number(limit)).skip(Number(skip))
+        .populate('client', 'organizationName email').lean(),
+      AuditLog.countDocuments(filter),
+    ]);
+    res.json({ total, logs });
+  } catch (err) {
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

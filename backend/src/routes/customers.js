@@ -10,6 +10,8 @@ const NINResult = require('../models/NINResult');
 const MFIClient = require('../models/MFIClient');
 const ApiKey = require('../models/ApiKey');
 const UsageLog = require('../models/UsageLog');
+const CustomerNote = require('../models/CustomerNote');
+const AuditLog = require('../models/AuditLog');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -55,6 +57,7 @@ router.post('/', async (req, res) => {
     const { name, email, bvn, nin, phone, customerType } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
     const customer = await Customer.create({ client: req.client.id, name, email, bvn, nin, phone, customerType: customerType || 'individual' });
+    AuditLog.create({ client: req.client.id, action: 'CUSTOMER_CREATED', entityType: 'Customer', entityId: customer._id, label: `Created customer profile: ${name}`, meta: { name, email } }).catch(() => {});
     res.status(201).json({ customer });
   } catch (err) {
     console.error("[route] unhandled error:", err);
@@ -111,12 +114,64 @@ router.delete('/:id', async (req, res) => {
       NINResult.deleteMany({ customer: customer._id }),
       BureauResult.deleteMany({ customer: customer._id }),
       StatementResult.deleteMany({ customer: customer._id }),
+      CustomerNote.deleteMany({ customer: customer._id }),
     ]);
 
+    AuditLog.create({ client: req.client.id, action: 'CUSTOMER_DELETED', entityType: 'Customer', label: `Deleted customer and all records: ${customer.name}`, meta: { name: customer.name } }).catch(() => {});
     res.json({ success: true });
   } catch (err) {
     console.error("[route] unhandled error:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── Customer Notes ────────────────────────────────────────────────────────────
+
+// List notes for a customer
+router.get('/:id/notes', async (req, res) => {
+  try {
+    const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id }).lean();
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    const notes = await CustomerNote.find({ customer: customer._id }).sort({ createdAt: -1 }).lean();
+    res.json({ notes });
+  } catch (err) {
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add a note
+router.post('/:id/notes', async (req, res) => {
+  try {
+    const { text, author } = req.body;
+    if (!text || !text.trim()) return res.status(400).json({ error: 'text is required' });
+    const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id }).lean();
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    const note = await CustomerNote.create({
+      client: req.client.id,
+      customer: customer._id,
+      text: text.trim().slice(0, 2000),
+      author: author?.trim() || 'Credit Officer',
+    });
+    AuditLog.create({ client: req.client.id, action: 'NOTE_ADDED', entityType: 'CustomerNote', entityId: note._id, label: `Note added to customer: ${customer.name}`, meta: { customerName: customer.name } }).catch(() => {});
+    res.status(201).json({ note });
+  } catch (err) {
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete a note
+router.delete('/:id/notes/:noteId', async (req, res) => {
+  try {
+    const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id }).lean();
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    const note = await CustomerNote.findOneAndDelete({ _id: req.params.noteId, client: req.client.id, customer: customer._id });
+    if (!note) return res.status(404).json({ error: 'Note not found' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[route] unhandled error:", err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -284,10 +339,11 @@ router.post('/verify/bvn', async (req, res) => {
       client: req.client.id,
       customer: customerId || undefined,
       bvn,
-      result: stripBiometrics(normalized), // biometric image never persisted
+      result: stripBiometrics(normalized),
       status: 'success',
     });
 
+    AuditLog.create({ client: req.client.id, action: 'BVN_CHECK', entityType: 'BVNResult', entityId: saved._id, label: `BVN verification: ****${bvn.slice(-4)}`, meta: { bvnLast4: bvn.slice(-4), customerId } }).catch(() => {});
     res.json({ success: true, data: normalized, resultId: saved._id });
   } catch (err) {
     console.error("[route] unhandled error:", err);
@@ -340,10 +396,11 @@ router.post('/verify/nin', async (req, res) => {
       client: req.client.id,
       customer: customerId || undefined,
       nin,
-      result: stripBiometrics(normalized), // biometric photo never persisted
+      result: stripBiometrics(normalized),
       status: 'success',
     });
 
+    AuditLog.create({ client: req.client.id, action: 'NIN_CHECK', entityType: 'NINResult', entityId: saved._id, label: `NIN verification: ****${nin.slice(-4)}`, meta: { ninLast4: nin.slice(-4), customerId } }).catch(() => {});
     res.json({ success: true, data: normalized, resultId: saved._id });
   } catch (err) {
     console.error("[route] unhandled error:", err);
