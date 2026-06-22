@@ -10,6 +10,7 @@ const customerSchema = new mongoose.Schema(
     phone: { type: String },
     address: { type: String },
     customerType: { type: String, enum: ['individual', 'business'], default: 'individual' },
+    status: { type: String, enum: ['applied', 'under_review', 'approved', 'rejected', 'disbursed'], default: 'applied' },
   },
   { timestamps: true }
 );

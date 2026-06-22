@@ -15,6 +15,8 @@ const NAV = [
   { path: '/dashboard/api-keys', label: 'API Keys', abbr: 'AK' },
   { path: '/dashboard/usage', label: 'Usage', abbr: 'US' },
   { path: '/dashboard/docs', label: 'Docs', abbr: 'DO' },
+  { path: '/dashboard/pipeline', label: 'Loan Pipeline', abbr: 'LP' },
+  { path: '/dashboard/bulk-verify', label: 'Bulk Verify', abbr: 'BK' },
   { path: '/dashboard/audit', label: 'Audit Log', abbr: 'AL' },
   { path: '/dashboard/privacy', label: 'Privacy & Data', abbr: 'PR' },
 ];

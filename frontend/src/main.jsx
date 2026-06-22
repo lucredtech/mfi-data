@@ -29,7 +29,9 @@ import AdminOverview from './pages/admin/AdminOverview';
 import AdminClients from './pages/admin/AdminClients';
 import AdminClientDetail from './pages/admin/AdminClientDetail';
 import NotFound from './pages/NotFound';
-import AuditLog from './pages/AuditLog';
+import AuditLog from './pages/AuditLog'
+import LoanPipeline from './pages/LoanPipeline'
+import BulkVerify from './pages/BulkVerify';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Terms from './pages/Terms';
 import Security from './pages/Security';
@@ -68,6 +70,8 @@ function App() {
         <Route path="/dashboard/usage" element={<PrivateRoute><Layout><Usage /></Layout></PrivateRoute>} />
         <Route path="/dashboard/docs" element={<PrivateRoute><Layout><Docs /></Layout></PrivateRoute>} />
         <Route path="/dashboard/audit" element={<PrivateRoute><Layout><AuditLog /></Layout></PrivateRoute>} />
+        <Route path="/dashboard/pipeline" element={<PrivateRoute><Layout><LoanPipeline /></Layout></PrivateRoute>} />
+        <Route path="/dashboard/bulk-verify" element={<PrivateRoute><Layout><BulkVerify /></Layout></PrivateRoute>} />
         <Route path="/dashboard/privacy" element={<PrivateRoute><Layout><Privacy /></Layout></PrivateRoute>} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<Terms />} />

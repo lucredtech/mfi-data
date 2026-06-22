@@ -12,6 +12,7 @@ const ApiKey = require('../models/ApiKey');
 const UsageLog = require('../models/UsageLog');
 const CustomerNote = require('../models/CustomerNote');
 const AuditLog = require('../models/AuditLog');
+const LoanReview = require('../models/LoanReview');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -32,8 +33,9 @@ function stripBiometrics(result) {
 // List customers for the logged-in MFI client
 router.get('/', async (req, res) => {
   try {
-    const { q } = req.query;
+    const { q, status } = req.query;
     const filter = { client: req.client.id };
+    if (status) filter.status = status;
     if (q) {
       const safe = escapeRegex(q);
       filter.$or = [
@@ -56,9 +58,18 @@ router.post('/', async (req, res) => {
   try {
     const { name, email, bvn, nin, phone, customerType } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
+
+    // Duplicate detection
+    const dupChecks = [];
+    if (bvn) dupChecks.push({ bvn, client: req.client.id });
+    if (nin) dupChecks.push({ nin, client: req.client.id });
+    if (phone) dupChecks.push({ phone, client: req.client.id });
+    let duplicate = null;
+    if (dupChecks.length) duplicate = await Customer.findOne({ $or: dupChecks }).lean();
+
     const customer = await Customer.create({ client: req.client.id, name, email, bvn, nin, phone, customerType: customerType || 'individual' });
     AuditLog.create({ client: req.client.id, action: 'CUSTOMER_CREATED', entityType: 'Customer', entityId: customer._id, label: `Created customer profile: ${name}`, meta: { name, email } }).catch(() => {});
-    res.status(201).json({ customer });
+    res.status(201).json({ customer, duplicate: duplicate ? { id: duplicate._id, name: duplicate.name } : null });
   } catch (err) {
     console.error("[route] unhandled error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -344,7 +355,13 @@ router.post('/verify/bvn', async (req, res) => {
     });
 
     AuditLog.create({ client: req.client.id, action: 'BVN_CHECK', entityType: 'BVNResult', entityId: saved._id, label: `BVN verification: ****${bvn.slice(-4)}`, meta: { bvnLast4: bvn.slice(-4), customerId } }).catch(() => {});
-    res.json({ success: true, data: normalized, resultId: saved._id });
+
+    // Duplicate detection: same BVN already on another customer?
+    const dupQuery = { bvn, client: req.client.id };
+    if (customerId) dupQuery._id = { $ne: customerId };
+    const dup = await Customer.findOne(dupQuery).lean();
+
+    res.json({ success: true, data: normalized, resultId: saved._id, duplicate: dup ? { id: dup._id, name: dup.name } : null });
   } catch (err) {
     console.error("[route] unhandled error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -401,7 +418,13 @@ router.post('/verify/nin', async (req, res) => {
     });
 
     AuditLog.create({ client: req.client.id, action: 'NIN_CHECK', entityType: 'NINResult', entityId: saved._id, label: `NIN verification: ****${nin.slice(-4)}`, meta: { ninLast4: nin.slice(-4), customerId } }).catch(() => {});
-    res.json({ success: true, data: normalized, resultId: saved._id });
+
+    // Duplicate detection: same NIN already on another customer?
+    const dupQuery = { nin, client: req.client.id };
+    if (customerId) dupQuery._id = { $ne: customerId };
+    const dup = await Customer.findOne(dupQuery).lean();
+
+    res.json({ success: true, data: normalized, resultId: saved._id, duplicate: dup ? { id: dup._id, name: dup.name } : null });
   } catch (err) {
     console.error("[route] unhandled error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -507,6 +530,110 @@ Based on all available data, provide a JSON response (and ONLY JSON, no other te
   } catch (err) {
     console.error("[route] unhandled error:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// PATCH /:id/status — update loan pipeline status
+router.patch('/:id/status', async (req, res) => {
+  try {
+    const VALID = ['applied', 'under_review', 'approved', 'rejected', 'disbursed'];
+    const { status } = req.body;
+    if (!VALID.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    const customer = await Customer.findOneAndUpdate(
+      { _id: req.params.id, client: req.client.id },
+      { status }, { new: true }
+    );
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    AuditLog.create({ client: req.client.id, action: 'STATUS_CHANGED', entityType: 'Customer', entityId: customer._id, label: `Pipeline status changed to ${status}: ${customer.name}`, meta: { status, name: customer.name } }).catch(() => {});
+    res.json({ customer });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /:id/loan-reviews — list saved reviews
+router.get('/:id/loan-reviews', async (req, res) => {
+  try {
+    const reviews = await LoanReview.find({ customer: req.params.id, client: req.client.id })
+      .sort({ createdAt: -1 }).limit(20);
+    res.json({ reviews });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /:id/loan-reviews — save a review run
+router.post('/:id/loan-reviews', async (req, res) => {
+  try {
+    const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id });
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    const review = await LoanReview.create({ client: req.client.id, customer: req.params.id, ...req.body });
+    res.json({ review });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /pipeline/stats — pipeline status counts
+router.get('/pipeline/stats', async (req, res) => {
+  try {
+    const stats = await Customer.aggregate([
+      { $match: { client: req.client._id } },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]);
+    const result = { applied: 0, under_review: 0, approved: 0, rejected: 0, disbursed: 0 };
+    stats.forEach(({ _id, count }) => { if (_id) result[_id] = count; });
+    res.json({ stats: result });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /bulk/verify — batch BVN/NIN verification
+router.post('/bulk/verify', async (req, res) => {
+  try {
+    const { items, type } = req.body; // items: [{customerId, number}], type: 'bvn'|'nin'
+    if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'items required' });
+    if (!['bvn', 'nin'].includes(type)) return res.status(400).json({ error: 'type must be bvn or nin' });
+
+    const results = [];
+    for (const item of items.slice(0, 50)) { // cap at 50
+      const { customerId, number } = item;
+      if (!customerId || !number) { results.push({ customerId, number, status: 'skipped', error: 'Missing fields' }); continue; }
+      const customer = await Customer.findOne({ _id: customerId, client: req.client.id });
+      if (!customer) { results.push({ customerId, number, status: 'error', error: 'Customer not found' }); continue; }
+
+      try {
+        const apiKey = process.env.DOJAH_API_KEY;
+        const appId = process.env.DOJAH_APP_ID;
+        const url = type === 'bvn'
+          ? `https://api.dojah.io/api/v1/kyc/bvn/full?bvn=${number}`
+          : `https://api.dojah.io/api/v1/kyc/nin?nin=${number}`;
+        const resp = await axios.get(url, { headers: { AppId: appId, Authorization: apiKey } });
+        const data = resp.data?.entity || resp.data;
+
+        const updateField = type === 'bvn' ? { bvn: number } : { nin: number };
+        await Customer.findByIdAndUpdate(customerId, updateField);
+
+        // Check for duplicates within same MFI
+        const dupQuery = type === 'bvn' ? { bvn: number, client: req.client.id, _id: { $ne: customerId } }
+          : { nin: number, client: req.client.id, _id: { $ne: customerId } };
+        const dup = await Customer.findOne(dupQuery);
+
+        AuditLog.create({ client: req.client.id, action: type === 'bvn' ? 'BVN_CHECK' : 'NIN_CHECK', entityType: 'Customer', entityId: customer._id, label: `${type.toUpperCase()} verified for ${customer.name}`, meta: { number, name: customer.name, bulk: true } }).catch(() => {});
+
+        results.push({ customerId, number, status: 'success', data, duplicate: dup ? { id: dup._id, name: dup.name } : null });
+      } catch (err) {
+        results.push({ customerId, number, status: 'error', error: err?.response?.data?.message || err.message });
+      }
+
+      // Throttle: 300ms between requests
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    res.json({ results });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

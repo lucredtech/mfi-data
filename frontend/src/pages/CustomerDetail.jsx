@@ -69,6 +69,9 @@ export default function CustomerDetail() {
   if (loading) return <div style={s.loading}>Loading…</div>;
   if (!data) return <div style={s.loading}>Customer not found.</div>;
 
+  const [customerStatus, setCustomerStatus] = useState(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
   const { customer, statements, bvnResults, ninResults, bureauResults } = data;
   const latestBVN = bvnResults?.find((r) => r.status === 'success');
   const latestNIN = ninResults?.find((r) => r.status === 'success');
@@ -76,8 +79,39 @@ export default function CustomerDetail() {
     ? detectDiscrepancies(customer, latestBVN.result, latestNIN.result)
     : [];
 
+  const isWatchlisted = latestBVN?.result?.watchListed === true || latestNIN?.result?.watchListed === true;
+  const currentStatus = customerStatus ?? customer.status ?? 'applied';
+
+  useEffect(() => { setCustomerStatus(customer.status ?? 'applied'); }, [customer._id]);
+
+  async function updateStatus(newStatus) {
+    setUpdatingStatus(true);
+    try {
+      await axios.patch(`${API}/api/customers/${id}/status`, { status: newStatus }, { headers: authHeaders() });
+      setCustomerStatus(newStatus);
+      toast.success('Status updated');
+    } catch {
+      toast.error('Failed to update status');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
+
+  const STATUS_COLORS = { applied: ['#dbeafe','#1d4ed8'], under_review: ['#fef3c7','#d97706'], approved: ['#dcfce7','#16a34a'], rejected: ['#fee2e2','#dc2626'], disbursed: ['#ede9fe','#6d28d9'] };
+
   return (
     <div style={s.page}>
+      {/* Watchlist banner */}
+      {isWatchlisted && (
+        <div style={{ background: '#7f1d1d', color: '#fff', borderRadius: 10, padding: '14px 20px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 20 }}>🚫</span>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Watchlist Alert — This customer is flagged by {latestBVN?.result?.watchListed && latestNIN?.result?.watchListed ? 'BVN and NIN' : latestBVN?.result?.watchListed ? 'BVN' : 'NIN'}</div>
+            <div style={{ fontSize: 13, opacity: 0.85, marginTop: 2 }}>Review carefully before approving any loan. Do not disburse without senior credit officer sign-off.</div>
+          </div>
+        </div>
+      )}
+
       {/* Breadcrumb */}
       <div style={s.breadcrumb}>
         <Link to="/dashboard/customers" style={s.breadLink}>Customers</Link>
@@ -115,6 +149,21 @@ export default function CustomerDetail() {
         </div>
 
         <div style={s.headerActions}>
+          {/* Status dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Status</span>
+            <select
+              value={currentStatus}
+              onChange={e => updateStatus(e.target.value)}
+              disabled={updatingStatus}
+              style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 20, border: 'none', background: STATUS_COLORS[currentStatus]?.[0] ?? '#f1f5f9', color: STATUS_COLORS[currentStatus]?.[1] ?? '#64748b', cursor: 'pointer', outline: 'none' }}
+            >
+              {['applied', 'under_review', 'approved', 'rejected', 'disbursed'].map(s => (
+                <option key={s} value={s}>{s.replace('_', ' ')}</option>
+              ))}
+            </select>
+          </div>
+
           {discrepancies.length > 0 && (
             <div
               style={{ ...s.discrepancyBadge, background: discrepancies.some(d => d.severity === 'high') ? '#fee2e2' : '#fef3c7', color: discrepancies.some(d => d.severity === 'high') ? '#dc2626' : '#d97706', cursor: 'pointer' }}
@@ -2103,12 +2152,20 @@ function LoanReviewSection({ customer, latestBVN, latestNIN, latestBureau, lates
   const [annualRate, setAnnualRate] = useState('');
   const [review, setReview] = useState(null);
   const [hasRun, setHasRun] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => {
+    if (!customer?._id) return;
+    axios.get(`${API}/api/customers/${customer._id}/loan-reviews`, { headers: authHeaders() })
+      .then(({ data }) => setHistory(data.reviews || []))
+      .catch(() => {});
+  }, [customer?._id]);
 
   function compute(amount, tenor, rate) {
     const principal = parseFloat((amount || '').replace(/,/g, '')) || 0;
     const tenorNum  = parseInt(tenor, 10) || 0;
     const rateNum   = parseFloat(rate) || 0;
-    // Derive monthly repayment from loan amount using flat-rate formula
     let proposedMonthlyPayment = 0;
     if (principal > 0 && tenorNum > 0) {
       const interest = principal * (rateNum / 100) * (tenorNum / 12);
@@ -2117,9 +2174,28 @@ function LoanReviewSection({ customer, latestBVN, latestNIN, latestBureau, lates
     return computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement, discrepancies, risk, cashFlow, income, debt, behavioral, sweep, proposedMonthlyPayment, proposedLoanAmount: principal, loanTenor: tenorNum, annualRate: rateNum });
   }
 
-  function generate() {
+  async function generate() {
     setHasRun(true);
-    setReview(compute(proposedPayment, loanTenor, annualRate));
+    const result = compute(proposedPayment, loanTenor, annualRate);
+    setReview(result);
+    // Auto-save
+    try {
+      const principal = parseFloat((proposedPayment || '').replace(/,/g, '')) || 0;
+      const tenorNum = parseInt(loanTenor, 10) || 0;
+      const rateNum = parseFloat(annualRate) || 0;
+      const { data } = await axios.post(`${API}/api/customers/${customer._id}/loan-reviews`, {
+        loanAmount: principal, loanTenor: tenorNum, annualRate: rateNum,
+        verdict: result.verdict, confidence: result.confidence, avgScore: result.avgScore,
+        summary: result.summary, effectiveDTI: result.effectiveDTI,
+        categories: result.categories, flags: result.flags, conditions: result.conditions,
+        dataAvailability: result.dataAvailability,
+        suggestedMinAmount: result.suggestedMinAmount, suggestedMaxAmount: result.suggestedMaxAmount,
+        affordableMonthly: result.affordableMonthly,
+        proposedMonthlyPayment: result.proposedMonthlyPayment, proposedTotalRepayment: result.proposedTotalRepayment,
+        proposedTotalInterest: result.proposedTotalInterest,
+      }, { headers: authHeaders() });
+      setHistory(prev => [data.review, ...prev].slice(0, 20));
+    } catch { /* silent */ }
   }
 
   useEffect(() => {
@@ -2304,6 +2380,30 @@ function LoanReviewSection({ customer, latestBVN, latestNIN, latestBureau, lates
             ))}
             <span style={{ fontSize: 11, color: '#94a3b8' }}>— data sources used</span>
           </div>
+        </div>
+      )}
+
+      {/* Review history */}
+      {history.length > 0 && (
+        <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 16 }}>
+          <button onClick={() => setShowHistory(h => !h)} style={{ fontSize: 13, fontWeight: 600, background: 'none', border: 'none', color: '#6d28d9', cursor: 'pointer', padding: 0, marginBottom: 10 }}>
+            {showHistory ? '▾' : '▸'} Review History ({history.length})
+          </button>
+          {showHistory && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {history.map(h => {
+                const VC = { ELIGIBLE: '#16a34a', CONDITIONAL: '#d97706', NOT_ELIGIBLE: '#dc2626' };
+                const VB = { ELIGIBLE: '#dcfce7', CONDITIONAL: '#fef3c7', NOT_ELIGIBLE: '#fee2e2' };
+                return (
+                  <div key={h._id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#f8fafc', borderRadius: 8, fontSize: 13 }}>
+                    <span style={{ fontWeight: 700, background: VB[h.verdict] ?? '#f1f5f9', color: VC[h.verdict] ?? '#64748b', padding: '2px 10px', borderRadius: 20, fontSize: 11 }}>{h.verdict}</span>
+                    <span style={{ color: '#334155' }}>₦{(h.loanAmount || 0).toLocaleString()} · {h.loanTenor}mo · {h.annualRate}% p.a.</span>
+                    <span style={{ color: '#94a3b8', marginLeft: 'auto', fontSize: 11 }}>{new Date(h.createdAt).toLocaleString()}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

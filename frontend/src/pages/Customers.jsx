@@ -92,6 +92,13 @@ export default function Customers() {
                   <td style={s.td}>{c.phone || '—'}</td>
                   <td style={s.td}>{c.bvn ? `••••${c.bvn.slice(-4)}` : '—'}</td>
                   <td style={s.td}>{c.nin ? `••••${c.nin.slice(-4)}` : '—'}</td>
+                  <td style={s.td}>
+                    {(() => {
+                      const SC = { applied: ['#dbeafe','#1d4ed8'], under_review: ['#fef3c7','#d97706'], approved: ['#dcfce7','#16a34a'], rejected: ['#fee2e2','#dc2626'], disbursed: ['#ede9fe','#6d28d9'] };
+                      const [bg, fg] = SC[c.status] ?? ['#f1f5f9','#64748b'];
+                      return <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: bg, color: fg }}>{(c.status || 'applied').replace('_',' ')}</span>;
+                    })()}
+                  </td>
                   <td style={s.td}>{new Date(c.createdAt).toLocaleDateString()}</td>
                   <td style={s.td}><span style={s.viewLink}>View →</span></td>
                 </tr>
