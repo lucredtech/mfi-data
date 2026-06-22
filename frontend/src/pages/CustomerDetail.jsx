@@ -64,13 +64,17 @@ export default function CustomerDetail() {
     }
   }
 
+  const [customerStatus, setCustomerStatus] = useState(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
   useEffect(() => { load(); }, [id]);
+
+  useEffect(() => {
+    if (data?.customer) setCustomerStatus(data.customer.status ?? 'applied');
+  }, [data?.customer?._id]);
 
   if (loading) return <div style={s.loading}>Loading…</div>;
   if (!data) return <div style={s.loading}>Customer not found.</div>;
-
-  const [customerStatus, setCustomerStatus] = useState(null);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const { customer, statements, bvnResults, ninResults, bureauResults } = data;
   const latestBVN = bvnResults?.find((r) => r.status === 'success');
@@ -81,8 +85,6 @@ export default function CustomerDetail() {
 
   const isWatchlisted = latestBVN?.result?.watchListed === true || latestNIN?.result?.watchListed === true;
   const currentStatus = customerStatus ?? customer.status ?? 'applied';
-
-  useEffect(() => { setCustomerStatus(customer.status ?? 'applied'); }, [customer._id]);
 
   async function updateStatus(newStatus) {
     setUpdatingStatus(true);
