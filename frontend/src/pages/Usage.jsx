@@ -28,6 +28,34 @@ export default function Usage() {
         )}
       </div>
 
+      {/* Plan usage bar */}
+      {usage && (
+        <div style={{ background: '#fff', borderRadius: 12, padding: '1.25rem 1.5rem', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{usage.thisMonth?.toLocaleString() ?? 0} API calls this month</span>
+              {usage.limit != null && <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 8 }}>of {usage.limit.toLocaleString()} on {usage.plan} plan</span>}
+              {usage.limit == null && <span style={{ fontSize: 12, color: '#16a34a', marginLeft: 8 }}>Unlimited — {usage.plan} plan</span>}
+            </div>
+            {usage.limit != null && usage.thisMonth / usage.limit > 0.8 && (
+              <span style={{ fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '3px 10px', borderRadius: 20 }}>
+                {Math.round((usage.thisMonth / usage.limit) * 100)}% used — consider upgrading
+              </span>
+            )}
+          </div>
+          {usage.limit != null && (
+            <div style={{ height: 6, background: '#f1f5f9', borderRadius: 99, overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                width: `${Math.min((usage.thisMonth / usage.limit) * 100, 100)}%`,
+                background: usage.thisMonth / usage.limit > 0.8 ? '#ef4444' : '#0ea5e9',
+                borderRadius: 99, transition: 'width 0.4s',
+              }} />
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={styles.grid}>
         {endpointData.map((ep) => (
           <div key={ep.name} style={styles.card}>

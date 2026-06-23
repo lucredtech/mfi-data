@@ -42,7 +42,8 @@ export default function Login() {
           <button style={styles.btn} disabled={loading}>{loading ? 'Signing in…' : 'Sign in'}</button>
         </form>
         <p style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: '#64748b' }}>
-          No account? <Link to="/register" style={{ color: '#0ea5e9' }}>Register your MFI</Link>
+          <Link to="/forgot-password" style={{ color: '#94a3b8' }}>Forgot password?</Link>
+          &nbsp;·&nbsp; No account? <Link to="/register" style={{ color: '#0ea5e9' }}>Register your MFI</Link>
         </p>
       </div>
     </div>

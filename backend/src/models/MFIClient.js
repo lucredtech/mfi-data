@@ -10,6 +10,8 @@ const mfiClientSchema = new mongoose.Schema(
     phone: { type: String },
     status: { type: String, enum: ['pending', 'active', 'suspended'], default: 'active' },
     plan: { type: String, enum: ['free', 'growth', 'scale'], default: 'free' },
+    resetToken: { type: String },
+    resetTokenExpires: { type: Date },
   },
   { timestamps: true }
 );

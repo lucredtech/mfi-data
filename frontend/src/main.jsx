@@ -40,6 +40,8 @@ import Support from './pages/Support';
 import FeatureRequest from './pages/FeatureRequest';
 import AdminFeatureRequests from './pages/admin/AdminFeatureRequests';
 import Webhooks from './pages/Webhooks';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 function PrivateRoute({ children }) {
   const { client, loading } = useAuth();
@@ -62,6 +64,8 @@ function App() {
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/dashboard" element={<PrivateRoute><Layout><Overview /></Layout></PrivateRoute>} />
         <Route path="/dashboard/api-keys" element={<PrivateRoute><Layout><ApiKeys /></Layout></PrivateRoute>} />
         <Route path="/dashboard/statement" element={<PrivateRoute><Layout><StatementAnalysis /></Layout></PrivateRoute>} />

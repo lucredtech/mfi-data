@@ -63,12 +63,27 @@ function isGroupActive(group, pathname) {
   return group.children?.some(c => pathname.startsWith(c.path));
 }
 
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const fn = () => setMobile(window.innerWidth < 768);
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
+  }, []);
+  return mobile;
+}
+
 export default function Layout({ children }) {
   const { client, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [activity, setActivity] = useState([]);
+  const isMobile = useIsMobile();
+
+  // Close mobile drawer on navigation
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
 
   // Track which groups are open; default open the active group
   const defaultOpen = NAV_GROUPS.reduce((acc, g) => {
@@ -91,15 +106,25 @@ export default function Layout({ children }) {
   }, [pathname]);
 
   const sidebarW = collapsed ? 64 : 240;
+  const showSidebar = !isMobile || mobileOpen;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
+      {/* Mobile overlay backdrop */}
+      {isMobile && mobileOpen && (
+        <div onClick={() => setMobileOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99 }} />
+      )}
+
       <aside style={{
-        width: sidebarW, minWidth: sidebarW, background: '#0f172a', color: '#f1f5f9',
-        padding: collapsed ? '1.5rem 0' : '1.5rem 1rem',
-        display: 'flex', flexDirection: 'column',
-        transition: 'width 0.2s ease, min-width 0.2s ease, padding 0.2s ease',
+        width: isMobile ? 240 : sidebarW,
+        minWidth: isMobile ? 240 : sidebarW,
+        background: '#0f172a', color: '#f1f5f9',
+        padding: (!isMobile && collapsed) ? '1.5rem 0' : '1.5rem 1rem',
+        display: showSidebar ? 'flex' : 'none',
+        flexDirection: 'column',
+        transition: 'width 0.2s ease, min-width 0.2s ease',
         overflow: 'hidden',
+        ...(isMobile ? { position: 'fixed', top: 0, left: 0, height: '100vh', zIndex: 100 } : {}),
       }}>
 
         {/* Header */}
@@ -110,13 +135,15 @@ export default function Layout({ children }) {
               <div style={{ fontSize: 10, color: '#475569', marginTop: 1, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8 }}>Credit Engine</div>
             </div>
           )}
-          <button
-            onClick={() => setCollapsed(c => !c)}
-            title={collapsed ? 'Expand' : 'Collapse'}
-            style={{ background: '#1e293b', border: 'none', borderRadius: 6, color: '#64748b', cursor: 'pointer', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}
-          >
-            {collapsed ? '›' : '‹'}
-          </button>
+          {!isMobile && (
+            <button
+              onClick={() => setCollapsed(c => !c)}
+              title={collapsed ? 'Expand' : 'Collapse'}
+              style={{ background: '#1e293b', border: 'none', borderRadius: 6, color: '#64748b', cursor: 'pointer', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}
+            >
+              {collapsed ? '›' : '‹'}
+            </button>
+          )}
         </div>
 
         {/* Nav */}
@@ -272,8 +299,18 @@ export default function Layout({ children }) {
         </div>
       </aside>
 
-      <main style={{ flex: 1, background: '#f8fafc', padding: '2rem 2.5rem', overflow: 'auto' }}>
-        {children}
+      <main style={{ flex: 1, background: '#f8fafc', overflow: 'auto', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {/* Mobile topbar */}
+        {isMobile && (
+          <div style={{ background: '#0f172a', padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
+            <button onClick={() => setMobileOpen(o => !o)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: 4 }}>☰</button>
+            <div style={{ fontSize: 17, fontWeight: 800, color: '#38bdf8' }}>Lucred</div>
+            <div style={{ width: 28 }} />
+          </div>
+        )}
+        <div style={{ padding: isMobile ? '1.25rem 1rem' : '2rem 2.5rem', flex: 1 }}>
+          {children}
+        </div>
       </main>
     </div>
   );

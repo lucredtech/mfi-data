@@ -1,6 +1,8 @@
 const router = require('express').Router();
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const MFIClient = require('../models/MFIClient');
+const { sendPasswordReset } = require('../utils/mailer');
 const ApiKey = require('../models/ApiKey');
 const Customer = require('../models/Customer');
 const BVNResult = require('../models/BVNResult');
@@ -58,6 +60,56 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error('[auth] login error:', err);
     res.status(500).json({ error: 'Login failed. Please try again.' });
+  }
+});
+
+// Forgot password — send reset email
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'email is required' });
+    const client = await MFIClient.findOne({ email: email.toLowerCase() });
+    // Always return 200 to avoid account enumeration
+    if (!client) return res.json({ message: 'If that email is registered, a reset link has been sent.' });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    client.resetToken = crypto.createHash('sha256').update(token).digest('hex');
+    client.resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await client.save();
+
+    const resetUrl = `${process.env.FRONTEND_URL || 'https://mfi-data.vercel.app'}/reset-password?token=${token}`;
+    await sendPasswordReset(client.email, resetUrl);
+
+    res.json({ message: 'If that email is registered, a reset link has been sent.' });
+  } catch (err) {
+    console.error('[auth] forgot-password error:', err);
+    res.status(500).json({ error: 'Failed to send reset email. Please try again.' });
+  }
+});
+
+// Reset password — verify token and set new password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: 'token and password are required' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+    const hashed = crypto.createHash('sha256').update(token).digest('hex');
+    const client = await MFIClient.findOne({
+      resetToken: hashed,
+      resetTokenExpires: { $gt: new Date() },
+    });
+    if (!client) return res.status(400).json({ error: 'Reset link is invalid or has expired.' });
+
+    client.password = password; // pre-save hook will hash it
+    client.resetToken = undefined;
+    client.resetTokenExpires = undefined;
+    await client.save();
+
+    res.json({ message: 'Password reset successfully. You can now log in.' });
+  } catch (err) {
+    console.error('[auth] reset-password error:', err);
+    res.status(500).json({ error: 'Password reset failed. Please try again.' });
   }
 });
 

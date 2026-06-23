@@ -2,6 +2,8 @@ const jwt = require('jsonwebtoken');
 const ApiKey = require('../models/ApiKey');
 const UsageLog = require('../models/UsageLog');
 
+const PLAN_LIMITS = { free: 200, growth: 5000, scale: Infinity };
+
 // JWT auth for dashboard
 const requireJWT = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
@@ -24,6 +26,27 @@ const requireApiKey = async (req, res, next) => {
   if (!apiKey) return res.status(401).json({ error: 'Invalid or inactive API key' });
   if (apiKey.client.status !== 'active')
     return res.status(403).json({ error: 'Account suspended' });
+
+  // Per-plan monthly rate limit
+  const plan = apiKey.client.plan || 'free';
+  const limit = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
+  if (limit !== Infinity) {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
+    const usedThisMonth = await UsageLog.countDocuments({
+      client: apiKey.client._id,
+      createdAt: { $gte: startOfMonth },
+    });
+    if (usedThisMonth >= limit) {
+      return res.status(429).json({
+        error: 'Monthly API limit reached',
+        plan,
+        limit,
+        used: usedThisMonth,
+        upgradeUrl: 'https://mfi-data.vercel.app/pricing',
+      });
+    }
+  }
 
   apiKey.lastUsedAt = new Date();
   await apiKey.save();

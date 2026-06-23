@@ -4,6 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { parseApiError, isUnauthorized } from '../utils/apiError';
 import { exportLoanReviewPDF } from '../services/exportLoanReviewPDF';
+import { exportCustomerReportPDF } from '../services/exportCustomerReportPDF';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -66,8 +67,16 @@ export default function CustomerDetail() {
 
   const [customerStatus, setCustomerStatus] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [loanReviews, setLoanReviews] = useState([]);
 
   useEffect(() => { load(); }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    axios.get(`${API}/api/customers/${id}/loan-reviews`, { headers: authHeaders() })
+      .then(({ data }) => setLoanReviews(data.reviews || []))
+      .catch(() => {});
+  }, [id]);
 
   useEffect(() => {
     if (data?.customer) setCustomerStatus(data.customer.status ?? 'applied');
@@ -178,6 +187,11 @@ export default function CustomerDetail() {
           <div style={s.statPill}>{(bvnResults || []).length} BVN</div>
           <div style={s.statPill}>{(ninResults || []).length} NIN</div>
           <div style={s.statPill}>{(bureauResults || []).length} Bureau</div>
+          <button
+            onClick={() => exportCustomerReportPDF({ customer, bvnResults, ninResults, bureauResults, statements, loanReviews })}
+            style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            ↓ Full Report
+          </button>
         </div>
       </div>
 
