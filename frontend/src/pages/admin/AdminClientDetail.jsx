@@ -16,6 +16,14 @@ export default function AdminClientDetail() {
 
   useEffect(() => { load(); }, [id]);
 
+  const updatePlan = async (plan) => {
+    try {
+      await adminApi.patch(`/api/admin/clients/${id}/plan`, { plan });
+      toast.success(`Plan updated to ${plan}`);
+      load();
+    } catch { toast.error('Failed to update plan'); }
+  };
+
   const toggleStatus = async () => {
     const next = client.status === 'active' ? 'suspended' : 'active';
     if (!confirm(`${next === 'suspended' ? 'Suspend' : 'Reactivate'} this client?`)) return;
@@ -41,6 +49,18 @@ export default function AdminClientDetail() {
           <span style={{ ...s.badge, background: client.status === 'active' ? '#dcfce7' : '#fee2e2', color: client.status === 'active' ? '#16a34a' : '#dc2626' }}>
             {client.status}
           </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8' }}>Plan:</span>
+            <select
+              value={client.plan || 'free'}
+              onChange={e => updatePlan(e.target.value)}
+              style={{ fontSize: 13, fontWeight: 700, padding: '6px 10px', borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', cursor: 'pointer', color: { free: '#0ea5e9', growth: '#6d28d9', scale: '#16a34a' }[client.plan || 'free'] }}
+            >
+              <option value="free">Free</option>
+              <option value="growth">Growth</option>
+              <option value="scale">Scale</option>
+            </select>
+          </div>
           <button onClick={toggleStatus} style={{ ...s.btn, background: client.status === 'active' ? '#dc2626' : '#16a34a' }}>
             {client.status === 'active' ? 'Suspend Client' : 'Reactivate Client'}
           </button>

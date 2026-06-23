@@ -12,6 +12,50 @@ const StatementResult = require('../models/StatementResult');
 const UsageLog = require('../models/UsageLog');
 const { requireJWT } = require('../middleware/auth');
 
+// Get current client profile
+router.get('/me', requireJWT, async (req, res) => {
+  try {
+    const client = await MFIClient.findById(req.client.id).select('-password -resetToken -resetTokenExpires').lean();
+    if (!client) return res.status(404).json({ error: 'Not found' });
+    res.json({ client });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load profile' });
+  }
+});
+
+// Update current client profile
+router.patch('/me', requireJWT, async (req, res) => {
+  try {
+    const { organizationName, contactPerson, phone } = req.body;
+    const update = {};
+    if (organizationName?.trim()) update.organizationName = organizationName.trim();
+    if (contactPerson?.trim()) update.contactPerson = contactPerson.trim();
+    if (phone !== undefined) update.phone = phone.trim();
+    const client = await MFIClient.findByIdAndUpdate(req.client.id, update, { new: true }).select('-password -resetToken -resetTokenExpires').lean();
+    res.json({ client });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// Change password (authenticated)
+router.post('/change-password', requireJWT, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'currentPassword and newPassword are required' });
+    if (newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    const client = await MFIClient.findById(req.client.id);
+    if (!client) return res.status(404).json({ error: 'Not found' });
+    const ok = await client.comparePassword(currentPassword);
+    if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
+    client.password = newPassword;
+    await client.save();
+    res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
 // Register a new MFI client
 router.post('/register', async (req, res) => {
   try {

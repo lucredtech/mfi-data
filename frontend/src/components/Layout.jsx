@@ -51,6 +51,7 @@ const NAV_GROUPS = [
     abbr: 'AC',
     icon: '◉',
     children: [
+      { path: '/dashboard/profile', label: 'Profile' },
       { path: '/dashboard/audit', label: 'Audit Log' },
       { path: '/dashboard/privacy', label: 'Privacy & Data' },
       { path: '/dashboard/feature-request', label: 'Request a Feature' },

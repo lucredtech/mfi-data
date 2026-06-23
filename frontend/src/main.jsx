@@ -42,6 +42,7 @@ import AdminFeatureRequests from './pages/admin/AdminFeatureRequests';
 import Webhooks from './pages/Webhooks';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Profile from './pages/Profile';
 
 function PrivateRoute({ children }) {
   const { client, loading } = useAuth();
@@ -83,6 +84,7 @@ function App() {
         <Route path="/dashboard/webhooks" element={<PrivateRoute><Layout><Webhooks /></Layout></PrivateRoute>} />
         <Route path="/dashboard/feature-request" element={<PrivateRoute><Layout><FeatureRequest /></Layout></PrivateRoute>} />
         <Route path="/dashboard/privacy" element={<PrivateRoute><Layout><Privacy /></Layout></PrivateRoute>} />
+        <Route path="/dashboard/profile" element={<PrivateRoute><Layout><Profile /></Layout></PrivateRoute>} />
         <Route path="/docs" element={<PublicDocs />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<Terms />} />
