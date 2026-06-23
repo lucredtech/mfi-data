@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import CustomerSelect from '../components/CustomerSelect';
@@ -18,7 +18,64 @@ const BANKS = [
   { value: "access", label: "Access" },
   { value: "fcmb", label: "FCMB" },
   { value: "firstbank", label: "First Bank" },
+  { value: "nova", label: "Nova Bank" },
 ];
+
+function BankSelect({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleClick(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const filtered = BANKS.filter(b => b.label.toLowerCase().includes(search.toLowerCase()));
+  const selected = BANKS.find(b => b.value === value);
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => { setOpen(o => !o); setSearch(''); }}
+        style={{ ...s.input, textAlign: 'left', cursor: 'pointer', color: selected ? '#0f172a' : '#94a3b8', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff' }}
+      >
+        <span>{selected ? selected.label : 'Select a bank'}</span>
+        <span style={{ fontSize: 10, color: '#94a3b8' }}>{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.1)', zIndex: 50, overflow: 'hidden' }}>
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid #f1f5f9' }}>
+            <input
+              autoFocus
+              type="text"
+              placeholder="Search banks…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #e2e8f0', borderRadius: 7, padding: '7px 10px', fontSize: 13, outline: 'none' }}
+            />
+          </div>
+          <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+            {filtered.length === 0 && <div style={{ padding: '12px 14px', fontSize: 13, color: '#94a3b8' }}>No banks found</div>}
+            {filtered.map(b => (
+              <div
+                key={b.value}
+                onClick={() => { onChange(b.value); setOpen(false); }}
+                style={{ padding: '10px 14px', fontSize: 13, cursor: 'pointer', fontWeight: b.value === value ? 700 : 400, color: b.value === value ? '#0ea5e9' : '#334155', background: b.value === value ? '#f0f9ff' : 'transparent' }}
+                onMouseEnter={e => { if (b.value !== value) e.currentTarget.style.background = '#f8fafc'; }}
+                onMouseLeave={e => { if (b.value !== value) e.currentTarget.style.background = 'transparent'; }}
+              >
+                {b.label}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function StatementAnalysis() {
   const [file, setFile] = useState(null);
@@ -147,13 +204,7 @@ export default function StatementAnalysis() {
               ))}
               <div style={{ marginBottom: 12 }}>
                 <label style={s.label}>Bank Name</label>
-                <select style={s.input} value={meta.bankName}
-                  onChange={(e) => setMeta({ ...meta, bankName: e.target.value })}>
-                  <option value="">Select a bank</option>
-                  {BANKS.map((b) => (
-                    <option key={b.value} value={b.value}>{b.label}</option>
-                  ))}
-                </select>
+                <BankSelect value={meta.bankName} onChange={v => setMeta({ ...meta, bankName: v })} />
               </div>
             </div>
 
