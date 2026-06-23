@@ -1265,6 +1265,22 @@ function ScorecardTab({ customer, statements, bvnResults, ninResults, bureauResu
 
   const sb = risk.scoreBreakdown || {};
 
+  // Auto-save scorecard snapshot whenever the tab renders with data
+  useEffect(() => {
+    if (!latestStatement && !latestBVN && !latestNIN && !latestBureau) return;
+    const payload = {
+      riskGrade: risk.overallRiskScore || null,
+      scoreBreakdown: sb,
+      monthlyAverageIncome: income.monthlyAverageIncome ?? null,
+      isSalaryEarner: income.isSalaryEarner ?? null,
+      totalCashInflow: cashFlow.totalCashInflow ?? null,
+      totalCashOutflow: cashFlow.totalCashOutflow ?? null,
+      bureauScore: bureauScoreNum,
+      dataAvailability: { bvn: !!latestBVN, nin: !!latestNIN, bureau: !!latestBureau, statement: !!latestStatement },
+    };
+    axios.post(`${API}/api/customers/${customer._id}/scorecards`, payload, { headers: authHeaders() }).catch(() => {});
+  }, [customer._id]);
+
   async function handleExport() {
     const { exportScorecardPDF } = await import('../services/exportScorecardPDF');
     exportScorecardPDF({ customer, statement: latestStatement, bvnResult: latestBVN, ninResult: latestNIN, bureauResult: latestBureau, discrepancies });

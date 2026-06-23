@@ -13,6 +13,7 @@ const UsageLog = require('../models/UsageLog');
 const CustomerNote = require('../models/CustomerNote');
 const AuditLog = require('../models/AuditLog');
 const LoanReview = require('../models/LoanReview');
+const Scorecard = require('../models/Scorecard');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -530,6 +531,29 @@ Based on all available data, provide a JSON response (and ONLY JSON, no other te
   } catch (err) {
     console.error("[route] unhandled error:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /:id/scorecards — list saved scorecards
+router.get('/:id/scorecards', async (req, res) => {
+  try {
+    const scorecards = await Scorecard.find({ customer: req.params.id, client: req.client.id })
+      .sort({ createdAt: -1 }).limit(10);
+    res.json({ scorecards });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /:id/scorecards — save a scorecard from dashboard
+router.post('/:id/scorecards', async (req, res) => {
+  try {
+    const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id });
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    const scorecard = await Scorecard.create({ client: req.client.id, customer: req.params.id, result: req.body });
+    res.json({ scorecard });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

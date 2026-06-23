@@ -13,6 +13,7 @@ const creditRoutes = require('./routes/credit');
 const statementRoutes = require('./routes/statement');
 const usageRoutes = require('./routes/usage');
 const customerRoutes = require('./routes/customers');
+const v1CustomerRoutes = require('./routes/v1Customers');
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/api/customers', customerRoutes);
 
 // B2B credit engine routes (API key protected)
 app.use('/v1', creditRoutes);
+app.use('/v1/customers', v1CustomerRoutes);
 app.use(statementRoutes);
 
 let dbConnected = false;
