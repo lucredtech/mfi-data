@@ -38,9 +38,9 @@ export default function Usage() {
               {usage.limit == null && <span style={{ fontSize: 12, color: '#16a34a', marginLeft: 8 }}>Unlimited — {usage.plan} plan</span>}
             </div>
             {usage.limit != null && usage.thisMonth / usage.limit > 0.8 && (
-              <span style={{ fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '3px 10px', borderRadius: 20 }}>
-                {Math.round((usage.thisMonth / usage.limit) * 100)}% used — consider upgrading
-              </span>
+              <a href="/pricing" style={{ fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '3px 10px', borderRadius: 20, textDecoration: 'none' }}>
+                {Math.round((usage.thisMonth / usage.limit) * 100)}% used — upgrade plan →
+              </a>
             )}
           </div>
           {usage.limit != null && (
