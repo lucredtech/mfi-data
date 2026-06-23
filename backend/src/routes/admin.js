@@ -11,6 +11,9 @@ const NINResult = require('../models/NINResult');
 const BureauResult = require('../models/BureauResult');
 const AuditLog = require('../models/AuditLog');
 const FeatureRequest = require('../models/FeatureRequest');
+const Webhook = require('../models/Webhook');
+
+const PLAN_PRICE = { free: 0, growth: 50000, scale: 200000 };
 
 // Admin JWT middleware
 const requireAdmin = (req, res, next) => {
@@ -99,6 +102,20 @@ router.get('/clients/:id', async (req, res) => {
   }
 });
 
+// Update client plan
+router.patch('/clients/:id/plan', async (req, res) => {
+  try {
+    const { plan } = req.body;
+    if (!['free', 'growth', 'scale'].includes(plan))
+      return res.status(400).json({ error: 'Plan must be free, growth, or scale' });
+    const client = await MFIClient.findByIdAndUpdate(req.params.id, { plan }, { new: true });
+    if (!client) return res.status(404).json({ error: 'Client not found' });
+    res.json({ message: `Plan updated to ${plan}`, client });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Update client status (active / suspended)
 router.patch('/clients/:id/status', async (req, res) => {
   try {
@@ -160,7 +177,12 @@ router.get('/analytics', async (req, res) => {
   try {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const [dailyVolume, serviceBreakdown, topClients, successRate, auditActions] = await Promise.all([
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    const [dailyVolume, serviceBreakdown, topClients, successRate, auditActions,
+      thisMonthCalls, lastMonthCalls, planBreakdown, webhookFailures] = await Promise.all([
       // Daily call volumes for last 30 days
       UsageLog.aggregate([
         { $match: { createdAt: { $gte: thirtyDaysAgo } } },
@@ -204,9 +226,25 @@ router.get('/analytics', async (req, res) => {
         { $group: { _id: '$action', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
       ]),
+      // This calendar month API calls
+      UsageLog.countDocuments({ createdAt: { $gte: startOfMonth } }),
+      // Last calendar month API calls
+      UsageLog.countDocuments({ createdAt: { $gte: startOfLastMonth, $lt: startOfMonth } }),
+      // Plan breakdown
+      MFIClient.aggregate([
+        { $group: { _id: '$plan', count: { $sum: 1 } } },
+      ]),
+      // Webhook failure count (last fired with non-2xx status)
+      Webhook.countDocuments({ lastStatus: { $exists: true, $not: { $gte: 200, $lte: 299 } }, lastFiredAt: { $exists: true } }),
     ]);
 
     const sr = successRate[0] || { total: 0, success: 0 };
+
+    // Calculate MRR from plan breakdown
+    const planCounts = {};
+    planBreakdown.forEach(p => { planCounts[p._id || 'free'] = p.count; });
+    const mrr = Object.entries(PLAN_PRICE).reduce((sum, [plan, price]) => sum + (planCounts[plan] || 0) * price, 0);
+
     res.json({
       dailyVolume,
       serviceBreakdown,
@@ -214,6 +252,11 @@ router.get('/analytics', async (req, res) => {
       successRate: sr.total > 0 ? Math.round((sr.success / sr.total) * 100) : 100,
       totalLast30Days: sr.total,
       auditActions,
+      thisMonthCalls,
+      lastMonthCalls,
+      planBreakdown: planCounts,
+      mrr,
+      webhookFailures,
     });
   } catch (err) {
     console.error("[route] unhandled error:", err);

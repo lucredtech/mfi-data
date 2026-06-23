@@ -16,6 +16,8 @@ const customerRoutes = require('./routes/customers');
 const v1CustomerRoutes = require('./routes/v1Customers');
 const { requireJWT } = require('./middleware/auth');
 const FeatureRequest = require('./models/FeatureRequest');
+const webhookRoutes = require('./routes/webhooks');
+const UsageLog = require('./models/UsageLog');
 
 const app = express();
 
@@ -54,6 +56,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/keys', apiKeyRoutes);
 app.use('/api/usage', usageRoutes);
 app.use('/api/customers', customerRoutes);
+app.use('/api/webhooks', webhookRoutes);
 
 // Feature requests (JWT protected)
 app.post('/api/feature-requests', requireJWT, async (req, res) => {
@@ -74,6 +77,23 @@ app.get('/api/feature-requests', requireJWT, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// Auto-log usage for all /v1 API key requests
+app.use('/v1', (req, res, next) => {
+  if (!req.apiKey) return next();
+  const start = Date.now();
+  res.on('finish', () => {
+    UsageLog.create({
+      client: req.client._id || req.client.id,
+      apiKey: req.apiKey._id,
+      endpoint: req.path,
+      method: req.method,
+      statusCode: res.statusCode,
+      responseTimeMs: Date.now() - start,
+    }).catch(() => {});
+  });
+  next();
 });
 
 // B2B credit engine routes (API key protected)

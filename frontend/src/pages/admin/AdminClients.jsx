@@ -21,6 +21,14 @@ export default function AdminClients() {
     } catch { toast.error('Failed to update status'); }
   };
 
+  const updatePlan = async (id, plan) => {
+    try {
+      await adminApi.patch(`/api/admin/clients/${id}/plan`, { plan });
+      toast.success(`Plan updated to ${plan}`);
+      setClients(prev => prev.map(c => c._id === id ? { ...c, plan } : c));
+    } catch { toast.error('Failed to update plan'); }
+  };
+
   const filtered = clients.filter((c) =>
     c.organizationName.toLowerCase().includes(search.toLowerCase()) ||
     c.email.toLowerCase().includes(search.toLowerCase())
@@ -39,7 +47,7 @@ export default function AdminClients() {
       <div style={s.tableBox}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
-            <tr>{['Organization', 'Email', 'Contact', 'Status', 'Active Keys', 'Total Requests', 'Joined', ''].map(h => (
+            <tr>{['Organization', 'Email', 'Plan', 'Status', 'Active Keys', 'Requests', 'Joined', ''].map(h => (
               <th key={h} style={s.th}>{h}</th>
             ))}</tr>
           </thead>
@@ -48,7 +56,17 @@ export default function AdminClients() {
               <tr key={c._id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/admin/clients/${c._id}`)}>
                 <td style={s.td}><strong>{c.organizationName}</strong></td>
                 <td style={s.td}>{c.email}</td>
-                <td style={s.td}>{c.contactPerson}</td>
+                <td style={s.td} onClick={e => e.stopPropagation()}>
+                  <select value={c.plan || 'free'} onChange={e => updatePlan(c._id, e.target.value)}
+                    style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1.5px solid #e2e8f0',
+                      background: c.plan === 'scale' ? '#ede9fe' : c.plan === 'growth' ? '#e0f2fe' : '#f1f5f9',
+                      color: c.plan === 'scale' ? '#6d28d9' : c.plan === 'growth' ? '#0284c7' : '#64748b',
+                      fontWeight: 700, cursor: 'pointer', outline: 'none' }}>
+                    <option value="free">Free</option>
+                    <option value="growth">Growth</option>
+                    <option value="scale">Scale</option>
+                  </select>
+                </td>
                 <td style={s.td}>
                   <span style={{ ...s.badge, background: c.status === 'active' ? '#dcfce7' : '#fee2e2', color: c.status === 'active' ? '#16a34a' : '#dc2626' }}>
                     {c.status}

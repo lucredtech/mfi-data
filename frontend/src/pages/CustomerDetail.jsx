@@ -610,14 +610,14 @@ function BVNTab({ customer, bvnResults, onRefresh }) {
   const [bvn, setBvn] = useState(customer.bvn || '');
   const [loading, setLoading] = useState(false);
 
-  async function handleVerify(e) {
-    e.preventDefault();
-    if (bvn.length !== 11) return toast.error('BVN must be 11 digits');
+  async function runVerify(overrideBvn) {
+    const number = overrideBvn || bvn;
+    if (number.length !== 11) return toast.error('BVN must be 11 digits');
     const apiKey = localStorage.getItem('apiKey');
     if (!apiKey) return toast.error('No API key found');
     setLoading(true);
     try {
-      await axios.post(`${API}/v1/identity/verify-bvn`, { bvn, customerId: customer._id }, { headers: { 'X-Api-Key': apiKey } });
+      await axios.post(`${API}/v1/identity/verify-bvn`, { bvn: number, customerId: customer._id }, { headers: { 'X-Api-Key': apiKey } });
       toast.success('BVN verified successfully');
       onRefresh();
     } catch (err) {
@@ -629,6 +629,8 @@ function BVNTab({ customer, bvnResults, onRefresh }) {
       setLoading(false);
     }
   }
+
+  async function handleVerify(e) { e.preventDefault(); runVerify(); }
 
   const latest = bvnResults.find((r) => r.status === 'success');
 
@@ -647,18 +649,28 @@ function BVNTab({ customer, bvnResults, onRefresh }) {
         </form>
       </div>
 
-      {latest && <VerificationResultCard result={latest.result} accentColor="#16a34a" photoKey="image" fields={[
-        ['Date of Birth', latest.result.dateOfBirth],
-        ['Gender', latest.result.gender],
-        ['Phone Number', latest.result.phoneNumber],
-        ['Email', latest.result.email],
-        ['Enrollment Bank', latest.result.enrollmentBank],
-        ['Enrollment Branch', latest.result.enrollmentBranch],
-        ['Registration Date', latest.result.registrationDate],
-        ['NIN', latest.result.nin],
-        ['Account Level', latest.result.levelOfAccount],
-        ['Watch Listed', latest.result.watchListed != null ? String(latest.result.watchListed) : undefined],
-      ]} verifiedAt={latest.createdAt} label="BVN" />}
+      {latest && (
+        <div style={{ position: 'relative' }}>
+          <VerificationResultCard result={latest.result} accentColor="#16a34a" photoKey="image" fields={[
+            ['Date of Birth', latest.result.dateOfBirth],
+            ['Gender', latest.result.gender],
+            ['Phone Number', latest.result.phoneNumber],
+            ['Email', latest.result.email],
+            ['Enrollment Bank', latest.result.enrollmentBank],
+            ['Enrollment Branch', latest.result.enrollmentBranch],
+            ['Registration Date', latest.result.registrationDate],
+            ['NIN', latest.result.nin],
+            ['Account Level', latest.result.levelOfAccount],
+            ['Watch Listed', latest.result.watchListed != null ? String(latest.result.watchListed) : undefined],
+          ]} verifiedAt={latest.createdAt} label="BVN" />
+          <button
+            onClick={() => runVerify(latest.bvn || bvn)}
+            disabled={loading}
+            style={{ position: 'absolute', top: 16, right: 16, background: '#f0fdf4', border: '1.5px solid #16a34a', color: '#16a34a', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+            {loading ? '…' : '↻ Re-run'}
+          </button>
+        </div>
+      )}
 
       <div style={s.card}>
         <div style={s.cardTitle}>BVN Verification History</div>
@@ -684,14 +696,14 @@ function NINTab({ customer, ninResults, onRefresh }) {
   const [nin, setNin] = useState(customer.nin || '');
   const [loading, setLoading] = useState(false);
 
-  async function handleVerify(e) {
-    e.preventDefault();
-    if (nin.length !== 11) return toast.error('NIN must be 11 digits');
+  async function runVerify(overrideNin) {
+    const number = overrideNin || nin;
+    if (number.length !== 11) return toast.error('NIN must be 11 digits');
     const apiKey = localStorage.getItem('apiKey');
     if (!apiKey) return toast.error('No API key found');
     setLoading(true);
     try {
-      await axios.post(`${API}/v1/identity/verify-nin`, { nin, customerId: customer._id }, { headers: { 'X-Api-Key': apiKey } });
+      await axios.post(`${API}/v1/identity/verify-nin`, { nin: number, customerId: customer._id }, { headers: { 'X-Api-Key': apiKey } });
       toast.success('NIN verified successfully');
       onRefresh();
     } catch (err) {
@@ -703,6 +715,8 @@ function NINTab({ customer, ninResults, onRefresh }) {
       setLoading(false);
     }
   }
+
+  async function handleVerify(e) { e.preventDefault(); runVerify(); }
 
   const latest = ninResults.find((r) => r.status === 'success');
 
@@ -721,19 +735,29 @@ function NINTab({ customer, ninResults, onRefresh }) {
         </form>
       </div>
 
-      {latest && <VerificationResultCard result={latest.result} accentColor="#6d28d9" photoKey="photo" fields={[
-        ['Date of Birth', latest.result.dateOfBirth],
-        ['Gender', latest.result.gender],
-        ['Phone Number', latest.result.phoneNumber],
-        ['Email', latest.result.email],
-        ['Address', latest.result.address],
-        ['State of Origin', latest.result.stateOfOrigin],
-        ['LGA', latest.result.lga],
-        ['Nationality', latest.result.nationality],
-        ['Religion', latest.result.religion],
-        ['Marital Status', latest.result.maritalStatus],
-        ['Watch Listed', latest.result.watchListed != null ? String(latest.result.watchListed) : undefined],
-      ]} verifiedAt={latest.createdAt} label="NIN" />}
+      {latest && (
+        <div style={{ position: 'relative' }}>
+          <VerificationResultCard result={latest.result} accentColor="#6d28d9" photoKey="photo" fields={[
+            ['Date of Birth', latest.result.dateOfBirth],
+            ['Gender', latest.result.gender],
+            ['Phone Number', latest.result.phoneNumber],
+            ['Email', latest.result.email],
+            ['Address', latest.result.address],
+            ['State of Origin', latest.result.stateOfOrigin],
+            ['LGA', latest.result.lga],
+            ['Nationality', latest.result.nationality],
+            ['Religion', latest.result.religion],
+            ['Marital Status', latest.result.maritalStatus],
+            ['Watch Listed', latest.result.watchListed != null ? String(latest.result.watchListed) : undefined],
+          ]} verifiedAt={latest.createdAt} label="NIN" />
+          <button
+            onClick={() => runVerify(latest.nin || nin)}
+            disabled={loading}
+            style={{ position: 'absolute', top: 16, right: 16, background: '#f5f3ff', border: '1.5px solid #6d28d9', color: '#6d28d9', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+            {loading ? '…' : '↻ Re-run'}
+          </button>
+        </div>
+      )}
 
       <div style={s.card}>
         <div style={s.cardTitle}>NIN Verification History</div>
@@ -790,14 +814,14 @@ function BureauTab({ customer, bureauResults, onRefresh }) {
   const [expanded, setExpanded] = useState(null);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  async function handleCheck(e) {
-    e.preventDefault();
-    if (form.bvn.length !== 11) return toast.error('BVN must be 11 digits');
+  async function runCheck(overrideForm) {
+    const payload = overrideForm || form;
+    if (payload.bvn.length !== 11) return toast.error('BVN must be 11 digits');
     const apiKey = localStorage.getItem('apiKey');
     if (!apiKey) return toast.error('No API key found');
     setLoading(true);
     try {
-      await axios.post(`${API}/v1/credit-bureau/check`, { ...form, customerId: customer._id }, { headers: { 'X-Api-Key': apiKey } });
+      await axios.post(`${API}/v1/credit-bureau/check`, { ...payload, customerId: customer._id }, { headers: { 'X-Api-Key': apiKey } });
       toast.success('Bureau check complete');
       onRefresh();
     } catch (err) {
@@ -809,6 +833,8 @@ function BureauTab({ customer, bureauResults, onRefresh }) {
       setLoading(false);
     }
   }
+
+  async function handleCheck(e) { e.preventDefault(); runCheck(); }
 
   const latest = bureauResults.find(r => r.status === 'success');
   const sec = latest ? parseBureauSections(latest.result) : null;
@@ -871,7 +897,13 @@ function BureauTab({ customer, bureauResults, onRefresh }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* Score banner */}
-          <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)', borderRadius: 14, padding: '1.75rem 2rem', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)', borderRadius: 14, padding: '1.75rem 2rem', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => runCheck({ bvn: form.bvn, firstName: form.firstName || personal?.FirstName || '', lastName: form.lastName || personal?.Surname || '', dateOfBirth: form.dateOfBirth || personal?.DateOfBirth || '' })}
+              disabled={loading}
+              style={{ position: 'absolute', top: 14, right: 14, background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.25)', color: '#e2e8f0', borderRadius: 8, padding: '5px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              {loading ? '…' : '↻ Re-run'}
+            </button>
             <div style={{ textAlign: 'center', background: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: '1rem 1.5rem', minWidth: 130 }}>
               <div style={{ fontSize: 52, fontWeight: 900, color: scoreColor_, lineHeight: 1 }}>{scoreTotal ?? '—'}</div>
               <div style={{ fontSize: 11, fontWeight: 700, color: scoreColor_, textTransform: 'uppercase', letterSpacing: 1, marginTop: 4 }}>{scoreDesc || 'Credit Score'}</div>

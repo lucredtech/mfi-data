@@ -4,6 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { exportCustomersCSV } from '../services/exportCSV';
 import { parseApiError, isUnauthorized } from '../utils/apiError';
+import CsvImportModal from '../components/CsvImportModal';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -16,6 +17,7 @@ export default function Customers() {
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const navigate = useNavigate();
 
   const fetch = useCallback(async () => {
@@ -46,6 +48,7 @@ export default function Customers() {
           {customers.length > 0 && (
             <button style={s.btnOutline} onClick={() => exportCustomersCSV(customers)}>↓ Export CSV</button>
           )}
+          <button style={s.btnOutline} onClick={() => setShowImport(true)}>↑ Import CSV</button>
           <button style={s.btn} onClick={() => setShowForm(true)}>+ Add Customer</button>
         </div>
       </div>
@@ -59,6 +62,7 @@ export default function Customers() {
         />
       </div>
 
+      {showImport && <CsvImportModal onClose={() => setShowImport(false)} onImported={fetch} />}
       {showForm && <AddCustomerForm onClose={() => setShowForm(false)} onCreated={(c) => { setShowForm(false); navigate(`/dashboard/customers/${c._id}`); }} />}
 
       <div style={s.card}>

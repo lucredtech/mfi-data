@@ -56,14 +56,28 @@ export default function AdminOverview() {
           {analytics && (
             <div style={{ display: 'flex', gap: 16, alignItems: 'center', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '8px 18px' }}>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{analytics.totalLast30Days?.toLocaleString() || '—'}</div>
-                <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>API CALLS (30D)</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{analytics.thisMonthCalls?.toLocaleString() ?? '—'}</div>
+                <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>CALLS THIS MONTH</div>
               </div>
               <div style={{ width: 1, height: 32, background: '#e2e8f0' }} />
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 18, fontWeight: 800, color: analytics.successRate >= 95 ? '#16a34a' : analytics.successRate >= 80 ? '#f59e0b' : '#dc2626' }}>{analytics.successRate}%</div>
                 <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>SUCCESS RATE</div>
               </div>
+              <div style={{ width: 1, height: 32, background: '#e2e8f0' }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 800, color: '#16a34a' }}>₦{((analytics.mrr || 0) / 1000).toFixed(0)}k</div>
+                <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>MRR</div>
+              </div>
+              {analytics.webhookFailures > 0 && (
+                <>
+                  <div style={{ width: 1, height: 32, background: '#e2e8f0' }} />
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#dc2626' }}>{analytics.webhookFailures}</div>
+                    <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>WEBHOOK FAILURES</div>
+                  </div>
+                </>
+              )}
             </div>
           )}
           <button
@@ -77,6 +91,24 @@ export default function AdminOverview() {
           </button>
         </div>
       </div>
+
+      {/* Revenue & plan breakdown */}
+      {analytics && (
+        <>
+          <div style={s.sectionLabel}>Revenue</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 28 }}>
+            <StatCard label="MRR" value={`₦${((analytics.mrr || 0) / 1000).toFixed(0)}k`} sub="Monthly recurring revenue" color="#16a34a" />
+            <StatCard label="This Month" value={(analytics.thisMonthCalls || 0).toLocaleString()} sub={`Last month: ${(analytics.lastMonthCalls || 0).toLocaleString()}`} color="#0ea5e9"
+              trend={analytics.lastMonthCalls > 0 ? Math.round(((analytics.thisMonthCalls - analytics.lastMonthCalls) / analytics.lastMonthCalls) * 100) : null} />
+            {['free', 'growth', 'scale'].map(plan => (
+              <StatCard key={plan} label={`${plan.charAt(0).toUpperCase() + plan.slice(1)} plan`}
+                value={analytics.planBreakdown?.[plan] ?? 0}
+                sub={plan === 'free' ? '₦0/mo' : plan === 'growth' ? '₦50k/mo' : '₦200k/mo'}
+                color={plan === 'free' ? '#94a3b8' : plan === 'growth' ? '#0ea5e9' : '#6d28d9'} />
+            ))}
+          </div>
+        </>
+      )}
 
       {/* MFI client stats */}
       <div style={s.sectionLabel}>MFI Clients</div>
@@ -206,10 +238,18 @@ export default function AdminOverview() {
   );
 }
 
-function StatCard({ label, value, sub, color }) {
+function StatCard({ label, value, sub, color, trend }) {
   return (
     <div style={s.card}>
-      <div style={{ fontSize: 28, fontWeight: 700, color }}>{value}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ fontSize: 28, fontWeight: 700, color }}>{value}</div>
+        {trend != null && (
+          <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 12,
+            background: trend >= 0 ? '#dcfce7' : '#fee2e2', color: trend >= 0 ? '#16a34a' : '#dc2626' }}>
+            {trend >= 0 ? '+' : ''}{trend}%
+          </span>
+        )}
+      </div>
       <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginTop: 4 }}>{label}</div>
       {sub && <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>{sub}</div>}
     </div>

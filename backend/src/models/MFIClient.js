@@ -9,6 +9,7 @@ const mfiClientSchema = new mongoose.Schema(
     contactPerson: { type: String, required: true },
     phone: { type: String },
     status: { type: String, enum: ['pending', 'active', 'suspended'], default: 'active' },
+    plan: { type: String, enum: ['free', 'growth', 'scale'], default: 'free' },
   },
   { timestamps: true }
 );

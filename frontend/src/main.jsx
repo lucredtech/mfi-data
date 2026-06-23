@@ -39,6 +39,7 @@ import Security from './pages/Security';
 import Support from './pages/Support';
 import FeatureRequest from './pages/FeatureRequest';
 import AdminFeatureRequests from './pages/admin/AdminFeatureRequests';
+import Webhooks from './pages/Webhooks';
 
 function PrivateRoute({ children }) {
   const { client, loading } = useAuth();
@@ -75,6 +76,7 @@ function App() {
         <Route path="/dashboard/audit" element={<PrivateRoute><Layout><AuditLog /></Layout></PrivateRoute>} />
         <Route path="/dashboard/pipeline" element={<PrivateRoute><Layout><LoanPipeline /></Layout></PrivateRoute>} />
         <Route path="/dashboard/bulk-verify" element={<PrivateRoute><Layout><BulkVerify /></Layout></PrivateRoute>} />
+        <Route path="/dashboard/webhooks" element={<PrivateRoute><Layout><Webhooks /></Layout></PrivateRoute>} />
         <Route path="/dashboard/feature-request" element={<PrivateRoute><Layout><FeatureRequest /></Layout></PrivateRoute>} />
         <Route path="/dashboard/privacy" element={<PrivateRoute><Layout><Privacy /></Layout></PrivateRoute>} />
         <Route path="/docs" element={<PublicDocs />} />

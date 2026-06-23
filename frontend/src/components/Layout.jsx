@@ -5,25 +5,63 @@ import { useAuth } from '../context/AuthContext';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
-const NAV = [
-  { path: '/dashboard', label: 'Overview', abbr: 'OV' },
-  { path: '/dashboard/customers', label: 'Customers', abbr: 'CU' },
-  { path: '/dashboard/statement', label: 'Statement Analysis', abbr: 'ST' },
-  { path: '/dashboard/bvn', label: 'BVN Verification', abbr: 'BV' },
-  { path: '/dashboard/nin', label: 'NIN Verification', abbr: 'NI' },
-  { path: '/dashboard/credit-bureau', label: 'Credit Bureau', abbr: 'CB' },
-  { path: '/dashboard/api-keys', label: 'API Keys', abbr: 'AK' },
-  { path: '/dashboard/usage', label: 'Usage', abbr: 'US' },
-  { path: '/dashboard/docs', label: 'Docs', abbr: 'DO' },
-  { path: '/dashboard/pipeline', label: 'Loan Pipeline', abbr: 'LP' },
-  { path: '/dashboard/bulk-verify', label: 'Bulk Verify', abbr: 'BK' },
-  { path: '/dashboard/audit', label: 'Audit Log', abbr: 'AL' },
-  { path: '/dashboard/privacy', label: 'Privacy & Data', abbr: 'PR' },
-  { path: '/dashboard/feature-request', label: 'Request a Feature', abbr: 'RF' },
+// Groups: each item is either a direct link or a collapsible group with children
+const NAV_GROUPS = [
+  {
+    label: 'Overview',
+    path: '/dashboard',
+    abbr: 'OV',
+    icon: '⊞',
+    exact: true,
+  },
+  {
+    label: 'Customers',
+    abbr: 'CU',
+    icon: '👤',
+    children: [
+      { path: '/dashboard/customers', label: 'All Customers' },
+      { path: '/dashboard/pipeline', label: 'Loan Pipeline' },
+      { path: '/dashboard/bulk-verify', label: 'Bulk Verify' },
+    ],
+  },
+  {
+    label: 'Credit Tools',
+    abbr: 'CT',
+    icon: '🔍',
+    children: [
+      { path: '/dashboard/bvn', label: 'BVN Verification' },
+      { path: '/dashboard/nin', label: 'NIN Verification' },
+      { path: '/dashboard/credit-bureau', label: 'Credit Bureau' },
+      { path: '/dashboard/statement', label: 'Statement Analysis' },
+    ],
+  },
+  {
+    label: 'Developer',
+    abbr: 'DV',
+    icon: '⚙',
+    children: [
+      { path: '/dashboard/api-keys', label: 'API Keys' },
+      { path: '/dashboard/webhooks', label: 'Webhooks' },
+      { path: '/dashboard/usage', label: 'Usage' },
+      { path: '/dashboard/docs', label: 'API Docs' },
+    ],
+  },
+  {
+    label: 'Account',
+    abbr: 'AC',
+    icon: '◉',
+    children: [
+      { path: '/dashboard/audit', label: 'Audit Log' },
+      { path: '/dashboard/privacy', label: 'Privacy & Data' },
+      { path: '/dashboard/feature-request', label: 'Request a Feature' },
+    ],
+  },
 ];
 
-const TYPE_LABEL = { statement: 'Statement', bvn: 'BVN', bureau: 'Bureau' };
-const TYPE_COLOR = { statement: '#38bdf8', bvn: '#4ade80', bureau: '#a78bfa' };
+function isGroupActive(group, pathname) {
+  if (group.path) return group.exact ? pathname === group.path : pathname.startsWith(group.path);
+  return group.children?.some(c => pathname.startsWith(c.path));
+}
 
 export default function Layout({ children }) {
   const { client, logout } = useAuth();
@@ -32,50 +70,50 @@ export default function Layout({ children }) {
   const [collapsed, setCollapsed] = useState(false);
   const [activity, setActivity] = useState([]);
 
+  // Track which groups are open; default open the active group
+  const defaultOpen = NAV_GROUPS.reduce((acc, g) => {
+    if (g.children && isGroupActive(g, pathname)) acc[g.label] = true;
+    return acc;
+  }, {});
+  const [openGroups, setOpenGroups] = useState(defaultOpen);
+
+  const toggleGroup = (label) =>
+    setOpenGroups(prev => ({ ...prev, [label]: !prev[label] }));
+
   const handleLogout = () => { logout(); navigate('/login'); };
 
-  // Load recent activity for sidebar
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
     axios.get(`${API}/api/customers`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(({ data }) => {
-        // Build activity from customer data — we just show customer list as recent
-        // Full activity (with analysis counts) comes from the customers endpoint
-        setActivity(data.customers.slice(0, 8));
-      })
+      .then(({ data }) => setActivity(data.customers.slice(0, 6)))
       .catch(() => {});
   }, [pathname]);
 
-  const sidebarW = collapsed ? 64 : 260;
+  const sidebarW = collapsed ? 64 : 240;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
-      {/* Sidebar */}
       <aside style={{
         width: sidebarW, minWidth: sidebarW, background: '#0f172a', color: '#f1f5f9',
-        padding: collapsed ? '1.5rem 0' : '1.75rem 1.25rem',
+        padding: collapsed ? '1.5rem 0' : '1.5rem 1rem',
         display: 'flex', flexDirection: 'column',
         transition: 'width 0.2s ease, min-width 0.2s ease, padding 0.2s ease',
-        overflow: 'hidden', position: 'relative',
+        overflow: 'hidden',
       }}>
+
         {/* Header */}
-        <div style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between' }}>
+        <div style={{ marginBottom: '1.75rem', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between' }}>
           {!collapsed && (
             <div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: '#38bdf8' }}>Lucred</div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>B2B Credit Engine</div>
+              <div style={{ fontSize: 19, fontWeight: 800, color: '#38bdf8', letterSpacing: -0.5 }}>Lucred</div>
+              <div style={{ fontSize: 10, color: '#475569', marginTop: 1, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8 }}>Credit Engine</div>
             </div>
           )}
           <button
-            onClick={() => setCollapsed((c) => !c)}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            style={{
-              background: '#1e293b', border: 'none', borderRadius: 6,
-              color: '#94a3b8', cursor: 'pointer',
-              width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 14, flexShrink: 0,
-            }}
+            onClick={() => setCollapsed(c => !c)}
+            title={collapsed ? 'Expand' : 'Collapse'}
+            style={{ background: '#1e293b', border: 'none', borderRadius: 6, color: '#64748b', cursor: 'pointer', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}
           >
             {collapsed ? '›' : '‹'}
           </button>
@@ -83,63 +121,128 @@ export default function Layout({ children }) {
 
         {/* Nav */}
         <nav style={{ flex: 1, overflowY: 'auto' }}>
-          {NAV.map(({ path, label, abbr }) => {
-            const active = path === '/dashboard' ? pathname === path : pathname.startsWith(path);
+          {NAV_GROUPS.map((group) => {
+            const groupActive = isGroupActive(group, pathname);
+
+            // Direct link (no children)
+            if (group.path) {
+              return (
+                <Link
+                  key={group.path}
+                  to={group.path}
+                  title={collapsed ? group.label : undefined}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 8,
+                    justifyContent: collapsed ? 'center' : 'flex-start',
+                    padding: collapsed ? '9px 0' : '8px 10px',
+                    borderRadius: 7, marginBottom: 2,
+                    color: groupActive ? '#38bdf8' : '#94a3b8',
+                    background: groupActive ? '#1e293b' : 'transparent',
+                    textDecoration: 'none', fontSize: 13.5, fontWeight: 500,
+                    transition: 'background 0.12s',
+                  }}
+                >
+                  {collapsed
+                    ? <span style={{ fontSize: 10, fontWeight: 700 }}>{group.abbr}</span>
+                    : <>
+                        <span style={{ fontSize: 14, opacity: 0.7 }}>{group.icon}</span>
+                        <span>{group.label}</span>
+                      </>
+                  }
+                </Link>
+              );
+            }
+
+            // Collapsible group
+            const isOpen = collapsed ? false : !!openGroups[group.label];
+
             return (
-              <Link
-                key={path}
-                to={path}
-                title={collapsed ? label : undefined}
-                style={{
-                  display: 'flex', alignItems: 'center',
-                  gap: collapsed ? 0 : 10,
-                  justifyContent: collapsed ? 'center' : 'flex-start',
-                  padding: collapsed ? '10px 0' : '9px 10px',
-                  borderRadius: 8, marginBottom: 2,
-                  color: active ? '#38bdf8' : '#94a3b8',
-                  background: active ? '#1e293b' : 'transparent',
-                  textDecoration: 'none', fontSize: 14, fontWeight: 500,
-                  transition: 'background 0.15s',
-                }}
-              >
-                {collapsed
-                  ? <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.5, flexShrink: 0 }}>{abbr}</span>
-                  : <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
-                }
-              </Link>
+              <div key={group.label} style={{ marginBottom: 2 }}>
+                {/* Group header */}
+                <button
+                  onClick={() => !collapsed && toggleGroup(group.label)}
+                  title={collapsed ? group.label : undefined}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center',
+                    gap: collapsed ? 0 : 8,
+                    justifyContent: collapsed ? 'center' : 'space-between',
+                    padding: collapsed ? '9px 0' : '8px 10px',
+                    borderRadius: 7, border: 'none', cursor: 'pointer',
+                    background: groupActive && !isOpen ? '#1e293b' : 'transparent',
+                    color: groupActive ? '#e2e8f0' : '#64748b',
+                    fontSize: 13.5, fontWeight: 600,
+                    transition: 'background 0.12s',
+                  }}
+                >
+                  {collapsed
+                    ? <span style={{ fontSize: 10, fontWeight: 700 }}>{group.abbr}</span>
+                    : <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 14, opacity: 0.7 }}>{group.icon}</span>
+                          <span>{group.label}</span>
+                        </div>
+                        <span style={{ fontSize: 10, color: '#475569', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'none' }}>›</span>
+                      </>
+                  }
+                </button>
+
+                {/* Children */}
+                {isOpen && (
+                  <div style={{ marginLeft: 14, borderLeft: '1.5px solid #1e293b', paddingLeft: 10, marginBottom: 4 }}>
+                    {group.children.map(child => {
+                      const active = pathname.startsWith(child.path);
+                      return (
+                        <Link
+                          key={child.path}
+                          to={child.path}
+                          style={{
+                            display: 'block', padding: '7px 10px', borderRadius: 6, marginBottom: 1,
+                            color: active ? '#38bdf8' : '#64748b',
+                            background: active ? '#1e293b' : 'transparent',
+                            textDecoration: 'none', fontSize: 13, fontWeight: active ? 600 : 400,
+                            transition: 'background 0.12s',
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {child.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
 
-          {/* Recent customers panel — only when expanded */}
+          {/* Recent customers — only when expanded */}
           {!collapsed && activity.length > 0 && (
-            <div style={{ marginTop: 20 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 1, padding: '0 10px', marginBottom: 8 }}>
-                Recent Customers
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #1e293b' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#334155', textTransform: 'uppercase', letterSpacing: 1, padding: '0 10px', marginBottom: 8 }}>
+                Recent
               </div>
               {activity.map((c) => (
                 <Link
                   key={c._id}
                   to={`/dashboard/customers/${c._id}`}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
-                    borderRadius: 8, marginBottom: 2, textDecoration: 'none',
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',
+                    borderRadius: 7, marginBottom: 1, textDecoration: 'none',
                     color: pathname.includes(c._id) ? '#38bdf8' : '#64748b',
                     background: pathname.includes(c._id) ? '#1e293b' : 'transparent',
-                    transition: 'background 0.15s',
+                    transition: 'background 0.12s',
                   }}
                 >
                   <div style={{
-                    width: 22, height: 22, borderRadius: '50%',
+                    width: 20, height: 20, borderRadius: '50%',
                     background: 'linear-gradient(135deg,#0ea5e9,#6d28d9)',
-                    color: '#fff', fontSize: 10, fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    color: '#fff', fontSize: 9, fontWeight: 700, flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
                     {c.name.charAt(0).toUpperCase()}
                   </div>
-                  <div style={{ overflow: 'hidden' }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
-                    {c.email && <div style={{ fontSize: 10, color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.email}</div>}
-                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {c.name}
+                  </span>
                 </Link>
               ))}
             </div>
@@ -147,9 +250,9 @@ export default function Layout({ children }) {
         </nav>
 
         {/* Footer */}
-        <div style={{ borderTop: '1px solid #1e293b', paddingTop: '1rem', marginTop: '1rem' }}>
+        <div style={{ borderTop: '1px solid #1e293b', paddingTop: '0.875rem', marginTop: '0.875rem' }}>
           {!collapsed && (
-            <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: 11, color: '#475569', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
               {client?.organizationName}
             </div>
           )}
@@ -157,19 +260,18 @@ export default function Layout({ children }) {
             onClick={handleLogout}
             title={collapsed ? 'Sign out' : undefined}
             style={{
-              fontSize: 13, color: '#64748b', background: 'none', border: 'none',
+              fontSize: 12, color: '#475569', background: 'none', border: 'none',
               cursor: 'pointer', padding: 0,
               display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',
-              gap: 6, width: '100%',
+              gap: 6, width: '100%', fontWeight: 500,
             }}
           >
-            <span style={{ fontSize: 16 }}>↩</span>
+            <span style={{ fontSize: 15 }}>↩</span>
             {!collapsed && 'Sign out'}
           </button>
         </div>
       </aside>
 
-      {/* Main */}
       <main style={{ flex: 1, background: '#f8fafc', padding: '2rem 2.5rem', overflow: 'auto' }}>
         {children}
       </main>

@@ -70,6 +70,7 @@ router.post('/', async (req, res) => {
 
     const customer = await Customer.create({ client: req.client.id, name, email, bvn, nin, phone, customerType: customerType || 'individual' });
     AuditLog.create({ client: req.client.id, action: 'CUSTOMER_CREATED', entityType: 'Customer', entityId: customer._id, label: `Created customer profile: ${name}`, meta: { name, email } }).catch(() => {});
+    dispatchWebhook(req.client.id, 'customer.created', { customerId: customer._id, name, email });
     res.status(201).json({ customer, duplicate: duplicate ? { id: duplicate._id, name: duplicate.name } : null });
   } catch (err) {
     console.error("[route] unhandled error:", err);
@@ -356,6 +357,7 @@ router.post('/verify/bvn', async (req, res) => {
     });
 
     AuditLog.create({ client: req.client.id, action: 'BVN_CHECK', entityType: 'BVNResult', entityId: saved._id, label: `BVN verification: ****${bvn.slice(-4)}`, meta: { bvnLast4: bvn.slice(-4), customerId } }).catch(() => {});
+    dispatchWebhook(req.client.id, 'bvn.verified', { customerId, bvnLast4: bvn.slice(-4), resultId: saved._id });
 
     // Duplicate detection: same BVN already on another customer?
     const dupQuery = { bvn, client: req.client.id };
@@ -419,6 +421,7 @@ router.post('/verify/nin', async (req, res) => {
     });
 
     AuditLog.create({ client: req.client.id, action: 'NIN_CHECK', entityType: 'NINResult', entityId: saved._id, label: `NIN verification: ****${nin.slice(-4)}`, meta: { ninLast4: nin.slice(-4), customerId } }).catch(() => {});
+    dispatchWebhook(req.client.id, 'nin.verified', { customerId, ninLast4: nin.slice(-4), resultId: saved._id });
 
     // Duplicate detection: same NIN already on another customer?
     const dupQuery = { nin, client: req.client.id };
@@ -592,6 +595,7 @@ router.post('/:id/loan-reviews', async (req, res) => {
     const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id });
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
     const review = await LoanReview.create({ client: req.client.id, customer: req.params.id, ...req.body });
+    dispatchWebhook(req.client.id, 'loan_review.created', { customerId: req.params.id, verdict: review.verdict, reviewId: review._id });
     res.json({ review });
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
@@ -656,6 +660,71 @@ router.post('/bulk/verify', async (req, res) => {
     }
 
     res.json({ results });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// CSV import — POST /api/customers/import
+// Accepts multipart field "csv" (text) or raw body { csv: "..." }
+const { dispatchWebhook } = require('./webhooks');
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
+
+router.post('/import', upload.single('file'), async (req, res) => {
+  try {
+    let csvText = '';
+    if (req.file) {
+      csvText = req.file.buffer.toString('utf8');
+    } else if (req.body.csv) {
+      csvText = req.body.csv;
+    } else {
+      return res.status(400).json({ error: 'No CSV provided. Send a file field "file" or JSON field "csv".' });
+    }
+
+    const lines = csvText.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return res.status(400).json({ error: 'CSV must have a header row and at least one data row.' });
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
+    const nameIdx = headers.findIndex(h => h === 'name' || h === 'full_name');
+    const emailIdx = headers.indexOf('email');
+    const phoneIdx = headers.findIndex(h => h === 'phone' || h === 'phone_number');
+    const bvnIdx = headers.indexOf('bvn');
+    const addressIdx = headers.indexOf('address');
+
+    if (nameIdx === -1) return res.status(400).json({ error: 'CSV must have a "name" column.' });
+
+    const created = [], skipped = [], errors = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+      const name = cols[nameIdx];
+      if (!name) { errors.push({ row: i + 1, reason: 'Missing name' }); continue; }
+
+      const email = emailIdx >= 0 ? cols[emailIdx] : undefined;
+      const phone = phoneIdx >= 0 ? cols[phoneIdx] : undefined;
+      const bvn = bvnIdx >= 0 ? cols[bvnIdx] : undefined;
+      const address = addressIdx >= 0 ? cols[addressIdx] : undefined;
+
+      // Check for duplicate by email or phone within this client
+      const dupQuery = { client: req.client.id, $or: [] };
+      if (email) dupQuery.$or.push({ email });
+      if (phone) dupQuery.$or.push({ phone });
+      if (dupQuery.$or.length === 0) dupQuery.$or.push({ name });
+
+      const existing = await Customer.findOne(dupQuery).lean();
+      if (existing) { skipped.push({ row: i + 1, name, reason: 'Duplicate' }); continue; }
+
+      try {
+        const customer = await Customer.create({ client: req.client.id, name, email, phone, bvn, address });
+        AuditLog.create({ client: req.client.id, action: 'CUSTOMER_CREATED', entityType: 'Customer', entityId: customer._id, label: `Imported: ${name}`, meta: { source: 'csv_import' } }).catch(() => {});
+        created.push({ id: customer._id, name });
+      } catch (err) {
+        errors.push({ row: i + 1, name, reason: err.message });
+      }
+    }
+
+    res.json({ created: created.length, skipped: skipped.length, errors: errors.length, details: { created, skipped, errors } });
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }
