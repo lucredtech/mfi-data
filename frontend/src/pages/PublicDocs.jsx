@@ -158,7 +158,7 @@ export default function PublicDocs() {
 
           <div style={{ background: '#0f172a', borderRadius: 10, padding: '1rem 1.25rem', marginTop: 16 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Authentication</div>
-            <pre style={s.pre}>{'X-Api-Key: lcrd_your_api_key_here'}</pre>
+            <pre style={s.codeBlock}>{'X-Api-Key: lcrd_your_api_key_here'}</pre>
           </div>
         </div>
 

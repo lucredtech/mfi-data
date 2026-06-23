@@ -37,6 +37,8 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import Terms from './pages/Terms';
 import Security from './pages/Security';
 import Support from './pages/Support';
+import FeatureRequest from './pages/FeatureRequest';
+import AdminFeatureRequests from './pages/admin/AdminFeatureRequests';
 
 function PrivateRoute({ children }) {
   const { client, loading } = useAuth();
@@ -73,6 +75,7 @@ function App() {
         <Route path="/dashboard/audit" element={<PrivateRoute><Layout><AuditLog /></Layout></PrivateRoute>} />
         <Route path="/dashboard/pipeline" element={<PrivateRoute><Layout><LoanPipeline /></Layout></PrivateRoute>} />
         <Route path="/dashboard/bulk-verify" element={<PrivateRoute><Layout><BulkVerify /></Layout></PrivateRoute>} />
+        <Route path="/dashboard/feature-request" element={<PrivateRoute><Layout><FeatureRequest /></Layout></PrivateRoute>} />
         <Route path="/dashboard/privacy" element={<PrivateRoute><Layout><Privacy /></Layout></PrivateRoute>} />
         <Route path="/docs" element={<PublicDocs />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
@@ -83,6 +86,7 @@ function App() {
         <Route path="/admin" element={<AdminRoute><AdminLayout><AdminOverview /></AdminLayout></AdminRoute>} />
         <Route path="/admin/clients" element={<AdminRoute><AdminLayout><AdminClients /></AdminLayout></AdminRoute>} />
         <Route path="/admin/clients/:id" element={<AdminRoute><AdminLayout><AdminClientDetail /></AdminLayout></AdminRoute>} />
+        <Route path="/admin/feature-requests" element={<AdminRoute><AdminLayout><AdminFeatureRequests /></AdminLayout></AdminRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

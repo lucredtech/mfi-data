@@ -14,6 +14,8 @@ const statementRoutes = require('./routes/statement');
 const usageRoutes = require('./routes/usage');
 const customerRoutes = require('./routes/customers');
 const v1CustomerRoutes = require('./routes/v1Customers');
+const { requireJWT } = require('./middleware/auth');
+const FeatureRequest = require('./models/FeatureRequest');
 
 const app = express();
 
@@ -53,9 +55,30 @@ app.use('/api/keys', apiKeyRoutes);
 app.use('/api/usage', usageRoutes);
 app.use('/api/customers', customerRoutes);
 
+// Feature requests (JWT protected)
+app.post('/api/feature-requests', requireJWT, async (req, res) => {
+  try {
+    const { title, description } = req.body;
+    if (!title || !description) return res.status(400).json({ error: 'title and description are required' });
+    const request = await FeatureRequest.create({ client: req.client.id, title, description });
+    res.status(201).json({ request });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/feature-requests', requireJWT, async (req, res) => {
+  try {
+    const requests = await FeatureRequest.find({ client: req.client.id }).sort({ createdAt: -1 }).lean();
+    res.json({ requests });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // B2B credit engine routes (API key protected)
-app.use('/v1', creditRoutes);
 app.use('/v1/customers', v1CustomerRoutes);
+app.use('/v1', creditRoutes);
 app.use(statementRoutes);
 
 let dbConnected = false;

@@ -10,6 +10,7 @@ const BVNResult = require('../models/BVNResult');
 const NINResult = require('../models/NINResult');
 const BureauResult = require('../models/BureauResult');
 const AuditLog = require('../models/AuditLog');
+const FeatureRequest = require('../models/FeatureRequest');
 
 // Admin JWT middleware
 const requireAdmin = (req, res, next) => {
@@ -264,6 +265,34 @@ router.get('/clients/:id/analyses', async (req, res) => {
   } catch (err) {
     console.error("[route] unhandled error:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Feature requests — admin view
+router.get('/feature-requests', async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = status ? { status } : {};
+    const requests = await FeatureRequest.find(filter)
+      .sort({ createdAt: -1 })
+      .populate('client', 'organizationName email')
+      .lean();
+    res.json({ requests });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.patch('/feature-requests/:id', async (req, res) => {
+  try {
+    const { status } = req.body;
+    const VALID = ['pending', 'reviewed', 'planned', 'shipped'];
+    if (!VALID.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    const request = await FeatureRequest.findByIdAndUpdate(req.params.id, { status }, { new: true });
+    if (!request) return res.status(404).json({ error: 'Not found' });
+    res.json({ request });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

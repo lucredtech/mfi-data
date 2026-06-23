@@ -4,6 +4,7 @@ import axios from 'axios';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { exportStatementsCSV } from '../services/exportCSV';
+import OnboardingBanner from '../components/OnboardingBanner';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -52,6 +53,7 @@ export default function Overview() {
 
   return (
     <div>
+      <OnboardingBanner stats={stats} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
         <div>
           <h1 style={s.h1}>Welcome, {client?.organizationName}</h1>

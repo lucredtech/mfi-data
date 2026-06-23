@@ -126,7 +126,11 @@ export default function Landing() {
         <div style={s.ctaInner}>
           <h2 style={s.ctaTitle}>Ready to upgrade your credit process?</h2>
           <p style={s.ctaSub}>Join MFIs already using Lucred's credit engine to make faster, smarter lending decisions.</p>
-          <Link to="/register" style={s.heroBtnPrimary}>Get API Access →</Link>
+          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link to="/register" style={s.heroBtnPrimary}>Start for free →</Link>
+            <Link to="/docs" style={{ ...s.heroBtnSecondary, background: 'rgba(255,255,255,0.1)' }}>Read the docs</Link>
+          </div>
+          <p style={{ marginTop: 20, fontSize: 13, color: '#64748b' }}>No credit card required · API key in 60 seconds</p>
         </div>
       </section>
 

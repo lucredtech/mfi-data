@@ -19,6 +19,7 @@ const NAV = [
   { path: '/dashboard/bulk-verify', label: 'Bulk Verify', abbr: 'BK' },
   { path: '/dashboard/audit', label: 'Audit Log', abbr: 'AL' },
   { path: '/dashboard/privacy', label: 'Privacy & Data', abbr: 'PR' },
+  { path: '/dashboard/feature-request', label: 'Request a Feature', abbr: 'RF' },
 ];
 
 const TYPE_LABEL = { statement: 'Statement', bvn: 'BVN', bureau: 'Bureau' };

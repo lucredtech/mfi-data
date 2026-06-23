@@ -4,6 +4,7 @@ import { useAdmin } from '../context/AdminContext';
 const NAV = [
   { path: '/admin', label: 'Overview' },
   { path: '/admin/clients', label: 'MFI Clients' },
+  { path: '/admin/feature-requests', label: 'Feature Requests' },
 ];
 
 export default function AdminLayout({ children }) {
