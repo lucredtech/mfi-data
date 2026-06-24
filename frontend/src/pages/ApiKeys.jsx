@@ -6,6 +6,7 @@ import { parseApiError } from '../utils/apiError';
 export default function ApiKeys() {
   const [keys, setKeys] = useState([]);
   const [label, setLabel] = useState('');
+  const [mode, setMode] = useState('live');
   const [creating, setCreating] = useState(false);
   const [revealed, setRevealed] = useState({});
 
@@ -17,8 +18,8 @@ export default function ApiKeys() {
     e.preventDefault();
     setCreating(true);
     try {
-      await api.post('/api/keys', { label });
-      setLabel('');
+      await api.post('/api/keys', { label, mode });
+      setLabel(''); setMode('live');
       toast.success('API key created');
       load();
     } catch (err) { toast.error(parseApiError(err, { default: 'Failed to create API key. Please try again.' })); }
@@ -53,10 +54,19 @@ export default function ApiKeys() {
       <p style={styles.sub}>Use these keys in the <code>X-Api-Key</code> header when calling Lucred credit endpoints.</p>
 
       <div style={styles.createBox}>
-        <form onSubmit={create} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <input style={{ ...styles.input, flex: 1 }} placeholder="Key label (e.g. Production)" value={label}
+        <form onSubmit={create} style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input style={{ ...styles.input, flex: 1, minWidth: 160 }} placeholder="Key label (e.g. Production)" value={label}
             onChange={(e) => setLabel(e.target.value)} required />
-          <button style={styles.btn} disabled={creating}>{creating ? 'Creating…' : '+ New Key'}</button>
+          <div style={{ display: 'flex', gap: 0, borderRadius: 8, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+            {['live', 'test'].map(m => (
+              <button key={m} type="button" onClick={() => setMode(m)} style={{
+                padding: '9px 16px', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                background: mode === m ? (m === 'live' ? '#0ea5e9' : '#f59e0b') : '#f8fafc',
+                color: mode === m ? '#fff' : '#64748b',
+              }}>{m === 'live' ? 'Live' : 'Test'}</button>
+            ))}
+          </div>
+          <button style={{ ...styles.btn, background: mode === 'test' ? '#f59e0b' : '#0ea5e9' }} disabled={creating}>{creating ? 'Creating…' : '+ New Key'}</button>
         </form>
       </div>
 
@@ -66,7 +76,7 @@ export default function ApiKeys() {
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr>{['Label', 'Key', 'Status', 'Last Used', 'Created', ''].map(h => (
+              <tr>{['Label', 'Mode', 'Key', 'Status', 'Last Used', 'Created', ''].map(h => (
                 <th key={h} style={styles.th}>{h}</th>
               ))}</tr>
             </thead>
@@ -74,6 +84,13 @@ export default function ApiKeys() {
               {keys.map((k) => (
                 <tr key={k._id}>
                   <td style={styles.td}>{k.label}</td>
+                  <td style={styles.td}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12,
+                      background: k.mode === 'test' ? '#fef3c7' : '#dcfce7',
+                      color: k.mode === 'test' ? '#d97706' : '#16a34a' }}>
+                      {k.mode === 'test' ? 'TEST' : 'LIVE'}
+                    </span>
+                  </td>
                   <td style={styles.td}>
                     <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
                       {revealed[k._id] ? k.key : `${k.key.substring(0, 12)}${'•'.repeat(20)}`}

@@ -25,6 +25,9 @@ export default function Webhooks() {
   const [saving, setSaving] = useState(false);
   const [revealed, setRevealed] = useState({});
   const [testing, setTesting] = useState({});
+  const [deliveries, setDeliveries] = useState({});
+  const [loadingDeliveries, setLoadingDeliveries] = useState({});
+  const [expandedLog, setExpandedLog] = useState({});
 
   async function load() {
     try {
@@ -76,6 +79,29 @@ export default function Webhooks() {
 
   function toggleEvent(ev) {
     setEvents(prev => prev.includes(ev) ? prev.filter(e => e !== ev) : [...prev, ev]);
+  }
+
+  async function toggleLog(id) {
+    const next = !expandedLog[id];
+    setExpandedLog(e => ({ ...e, [id]: next }));
+    if (next && !deliveries[id]) {
+      setLoadingDeliveries(l => ({ ...l, [id]: true }));
+      try {
+        const { data } = await axios.get(`${API}/api/webhooks/${id}/deliveries`, { headers: authHeaders() });
+        setDeliveries(d => ({ ...d, [id]: data.deliveries || [] }));
+      } catch { toast.error('Failed to load delivery log'); }
+      finally { setLoadingDeliveries(l => ({ ...l, [id]: false })); }
+    }
+  }
+
+  async function retryDelivery(hookId, deliveryId) {
+    try {
+      const { data } = await axios.post(`${API}/api/webhooks/${hookId}/deliveries/${deliveryId}/retry`, {}, { headers: authHeaders() });
+      toast[data.ok ? 'success' : 'error'](data.ok ? 'Retried successfully' : `Retry failed — ${data.error}`);
+      // refresh deliveries
+      const { data: fresh } = await axios.get(`${API}/api/webhooks/${hookId}/deliveries`, { headers: authHeaders() });
+      setDeliveries(d => ({ ...d, [hookId]: fresh.deliveries || [] }));
+    } catch { toast.error('Retry failed'); }
   }
 
   return (
@@ -153,7 +179,7 @@ export default function Webhooks() {
                       : 'Never fired'}
                   </div>
                   {/* Signing secret */}
-                  <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Signing secret:</span>
                     <code style={{ fontSize: 11, color: '#334155' }}>
                       {revealed[h._id] ? h.secret : `${h.secret.substring(0, 14)}${'•'.repeat(16)}`}
@@ -162,7 +188,48 @@ export default function Webhooks() {
                       {revealed[h._id] ? 'Hide' : 'Reveal'}
                     </button>
                     <button onClick={() => { navigator.clipboard.writeText(h.secret); toast.success('Copied!'); }} style={s.ghost}>Copy</button>
+                    <button onClick={() => toggleLog(h._id)} style={{ ...s.ghost, marginLeft: 8 }}>
+                      {expandedLog[h._id] ? 'Hide Log ▲' : 'Delivery Log ▼'}
+                    </button>
                   </div>
+
+                  {/* Delivery log */}
+                  {expandedLog[h._id] && (
+                    <div style={{ marginTop: 14, background: '#f8fafc', borderRadius: 8, padding: '10px 14px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>Last 50 deliveries</div>
+                      {loadingDeliveries[h._id] ? (
+                        <div style={{ color: '#94a3b8', fontSize: 12 }}>Loading…</div>
+                      ) : !deliveries[h._id]?.length ? (
+                        <div style={{ color: '#94a3b8', fontSize: 12 }}>No deliveries recorded yet.</div>
+                      ) : (
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                          <thead>
+                            <tr>{['Time', 'Event', 'Status', 'Duration', 'Attempt', ''].map(h => (
+                              <th key={h} style={{ textAlign: 'left', padding: '4px 8px', color: '#94a3b8', fontWeight: 600, borderBottom: '1px solid #e2e8f0' }}>{h}</th>
+                            ))}</tr>
+                          </thead>
+                          <tbody>
+                            {deliveries[h._id].map(d => (
+                              <tr key={d._id}>
+                                <td style={{ padding: '5px 8px', color: '#64748b' }}>{new Date(d.createdAt).toLocaleString()}</td>
+                                <td style={{ padding: '5px 8px' }}><code style={{ fontSize: 11 }}>{d.event}</code></td>
+                                <td style={{ padding: '5px 8px', fontWeight: 700, color: d.ok ? '#16a34a' : d.status === 0 ? '#64748b' : '#dc2626' }}>
+                                  {d.status === 0 ? 'ERR' : d.status}
+                                </td>
+                                <td style={{ padding: '5px 8px', color: '#64748b' }}>{d.duration != null ? `${d.duration}ms` : '—'}</td>
+                                <td style={{ padding: '5px 8px', color: '#64748b' }}>#{d.attempt}</td>
+                                <td style={{ padding: '5px 8px' }}>
+                                  {!d.ok && (
+                                    <button onClick={() => retryDelivery(h._id, d._id)} style={{ ...s.ghost, fontSize: 11 }}>Retry</button>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
                   <button onClick={() => test(h._id)} disabled={testing[h._id]} style={{ ...s.ghostBtn, color: '#6d28d9', borderColor: '#6d28d9' }}>

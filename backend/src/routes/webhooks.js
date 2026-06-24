@@ -2,6 +2,7 @@ const router = require('express').Router();
 const axios = require('axios');
 const crypto = require('crypto');
 const Webhook = require('../models/Webhook');
+const WebhookDelivery = require('../models/WebhookDelivery');
 const { requireJWT } = require('../middleware/auth');
 
 router.use(requireJWT);
@@ -53,6 +54,26 @@ router.post('/:id/test', async (req, res) => {
   res.json(result);
 });
 
+// Delivery log for a webhook
+router.get('/:id/deliveries', async (req, res) => {
+  const hook = await Webhook.findOne({ _id: req.params.id, client: req.client.id });
+  if (!hook) return res.status(404).json({ error: 'Webhook not found' });
+  const deliveries = await WebhookDelivery.find({ webhook: req.params.id })
+    .sort({ createdAt: -1 }).limit(50).lean();
+  res.json({ deliveries });
+});
+
+// Manually retry a failed delivery
+router.post('/:id/deliveries/:deliveryId/retry', async (req, res) => {
+  const hook = await Webhook.findOne({ _id: req.params.id, client: req.client.id });
+  if (!hook) return res.status(404).json({ error: 'Webhook not found' });
+  const delivery = await WebhookDelivery.findOne({ _id: req.params.deliveryId, webhook: req.params.id });
+  if (!delivery) return res.status(404).json({ error: 'Delivery not found' });
+  const payload = { event: delivery.event, timestamp: new Date().toISOString(), data: { retried: true } };
+  const result = await fireWebhook(hook, payload);
+  res.json(result);
+});
+
 module.exports = router;
 module.exports.ALL_EVENTS = ALL_EVENTS;
 
@@ -60,22 +81,30 @@ module.exports.ALL_EVENTS = ALL_EVENTS;
 async function fireWebhook(hook, payload, attempt = 1) {
   const body = JSON.stringify(payload);
   const sig = crypto.createHmac('sha256', hook.secret).update(body).digest('hex');
+  const start = Date.now();
   try {
     const resp = await axios.post(hook.url, payload, {
       headers: { 'Content-Type': 'application/json', 'X-Lucred-Signature': `sha256=${sig}`, 'X-Lucred-Event': payload.event },
       timeout: 5000,
     });
-    await Webhook.findByIdAndUpdate(hook._id, { lastFiredAt: new Date(), lastStatus: resp.status });
+    const duration = Date.now() - start;
+    await Promise.all([
+      Webhook.findByIdAndUpdate(hook._id, { lastFiredAt: new Date(), lastStatus: resp.status }),
+      WebhookDelivery.create({ webhook: hook._id, client: hook.client, event: payload.event, status: resp.status, ok: true, attempt, duration }),
+    ]);
     return { ok: true, status: resp.status };
   } catch (err) {
     const status = err.response?.status ?? 0;
-    // Retry on network errors or 5xx — not on 4xx (misconfigured endpoint)
+    const duration = Date.now() - start;
     const shouldRetry = attempt < 3 && (status === 0 || status >= 500);
     if (shouldRetry) {
-      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt))); // 2s, 4s
+      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
       return fireWebhook(hook, payload, attempt + 1);
     }
-    await Webhook.findByIdAndUpdate(hook._id, { lastFiredAt: new Date(), lastStatus: status });
+    await Promise.all([
+      Webhook.findByIdAndUpdate(hook._id, { lastFiredAt: new Date(), lastStatus: status }),
+      WebhookDelivery.create({ webhook: hook._id, client: hook.client, event: payload.event, status, ok: false, error: err.message, attempt, duration }),
+    ]);
     return { ok: false, status, error: err.message };
   }
 }

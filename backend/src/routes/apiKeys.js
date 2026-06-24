@@ -12,8 +12,12 @@ router.get('/', async (req, res) => {
 
 // Generate a new key
 router.post('/', async (req, res) => {
-  const { label } = req.body;
-  const key = await ApiKey.create({ client: req.client.id, label: label || 'New Key' });
+  const { label, mode } = req.body;
+  const key = await ApiKey.create({
+    client: req.client.id,
+    label: label || 'New Key',
+    mode: mode === 'test' ? 'test' : 'live',
+  });
   res.status(201).json(key);
 });
 

@@ -10,6 +10,7 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
   const [savingPw, setSavingPw] = useState(false);
+  const [resending, setResending] = useState(false);
 
   useEffect(() => {
     api.get('/api/auth/me').then(({ data }) => {
@@ -49,10 +50,30 @@ export default function Profile() {
   const PLAN_COLOR = { free: '#0ea5e9', growth: '#6d28d9', scale: '#16a34a' };
   const plan = profile.plan || 'free';
 
+  async function resendVerification() {
+    setResending(true);
+    try {
+      await api.post('/api/auth/resend-verification');
+      toast.success('Verification email sent — check your inbox');
+    } catch { toast.error('Failed to resend. Try again later.'); }
+    finally { setResending(false); }
+  }
+
   return (
     <div style={{ maxWidth: 640 }}>
       <h1 style={s.h1}>Profile</h1>
       <p style={s.sub}>Manage your organisation details and account settings.</p>
+
+      {!profile?.emailVerified && (
+        <div style={{ background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: 10, padding: '12px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 13, color: '#92400e', fontWeight: 600 }}>
+            ⚠️ Your email address is not verified. Check your inbox for the verification link.
+          </div>
+          <button onClick={resendVerification} disabled={resending} style={{ fontSize: 12, fontWeight: 700, color: '#92400e', background: 'none', border: '1px solid #fbbf24', borderRadius: 7, padding: '6px 12px', cursor: 'pointer', flexShrink: 0 }}>
+            {resending ? 'Sending…' : 'Resend Email'}
+          </button>
+        </div>
+      )}
 
       {/* Plan badge */}
       <div style={{ background: '#fff', borderRadius: 12, padding: '1.25rem 1.5rem', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

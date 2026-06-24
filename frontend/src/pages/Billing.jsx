@@ -54,7 +54,7 @@ export default function Billing() {
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr>{['Date', 'Plan', 'Amount', 'Method', 'Reference', 'Note'].map(h => (
+              <tr>{['Date', 'Plan', 'Amount', 'Method', 'Reference', 'Note', ''].map(h => (
                 <th key={h} style={s.th}>{h}</th>
               ))}</tr>
             </thead>
@@ -68,7 +68,14 @@ export default function Billing() {
                     <td style={s.td} ><strong style={{ color: '#0f172a' }}>₦{Number(p.amount).toLocaleString()}</strong></td>
                     <td style={s.td}>{METHOD_LABEL[p.method] || p.method}</td>
                     <td style={s.td}><code style={{ fontSize: 11, color: '#64748b' }}>{p.reference || '—'}</code></td>
-                    <td style={s.td} style={{ color: '#64748b' }}>{p.note || '—'}</td>
+                    <td style={{ ...s.td, color: '#64748b' }}>{p.note || '—'}</td>
+                    <td style={s.td}>
+                      <a href={`${import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app'}/api/auth/billing/invoices/${p._id}`}
+                        target="_blank" rel="noreferrer"
+                        style={{ fontSize: 12, color: '#0ea5e9', textDecoration: 'none', fontWeight: 600 }}>
+                        ↓ PDF
+                      </a>
+                    </td>
                   </tr>
                 );
               })}

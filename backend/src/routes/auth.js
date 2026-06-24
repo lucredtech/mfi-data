@@ -2,7 +2,7 @@ const router = require('express').Router();
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const MFIClient = require('../models/MFIClient');
-const { sendPasswordReset, sendWelcome } = require('../utils/mailer');
+const { sendPasswordReset, sendWelcome, sendVerificationEmail } = require('../utils/mailer');
 const ApiKey = require('../models/ApiKey');
 const Customer = require('../models/Customer');
 const BVNResult = require('../models/BVNResult');
@@ -105,7 +105,17 @@ router.post('/register', async (req, res) => {
       apiKey: apiKey.key,
     });
 
-    // Fire-and-forget — don't block the response
+    // Send verification + welcome emails — fire-and-forget
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    const hashedVerify = crypto.createHash('sha256').update(verifyToken).digest('hex');
+    MFIClient.findByIdAndUpdate(client._id, {
+      emailVerifyToken: hashedVerify,
+      emailVerifyExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    }).catch(() => {});
+    const verifyUrl = `${process.env.FRONTEND_URL || 'https://mfi-data.vercel.app'}/verify-email?token=${verifyToken}`;
+    sendVerificationEmail(email, { organizationName, verifyUrl }).catch(err =>
+      console.error('[mailer] verify email failed:', err.message)
+    );
     sendWelcome(email, { organizationName }).catch(err =>
       console.error('[mailer] welcome email failed:', err.message)
     );
@@ -232,6 +242,94 @@ router.get('/billing', requireJWT, async (req, res) => {
     res.json({ payments, plan: client?.plan || 'free' });
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Verify email address
+router.post('/verify-email', async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'token is required' });
+    const hashed = crypto.createHash('sha256').update(token).digest('hex');
+    const client = await MFIClient.findOne({ emailVerifyToken: hashed, emailVerifyExpires: { $gt: new Date() } });
+    if (!client) return res.status(400).json({ error: 'Verification link is invalid or has expired.' });
+    client.emailVerified = true;
+    client.emailVerifyToken = undefined;
+    client.emailVerifyExpires = undefined;
+    await client.save();
+    res.json({ message: 'Email verified successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Verification failed' });
+  }
+});
+
+// Resend verification email
+router.post('/resend-verification', requireJWT, async (req, res) => {
+  try {
+    const client = await MFIClient.findById(req.client.id);
+    if (!client) return res.status(404).json({ error: 'Not found' });
+    if (client.emailVerified) return res.status(400).json({ error: 'Email is already verified.' });
+    const verifyToken = crypto.randomBytes(32).toString('hex');
+    const hashedVerify = crypto.createHash('sha256').update(verifyToken).digest('hex');
+    client.emailVerifyToken = hashedVerify;
+    client.emailVerifyExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await client.save();
+    const verifyUrl = `${process.env.FRONTEND_URL || 'https://mfi-data.vercel.app'}/verify-email?token=${verifyToken}`;
+    await sendVerificationEmail(client.email, { organizationName: client.organizationName, verifyUrl });
+    res.json({ message: 'Verification email sent.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to resend verification email' });
+  }
+});
+
+// Invoice PDF download
+router.get('/billing/invoices/:id', requireJWT, async (req, res) => {
+  try {
+    const Payment = require('../models/Payment');
+    const PDFDocument = require('pdfkit');
+    const payment = await Payment.findOne({ _id: req.params.id, client: req.client.id }).lean();
+    if (!payment) return res.status(404).json({ error: 'Invoice not found' });
+    const client = await MFIClient.findById(req.client.id).select('organizationName email').lean();
+
+    const doc = new PDFDocument({ margin: 60, size: 'A4' });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="lucred-invoice-${payment._id}.pdf"`);
+    doc.pipe(res);
+
+    doc.fontSize(22).fillColor('#6d28d9').text('Lucred', 60, 60);
+    doc.fontSize(10).fillColor('#64748b').text('Credit Engine · mfi.lucred.co', 60, 88);
+    doc.moveTo(60, 110).lineTo(535, 110).strokeColor('#e2e8f0').stroke();
+
+    doc.fontSize(18).fillColor('#0f172a').text('Invoice', 60, 130);
+    doc.fontSize(10).fillColor('#64748b');
+    doc.text(`Invoice #: ${payment._id}`, 60, 158);
+    doc.text(`Date: ${new Date(payment.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`, 60, 172);
+    doc.text(`Reference: ${payment.reference || '—'}`, 60, 186);
+
+    doc.fontSize(10).fillColor('#94a3b8').text('BILL TO', 60, 220);
+    doc.fontSize(11).fillColor('#0f172a').text(client.organizationName, 60, 236);
+    doc.fontSize(10).fillColor('#64748b').text(client.email, 60, 252);
+
+    doc.moveTo(60, 290).lineTo(535, 290).strokeColor('#e2e8f0').stroke();
+    doc.fontSize(10).fillColor('#64748b').text('DESCRIPTION', 60, 300).text('AMOUNT', 440, 300, { align: 'right', width: 95 });
+    doc.moveTo(60, 316).lineTo(535, 316).strokeColor('#e2e8f0').stroke();
+
+    const planLabel = payment.plan.charAt(0).toUpperCase() + payment.plan.slice(1);
+    doc.fontSize(11).fillColor('#0f172a').text(`Lucred ${planLabel} Plan — Monthly Subscription`, 60, 328);
+    doc.text(`₦${Number(payment.amount).toLocaleString()}`, 440, 328, { align: 'right', width: 95 });
+
+    doc.moveTo(60, 356).lineTo(535, 356).strokeColor('#e2e8f0').stroke();
+    doc.fontSize(12).fillColor('#0f172a').font('Helvetica-Bold').text('Total', 60, 370);
+    doc.text(`₦${Number(payment.amount).toLocaleString()}`, 440, 370, { align: 'right', width: 95 });
+    doc.font('Helvetica');
+
+    if (payment.note) doc.fontSize(10).fillColor('#64748b').text(`Note: ${payment.note}`, 60, 410);
+
+    doc.fontSize(9).fillColor('#94a3b8').text('Thank you for your business. Questions? support@lucred.co', 60, 720, { align: 'center', width: 475 });
+    doc.end();
+  } catch (err) {
+    console.error('[invoice]', err);
+    res.status(500).json({ error: 'Failed to generate invoice' });
   }
 });
 

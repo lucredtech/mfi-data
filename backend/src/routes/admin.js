@@ -369,4 +369,41 @@ router.get('/clients/:id/payments', async (req, res) => {
   }
 });
 
+// MRR chart — last 12 months of revenue grouped by month
+router.get('/mrr', async (req, res) => {
+  try {
+    const since = new Date();
+    since.setMonth(since.getMonth() - 11);
+    since.setDate(1); since.setHours(0, 0, 0, 0);
+
+    const rows = await Payment.aggregate([
+      { $match: { createdAt: { $gte: since } } },
+      { $group: {
+        _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
+        revenue: { $sum: '$amount' },
+        count: { $sum: 1 },
+      }},
+      { $sort: { '_id.year': 1, '_id.month': 1 } },
+    ]);
+
+    // Fill in missing months with 0
+    const result = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1;
+      const found = rows.find(r => r._id.year === year && r._id.month === month);
+      result.push({
+        label: d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }),
+        revenue: found?.revenue || 0,
+        count: found?.count || 0,
+      });
+    }
+    res.json({ mrr: result });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

@@ -21,10 +21,12 @@ const ACTION_LABELS = {
 export default function AdminOverview() {
   const [stats, setStats] = useState(null);
   const [analytics, setAnalytics] = useState(null);
+  const [mrr, setMrr] = useState([]);
 
   useEffect(() => {
     adminApi.get('/api/admin/stats').then(({ data }) => setStats(data)).catch(() => {});
     adminApi.get('/api/admin/analytics').then(({ data }) => setAnalytics(data)).catch(() => {});
+    adminApi.get('/api/admin/mrr').then(({ data }) => setMrr(data.mrr || [])).catch(() => {});
   }, []);
 
   const dailyData = analytics?.dailyVolume?.map(d => ({
@@ -192,6 +194,21 @@ export default function AdminOverview() {
           </div>
         )}
       </div>
+
+      {/* MRR chart */}
+      {mrr.length > 0 && (
+        <div style={s.chartBox}>
+          <h3 style={s.chartTitle}>Monthly Revenue (₦) — Last 12 Months</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={mrr} margin={{ top: 4, right: 20, bottom: 0, left: 10 }}>
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} tick={{ fontSize: 11 }} />
+              <Tooltip formatter={(v) => [`₦${Number(v).toLocaleString()}`, 'Revenue']} />
+              <Bar dataKey="revenue" fill="#6d28d9" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {/* Audit actions chart */}
       {auditData.length > 0 && (

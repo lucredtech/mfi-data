@@ -67,6 +67,15 @@ const requireApiKey = async (req, res, next) => {
     }
   }
 
+  // Sandbox mode — return mock response, skip usage logging
+  if (apiKey.mode === 'test') {
+    req.apiKey = apiKey;
+    req.client = apiKey.client;
+    req._sandbox = true;
+    res.setHeader('X-Lucred-Mode', 'test');
+    return next();
+  }
+
   apiKey.lastUsedAt = new Date();
   await apiKey.save();
 

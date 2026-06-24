@@ -47,6 +47,7 @@ import Profile from './pages/Profile';
 import Referral from './pages/Referral';
 import Billing from './pages/Billing';
 import Changelog from './pages/Changelog';
+import VerifyEmail from './pages/VerifyEmail';
 
 function PrivateRoute({ children }) {
   const { client, loading } = useAuth();
@@ -93,6 +94,7 @@ function App() {
         <Route path="/dashboard/billing" element={<PrivateRoute><Layout><Billing /></Layout></PrivateRoute>} />
         <Route path="/docs" element={<PublicDocs />} />
         <Route path="/changelog" element={<Changelog />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/security" element={<Security />} />

@@ -16,6 +16,9 @@ const mfiClientSchema = new mongoose.Schema(
     referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'MFIClient' },
     referralCount: { type: Number, default: 0 },
     quotaWarningsSent: { type: [String], default: [] },
+    emailVerified: { type: Boolean, default: false },
+    emailVerifyToken: { type: String },
+    emailVerifyExpires: { type: Date },
   },
   { timestamps: true }
 );

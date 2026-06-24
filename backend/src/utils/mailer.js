@@ -133,4 +133,26 @@ async function sendPlanLimitWarning(to, { organizationName, used, limit, plan, r
   });
 }
 
-module.exports = { sendPasswordReset, sendWelcome, sendLoanDecision, sendPlanLimitWarning };
+async function sendVerificationEmail(to, { organizationName, verifyUrl }) {
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: 'Verify your Lucred email address',
+    html: `
+      <div style="font-family:Inter,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
+        <div style="font-size:22px;font-weight:800;color:#6d28d9;margin-bottom:4px">Lucred</div>
+        <div style="font-size:12px;color:#94a3b8;margin-bottom:28px">Credit Engine</div>
+        <h2 style="font-size:20px;color:#0f172a;margin:0 0 12px">Verify your email</h2>
+        <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 24px">
+          Hi ${organizationName}, click below to verify your email address and activate your account.
+        </p>
+        <a href="${verifyUrl}" style="display:inline-block;background:#6d28d9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
+          Verify Email →
+        </a>
+        <p style="color:#94a3b8;font-size:12px;margin-top:28px">Link expires in 24 hours. If you didn't create a Lucred account, you can ignore this email.</p>
+      </div>
+    `,
+  });
+}
+
+module.exports = { sendPasswordReset, sendWelcome, sendLoanDecision, sendPlanLimitWarning, sendVerificationEmail };

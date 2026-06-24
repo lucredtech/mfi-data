@@ -8,6 +8,7 @@ const multer = require('multer');
 const FormData = require('form-data');
 const rateLimit = require('express-rate-limit');
 const { requireApiKey, logUsage } = require('../middleware/auth');
+const { sandboxMock } = require('../middleware/sandbox');
 
 const Customer = require('../models/Customer');
 const BVNResult = require('../models/BVNResult');
@@ -117,7 +118,7 @@ router.patch('/:id', async (req, res) => {
 });
 
 // ── POST /v1/customers/:id/verify-bvn ────────────────────────────────────────
-router.post('/:id/verify-bvn', logUsage('/v1/identity/verify-bvn'), async (req, res) => {
+router.post('/:id/verify-bvn', sandboxMock('bvn'), logUsage('/v1/identity/verify-bvn'), async (req, res) => {
   try {
     const { bvn } = req.body;
     if (!bvn) return res.status(400).json({ error: 'bvn is required' });
@@ -152,7 +153,7 @@ router.post('/:id/verify-bvn', logUsage('/v1/identity/verify-bvn'), async (req, 
 });
 
 // ── POST /v1/customers/:id/verify-nin ────────────────────────────────────────
-router.post('/:id/verify-nin', logUsage('/v1/identity/verify-nin'), async (req, res) => {
+router.post('/:id/verify-nin', sandboxMock('nin'), logUsage('/v1/identity/verify-nin'), async (req, res) => {
   try {
     const { nin } = req.body;
     if (!nin) return res.status(400).json({ error: 'nin is required' });
@@ -188,7 +189,7 @@ router.post('/:id/verify-nin', logUsage('/v1/identity/verify-nin'), async (req, 
 });
 
 // ── POST /v1/customers/:id/credit-bureau ─────────────────────────────────────
-router.post('/:id/credit-bureau', logUsage('/v1/credit-bureau/check'), async (req, res) => {
+router.post('/:id/credit-bureau', sandboxMock('bureau'), logUsage('/v1/credit-bureau/check'), async (req, res) => {
   try {
     const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id });
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
@@ -217,7 +218,7 @@ router.post('/:id/credit-bureau', logUsage('/v1/credit-bureau/check'), async (re
 });
 
 // ── POST /v1/customers/:id/statement — upload & analyse statement ─────────────
-router.post('/:id/statement', logUsage('/v1/statement/upload-analyze'), upload.single('statement'), async (req, res) => {
+router.post('/:id/statement', sandboxMock('statement'), logUsage('/v1/statement/upload-analyze'), upload.single('statement'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded. Send PDF as multipart field named "statement"' });
     const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id });
@@ -274,7 +275,7 @@ router.post('/:id/scorecard', logUsage('/v1/customers/scorecard'), async (req, r
 });
 
 // ── POST /v1/customers/:id/loan-review ───────────────────────────────────────
-router.post('/:id/loan-review', logUsage('/v1/customers/loan-review'), async (req, res) => {
+router.post('/:id/loan-review', sandboxMock('loan_review'), logUsage('/v1/customers/loan-review'), async (req, res) => {
   try {
     const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id });
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
