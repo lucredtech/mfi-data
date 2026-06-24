@@ -311,12 +311,12 @@ X-RateLimit-Reset: 2026-02-01T00:00:00.000Z`}</pre>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <tbody>
                 {[
-                  ['statement.completed', 'Bank statement analysis finished'],
+                  ['statement.analysed', 'Bank statement analysis finished'],
                   ['bvn.verified', 'BVN verification completed'],
                   ['nin.verified', 'NIN verification completed'],
-                  ['bureau.completed', 'Credit bureau check completed'],
-                  ['scorecard.generated', 'Customer scorecard generated'],
-                  ['loan_review.completed', 'Loan eligibility review finished'],
+                  ['bureau.pulled', 'Credit bureau check completed'],
+                  ['loan_review.created', 'Loan eligibility review finished'],
+                  ['customer.created', 'New customer profile created'],
                 ].map(([event, desc]) => (
                   <tr key={event} style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '8px 12px', width: 220 }}><code style={{ color: '#6d28d9', fontWeight: 600 }}>{event}</code></td>
@@ -345,12 +345,12 @@ X-RateLimit-Reset: 2026-02-01T00:00:00.000Z`}</pre>
 
           <div style={{ marginBottom: 16 }}>
             <div style={s.label}>Register a Webhook — Request Body</div>
-            <pre style={s.codeBlock}>{JSON.stringify({ url: 'https://your-server.com/lucred-events', events: ['statement.completed', 'bvn.verified'], secret: 'optional_signing_secret' }, null, 2)}</pre>
+            <pre style={s.codeBlock}>{JSON.stringify({ url: 'https://your-server.com/lucred-events', events: ['statement.analysed', 'bvn.verified'], secret: 'optional_signing_secret' }, null, 2)}</pre>
           </div>
 
           <div style={{ marginBottom: 16 }}>
             <div style={s.label}>Example Payload</div>
-            <pre style={s.codeBlock}>{JSON.stringify({ event: 'statement.completed', customerId: '64a1b2c3d4e5f6a7b8c9d0e1', resultId: '64d...', data: { overallRiskScore: 'B', recommendation: 'Proceed with standard loan terms' }, timestamp: '2026-01-15T10:35:00.000Z' }, null, 2)}</pre>
+            <pre style={s.codeBlock}>{JSON.stringify({ event: 'statement.analysed', customerId: '64a1b2c3d4e5f6a7b8c9d0e1', resultId: '64d...', data: { overallRiskScore: 'B', recommendation: 'Proceed with standard loan terms' }, timestamp: '2026-01-15T10:35:00.000Z' }, null, 2)}</pre>
           </div>
 
           <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#15803d' }}>

@@ -36,6 +36,17 @@ export default function ApiKeys() {
 
   const copy = (text) => { navigator.clipboard.writeText(text); toast.success('Copied!'); };
 
+  function lastUsedBadge(lastUsedAt) {
+    if (!lastUsedAt) return <span style={{ fontSize: 12, fontWeight: 600, background: '#f1f5f9', color: '#94a3b8', padding: '3px 10px', borderRadius: 20 }}>Never used</span>;
+    const ms = Date.now() - new Date(lastUsedAt).getTime();
+    const mins = Math.floor(ms / 60000);
+    const hrs = Math.floor(ms / 3600000);
+    const days = Math.floor(ms / 86400000);
+    const ago = mins < 1 ? 'just now' : mins < 60 ? `${mins}m ago` : hrs < 24 ? `${hrs}h ago` : `${days}d ago`;
+    const isRecent = hrs < 24;
+    return <span style={{ fontSize: 12, fontWeight: 600, background: isRecent ? '#dcfce7' : '#f1f5f9', color: isRecent ? '#16a34a' : '#64748b', padding: '3px 10px', borderRadius: 20 }}>Active · {ago}</span>;
+  }
+
   return (
     <div>
       <h1 style={styles.h1}>API Keys</h1>
@@ -77,7 +88,7 @@ export default function ApiKeys() {
                       {k.isActive ? 'Active' : 'Revoked'}
                     </span>
                   </td>
-                  <td style={styles.td}>{k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleDateString() : 'Never'}</td>
+                  <td style={styles.td}>{lastUsedBadge(k.lastUsedAt)}</td>
                   <td style={styles.td}>{new Date(k.createdAt).toLocaleDateString()}</td>
                   <td style={styles.td}>
                     {k.isActive && (
