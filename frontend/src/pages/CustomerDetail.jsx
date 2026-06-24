@@ -95,6 +95,17 @@ export default function CustomerDetail() {
   const isWatchlisted = latestBVN?.result?.watchListed === true || latestNIN?.result?.watchListed === true;
   const currentStatus = customerStatus ?? customer.status ?? 'applied';
 
+  async function deleteCustomer() {
+    if (!confirm(`Permanently delete ${customer.name} and all their records? This cannot be undone.`)) return;
+    try {
+      await axios.delete(`${API}/api/customers/${id}`, { headers: authHeaders() });
+      toast.success('Customer deleted');
+      navigate('/dashboard/customers');
+    } catch {
+      toast.error('Failed to delete customer');
+    }
+  }
+
   async function updateStatus(newStatus) {
     setUpdatingStatus(true);
     try {
@@ -2516,6 +2527,17 @@ function LoanReviewSection({ customer, latestBVN, latestNIN, latestBureau, lates
           )}
         </div>
       )}
+
+      {/* Danger zone */}
+      <div style={{ marginTop: 32, padding: '16px 20px', border: '1.5px solid #fecaca', borderRadius: 10, background: '#fff5f5', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#dc2626' }}>Delete customer</div>
+          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>Permanently removes this customer and all their verification records. Cannot be undone.</div>
+        </div>
+        <button onClick={deleteCustomer} style={{ padding: '8px 20px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          Delete Customer
+        </button>
+      </div>
     </div>
   );
 }
