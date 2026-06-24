@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const mongoose = require('mongoose');
 
 const authRoutes = require('./routes/auth');
+const statusRoutes = require('./routes/status');
 const adminRoutes = require('./routes/admin');
 const apiKeyRoutes = require('./routes/apiKeys');
 const creditRoutes = require('./routes/credit');
@@ -49,6 +50,7 @@ const authLimiter = rateLimit({
 });
 
 // Public routes
+app.use('/api/status', statusRoutes);
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/admin', adminRoutes);
 

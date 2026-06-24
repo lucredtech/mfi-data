@@ -34,9 +34,18 @@ function stripBiometrics(result) {
 // List customers for the logged-in MFI client
 router.get('/', async (req, res) => {
   try {
-    const { q, status } = req.query;
+    const { q, status, customerType, dateFrom, dateTo, hasLoanReview, hasBureau, hasBvn, sort = 'createdAt' } = req.query;
     const filter = { client: req.client.id };
+
     if (status) filter.status = status;
+    if (customerType) filter.customerType = customerType;
+
+    if (dateFrom || dateTo) {
+      filter.createdAt = {};
+      if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) { const d = new Date(dateTo); d.setHours(23, 59, 59, 999); filter.createdAt.$lte = d; }
+    }
+
     if (q) {
       const safe = escapeRegex(q);
       filter.$or = [
@@ -46,8 +55,30 @@ router.get('/', async (req, res) => {
         { bvn: new RegExp(safe, 'i') },
       ];
     }
-    const customers = await Customer.find(filter).sort({ createdAt: -1 }).lean();
-    res.json({ customers });
+
+    let customers = await Customer.find(filter).sort({ [sort === 'name' ? 'name' : 'createdAt']: sort === 'name' ? 1 : -1 }).lean();
+
+    // Post-filter by related records (cheaper than $lookup for typical dataset sizes)
+    if (hasLoanReview === 'true' || hasBureau === 'true' || hasBvn === 'true') {
+      const ids = customers.map(c => c._id);
+      const [lrIds, burIds, bvnIds] = await Promise.all([
+        hasLoanReview === 'true' ? LoanReview.distinct('customer', { customer: { $in: ids } }) : null,
+        hasBureau === 'true' ? BureauResult.distinct('customer', { customer: { $in: ids } }) : null,
+        hasBvn === 'true' ? BVNResult.distinct('customer', { customer: { $in: ids } }) : null,
+      ]);
+      const lrSet = lrIds ? new Set(lrIds.map(String)) : null;
+      const burSet = burIds ? new Set(burIds.map(String)) : null;
+      const bvnSet = bvnIds ? new Set(bvnIds.map(String)) : null;
+      customers = customers.filter(c => {
+        const id = String(c._id);
+        if (lrSet && !lrSet.has(id)) return false;
+        if (burSet && !burSet.has(id)) return false;
+        if (bvnSet && !bvnSet.has(id)) return false;
+        return true;
+      });
+    }
+
+    res.json({ customers, total: customers.length });
   } catch (err) {
     console.error("[route] unhandled error:", err);
     res.status(500).json({ error: "Internal server error" });

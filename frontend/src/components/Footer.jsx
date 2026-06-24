@@ -16,7 +16,7 @@ const LINKS = {
   Support: [
     { label: 'Help & FAQ', to: '/support' },
     { label: 'Contact Us', to: '/support#contact' },
-    { label: 'Status', to: '/support#status' },
+    { label: 'API Status', to: '/status' },
     { label: 'Dashboard Privacy', to: '/dashboard/privacy' },
   ],
 };
