@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import UpgradeModal from './UpgradeModal';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -52,6 +53,7 @@ const NAV_GROUPS = [
     icon: '◉',
     children: [
       { path: '/dashboard/profile', label: 'Profile' },
+      { path: '/dashboard/referral', label: 'Refer an MFI' },
       { path: '/dashboard/audit', label: 'Audit Log' },
       { path: '/dashboard/privacy', label: 'Privacy & Data' },
       { path: '/dashboard/feature-request', label: 'Request a Feature' },
@@ -81,10 +83,18 @@ export default function Layout({ children }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activity, setActivity] = useState([]);
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const isMobile = useIsMobile();
 
   // Close mobile drawer on navigation
   useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  // Listen for plan-limit events fired by the api interceptor
+  useEffect(() => {
+    const handler = () => setShowUpgrade(true);
+    window.addEventListener('lucred:plan-limit', handler);
+    return () => window.removeEventListener('lucred:plan-limit', handler);
+  }, []);
 
   // Track which groups are open; default open the active group
   const defaultOpen = NAV_GROUPS.reduce((acc, g) => {
@@ -111,6 +121,7 @@ export default function Layout({ children }) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
+      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
       {/* Mobile overlay backdrop */}
       {isMobile && mobileOpen && (
         <div onClick={() => setMobileOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99 }} />

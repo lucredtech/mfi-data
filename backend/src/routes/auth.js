@@ -12,6 +12,17 @@ const StatementResult = require('../models/StatementResult');
 const UsageLog = require('../models/UsageLog');
 const { requireJWT } = require('../middleware/auth');
 
+// Get referral info
+router.get('/referral', requireJWT, async (req, res) => {
+  try {
+    const client = await MFIClient.findById(req.client.id).select('referralCode referralCount').lean();
+    if (!client) return res.status(404).json({ error: 'Not found' });
+    res.json({ referralCode: client.referralCode, referralCount: client.referralCount || 0 });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
 // Get current client profile
 router.get('/me', requireJWT, async (req, res) => {
   try {
@@ -66,7 +77,22 @@ router.post('/register', async (req, res) => {
     const existing = await MFIClient.findOne({ email });
     if (existing) return res.status(409).json({ error: 'Email already registered' });
 
-    const client = await MFIClient.create({ organizationName, email, password, contactPerson, phone });
+    const { ref } = req.body;
+    let referrer = null;
+    if (ref) {
+      referrer = await MFIClient.findOne({ referralCode: ref });
+    }
+
+    const referralCode = crypto.randomBytes(4).toString('hex').toUpperCase();
+    const client = await MFIClient.create({
+      organizationName, email, password, contactPerson, phone,
+      referralCode,
+      ...(referrer ? { referredBy: referrer._id } : {}),
+    });
+
+    if (referrer) {
+      MFIClient.findByIdAndUpdate(referrer._id, { $inc: { referralCount: 1 } }).catch(() => {});
+    }
 
     // Auto-generate a first API key
     const apiKey = await ApiKey.create({ client: client._id, label: 'Default Key' });

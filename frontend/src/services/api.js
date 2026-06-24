@@ -8,4 +8,14 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 429 && err.response?.data?.upgradeUrl) {
+      window.dispatchEvent(new CustomEvent('lucred:plan-limit'));
+    }
+    return Promise.reject(err);
+  }
+);
+
 export default api;

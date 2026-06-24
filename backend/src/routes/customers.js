@@ -578,6 +578,24 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
+// PATCH /bulk/status — update status on multiple customers at once
+router.patch('/bulk/status', async (req, res) => {
+  try {
+    const VALID = ['applied', 'under_review', 'approved', 'rejected', 'disbursed'];
+    const { ids, status } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids array is required' });
+    if (!VALID.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    const result = await Customer.updateMany(
+      { _id: { $in: ids }, client: req.client.id },
+      { status }
+    );
+    AuditLog.create({ client: req.client.id, action: 'BULK_STATUS_CHANGE', entityType: 'Customer', label: `Bulk status → ${status} for ${result.modifiedCount} customers`, meta: { ids, status } }).catch(() => {});
+    res.json({ updated: result.modifiedCount });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /:id/loan-reviews — list saved reviews
 router.get('/:id/loan-reviews', async (req, res) => {
   try {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { parseApiError } from '../utils/apiError';
@@ -7,6 +7,8 @@ import { parseApiError } from '../utils/apiError';
 export default function Register() {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const ref = searchParams.get('ref') || '';
   const [form, setForm] = useState({ organizationName: '', email: '', password: '', contactPerson: '', phone: '' });
   const [loading, setLoading] = useState(false);
 
@@ -16,7 +18,7 @@ export default function Register() {
     e.preventDefault();
     setLoading(true);
     try {
-      const data = await register(form);
+      const data = await register({ ...form, ...(ref ? { ref } : {}) });
       toast.success(`Welcome! Your API key: ${data.apiKey}`);
       navigate('/dashboard');
     } catch (err) {

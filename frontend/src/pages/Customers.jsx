@@ -12,30 +12,73 @@ function authHeaders() {
   return { Authorization: `Bearer ${localStorage.getItem('token')}` };
 }
 
+const STATUSES = [
+  { value: '', label: 'All' },
+  { value: 'applied', label: 'Applied' },
+  { value: 'under_review', label: 'Under Review' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'disbursed', label: 'Disbursed' },
+];
+
+const SC = {
+  applied: ['#dbeafe', '#1d4ed8'],
+  under_review: ['#fef3c7', '#d97706'],
+  approved: ['#dcfce7', '#16a34a'],
+  rejected: ['#fee2e2', '#dc2626'],
+  disbursed: ['#ede9fe', '#6d28d9'],
+};
+
 export default function Customers() {
   const [customers, setCustomers] = useState([]);
   const [q, setQ] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [bulkStatus, setBulkStatus] = useState('');
+  const [bulking, setBulking] = useState(false);
   const navigate = useNavigate();
 
-  const fetch = useCallback(async () => {
+  const loadCustomers = useCallback(async () => {
     try {
-      const { data } = await axios.get(`${API}/api/customers`, {
-        params: q ? { q } : {},
-        headers: authHeaders(),
-      });
+      const params = {};
+      if (q) params.q = q;
+      if (statusFilter) params.status = statusFilter;
+      const { data } = await axios.get(`${API}/api/customers`, { params, headers: authHeaders() });
       setCustomers(data.customers);
+      setSelected(new Set());
     } catch (err) {
       if (isUnauthorized(err)) { navigate('/login'); return; }
       toast.error('Failed to load customers. Please refresh the page.');
     } finally {
       setLoading(false);
     }
-  }, [q]);
+  }, [q, statusFilter]);
 
-  useEffect(() => { fetch(); }, [fetch]);
+  useEffect(() => { loadCustomers(); }, [loadCustomers]);
+
+  const toggleSelect = (id, e) => {
+    e.stopPropagation();
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  };
+
+  const toggleAll = () => {
+    setSelected(selected.size === customers.length ? new Set() : new Set(customers.map(c => c._id)));
+  };
+
+  const applyBulkStatus = async () => {
+    if (!bulkStatus || selected.size === 0) return;
+    setBulking(true);
+    try {
+      const { data } = await axios.patch(`${API}/api/customers/bulk/status`, { ids: [...selected], status: bulkStatus }, { headers: authHeaders() });
+      toast.success(`Updated ${data.updated} customer${data.updated !== 1 ? 's' : ''}`);
+      setBulkStatus('');
+      loadCustomers();
+    } catch { toast.error('Bulk update failed'); }
+    finally { setBulking(false); }
+  };
 
   return (
     <div style={s.page}>
@@ -53,60 +96,105 @@ export default function Customers() {
         </div>
       </div>
 
-      <div style={s.searchBar}>
+      {/* Search + status filter row */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
-          style={s.search}
+          style={{ ...s.search, flex: '1 1 260px', maxWidth: 360 }}
           placeholder="Search by name, email, phone or BVN…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {STATUSES.map(st => (
+            <button
+              key={st.value}
+              onClick={() => setStatusFilter(st.value)}
+              style={{
+                padding: '7px 14px', borderRadius: 20, border: '1.5px solid',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                borderColor: statusFilter === st.value ? '#0ea5e9' : '#e2e8f0',
+                background: statusFilter === st.value ? '#e0f2fe' : '#fff',
+                color: statusFilter === st.value ? '#0284c7' : '#64748b',
+              }}
+            >{st.label}</button>
+          ))}
+        </div>
       </div>
 
-      {showImport && <CsvImportModal onClose={() => setShowImport(false)} onImported={fetch} />}
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#0f172a', borderRadius: 10, padding: '10px 16px', marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0' }}>{selected.size} selected</span>
+          <select
+            value={bulkStatus}
+            onChange={e => setBulkStatus(e.target.value)}
+            style={{ fontSize: 13, padding: '6px 10px', borderRadius: 8, border: 'none', background: '#1e293b', color: '#e2e8f0', cursor: 'pointer' }}
+          >
+            <option value="">Set status…</option>
+            {STATUSES.filter(s => s.value).map(st => (
+              <option key={st.value} value={st.value}>{st.label}</option>
+            ))}
+          </select>
+          <button
+            onClick={applyBulkStatus}
+            disabled={!bulkStatus || bulking}
+            style={{ fontSize: 13, fontWeight: 700, padding: '6px 16px', borderRadius: 8, border: 'none', background: bulkStatus ? '#0ea5e9' : '#334155', color: '#fff', cursor: bulkStatus ? 'pointer' : 'default', opacity: bulking ? 0.7 : 1 }}
+          >{bulking ? 'Updating…' : 'Apply'}</button>
+          <button onClick={() => setSelected(new Set())} style={{ fontSize: 12, color: '#64748b', background: 'none', border: 'none', cursor: 'pointer', marginLeft: 'auto' }}>✕ Clear</button>
+        </div>
+      )}
+
+      {showImport && <CsvImportModal onClose={() => setShowImport(false)} onImported={loadCustomers} />}
       {showForm && <AddCustomerForm onClose={() => setShowForm(false)} onCreated={(c) => { setShowForm(false); navigate(`/dashboard/customers/${c._id}`); }} />}
 
       <div style={s.card}>
         {loading ? (
           <div style={s.empty}>Loading…</div>
         ) : customers.length === 0 ? (
-          <div style={s.empty}>No customers yet. Click "Add Customer" to create one.</div>
+          <div style={s.empty}>{statusFilter ? `No customers with status "${statusFilter.replace('_', ' ')}".` : 'No customers yet. Click "Add Customer" to create one.'}</div>
         ) : (
           <table style={s.table}>
             <thead>
               <tr>
-                {['Name', 'Type', 'Email', 'Phone', 'BVN', 'NIN', 'Created', ''].map((h) => (
+                <th style={{ ...s.th, width: 40 }}>
+                  <input type="checkbox" checked={selected.size === customers.length && customers.length > 0} onChange={toggleAll} style={{ cursor: 'pointer' }} />
+                </th>
+                {['Name', 'Type', 'Status', 'Email', 'Phone', 'BVN', 'Created', ''].map((h) => (
                   <th key={h} style={s.th}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {customers.map((c, i) => (
-                <tr
-                  key={c._id}
-                  style={{ background: i % 2 ? '#f8fafc' : '#fff', cursor: 'pointer' }}
-                  onClick={() => navigate(`/dashboard/customers/${c._id}`)}
-                >
-                  <td style={s.td}><span style={s.name}>{c.name}</span></td>
-                  <td style={s.td}>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20, background: c.customerType === 'business' ? '#fef3c7' : '#f0f9ff', color: c.customerType === 'business' ? '#d97706' : '#0ea5e9' }}>
-                      {c.customerType === 'business' ? 'SME' : 'Individual'}
-                    </span>
-                  </td>
-                  <td style={s.td}>{c.email || '—'}</td>
-                  <td style={s.td}>{c.phone || '—'}</td>
-                  <td style={s.td}>{c.bvn ? `••••${c.bvn.slice(-4)}` : '—'}</td>
-                  <td style={s.td}>{c.nin ? `••••${c.nin.slice(-4)}` : '—'}</td>
-                  <td style={s.td}>
-                    {(() => {
-                      const SC = { applied: ['#dbeafe','#1d4ed8'], under_review: ['#fef3c7','#d97706'], approved: ['#dcfce7','#16a34a'], rejected: ['#fee2e2','#dc2626'], disbursed: ['#ede9fe','#6d28d9'] };
-                      const [bg, fg] = SC[c.status] ?? ['#f1f5f9','#64748b'];
-                      return <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: bg, color: fg }}>{(c.status || 'applied').replace('_',' ')}</span>;
-                    })()}
-                  </td>
-                  <td style={s.td}>{new Date(c.createdAt).toLocaleDateString()}</td>
-                  <td style={s.td}><span style={s.viewLink}>View →</span></td>
-                </tr>
-              ))}
+              {customers.map((c, i) => {
+                const [bg, fg] = SC[c.status] ?? ['#f1f5f9', '#64748b'];
+                return (
+                  <tr
+                    key={c._id}
+                    style={{ background: selected.has(c._id) ? '#f0f9ff' : i % 2 ? '#f8fafc' : '#fff', cursor: 'pointer' }}
+                    onClick={() => navigate(`/dashboard/customers/${c._id}`)}
+                  >
+                    <td style={s.td} onClick={e => toggleSelect(c._id, e)}>
+                      <input type="checkbox" checked={selected.has(c._id)} onChange={() => {}} style={{ cursor: 'pointer' }} />
+                    </td>
+                    <td style={s.td}><span style={s.name}>{c.name}</span></td>
+                    <td style={s.td}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20, background: c.customerType === 'business' ? '#fef3c7' : '#f0f9ff', color: c.customerType === 'business' ? '#d97706' : '#0ea5e9' }}>
+                        {c.customerType === 'business' ? 'SME' : 'Individual'}
+                      </span>
+                    </td>
+                    <td style={s.td}>
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: bg, color: fg }}>
+                        {(c.status || 'applied').replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td style={s.td}>{c.email || '—'}</td>
+                    <td style={s.td}>{c.phone || '—'}</td>
+                    <td style={s.td}>{c.bvn ? `••••${c.bvn.slice(-4)}` : '—'}</td>
+                    <td style={s.td}>{new Date(c.createdAt).toLocaleDateString()}</td>
+                    <td style={s.td}><span style={s.viewLink}>View →</span></td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

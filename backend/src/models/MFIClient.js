@@ -12,6 +12,9 @@ const mfiClientSchema = new mongoose.Schema(
     plan: { type: String, enum: ['free', 'growth', 'scale'], default: 'free' },
     resetToken: { type: String },
     resetTokenExpires: { type: Date },
+    referralCode: { type: String, unique: true, sparse: true },
+    referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'MFIClient' },
+    referralCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

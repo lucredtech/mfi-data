@@ -34,20 +34,43 @@ export default function AdminClients() {
     c.email.toLowerCase().includes(search.toLowerCase())
   );
 
+  const exportCSV = () => {
+    const headers = ['Organization', 'Email', 'Plan', 'Status', 'Referrals', 'Active Keys', 'Requests', 'Joined'];
+    const rows = filtered.map(c => [
+      `"${c.organizationName.replace(/"/g, '""')}"`,
+      c.email,
+      c.plan || 'free',
+      c.status,
+      c.referralCount || 0,
+      c.keyCount,
+      c.requestCount,
+      new Date(c.createdAt).toLocaleDateString(),
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `lucred-clients-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
   return (
     <div>
       <h1 style={s.h1}>MFI Clients</h1>
       <p style={s.sub}>{clients.length} registered microfinance institutions</p>
 
-      <div style={s.toolbar}>
+      <div style={{ ...s.toolbar, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <input style={s.search} placeholder="Search by name or email…" value={search}
           onChange={(e) => setSearch(e.target.value)} />
+        <button onClick={exportCSV} style={{ padding: '9px 18px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+          ↓ Export CSV
+        </button>
       </div>
 
       <div style={s.tableBox}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
-            <tr>{['Organization', 'Email', 'Plan', 'Status', 'Active Keys', 'Requests', 'Joined', ''].map(h => (
+            <tr>{['Organization', 'Email', 'Plan', 'Status', 'Referrals', 'Active Keys', 'Requests', 'Joined', ''].map(h => (
               <th key={h} style={s.th}>{h}</th>
             ))}</tr>
           </thead>
@@ -71,6 +94,11 @@ export default function AdminClients() {
                   <span style={{ ...s.badge, background: c.status === 'active' ? '#dcfce7' : '#fee2e2', color: c.status === 'active' ? '#16a34a' : '#dc2626' }}>
                     {c.status}
                   </span>
+                </td>
+                <td style={s.td}>
+                  {c.referralCount > 0
+                    ? <span style={{ fontWeight: 700, color: '#6d28d9' }}>{c.referralCount} referred</span>
+                    : <span style={{ color: '#cbd5e1' }}>—</span>}
                 </td>
                 <td style={s.td}>{c.keyCount}</td>
                 <td style={s.td}>{c.requestCount.toLocaleString()}</td>

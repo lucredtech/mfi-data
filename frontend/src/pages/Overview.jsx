@@ -70,6 +70,19 @@ export default function Overview() {
         </button>
       </div>
 
+      {/* Empty state — shown when stats loaded but everything is zero */}
+      {stats && stats.customers === 0 && !stats.statements?.total && !stats.bvn?.total && (
+        <div style={{ background: 'linear-gradient(135deg,#f0f9ff,#e0f2fe)', border: '1.5px solid #bae6fd', borderRadius: 14, padding: '2rem', marginBottom: 28, textAlign: 'center' }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>👋</div>
+          <div style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>No data yet — let's get started</div>
+          <div style={{ fontSize: 14, color: '#64748b', marginBottom: 20 }}>Add your first borrower to begin verifying identity, pulling bureau reports, and analysing bank statements.</div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button onClick={() => navigate('/dashboard/customers')} style={{ padding: '10px 22px', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>+ Add a customer</button>
+            <button onClick={() => navigate('/dashboard/api-keys')} style={{ padding: '10px 22px', background: '#fff', color: '#0f172a', border: '1.5px solid #e2e8f0', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Get API key</button>
+          </div>
+        </div>
+      )}
+
       {/* Stat cards */}
       <div style={s.statRow}>
         <StatCard

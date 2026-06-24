@@ -391,30 +391,30 @@ function OverviewTab({ customer, statements, bvnResults, ninResults, bureauResul
         </div>
 
         {/* Add note form */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'flex-start' }}>
-          <div style={{ flex: 1 }}>
-            <textarea
-              value={noteText}
-              onChange={e => setNoteText(e.target.value)}
-              placeholder="Add an internal note about this customer..."
-              rows={3}
-              style={{ width: '100%', border: '1.5px solid #e2e8f0', borderRadius: 8, padding: '10px 12px', fontSize: 13, resize: 'vertical', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
-              onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) addNote(); }}
-            />
+        <div style={{ marginBottom: 16 }}>
+          <textarea
+            value={noteText}
+            onChange={e => setNoteText(e.target.value)}
+            placeholder="Add an internal note about this customer..."
+            rows={3}
+            style={{ width: '100%', border: '1.5px solid #e2e8f0', borderRadius: 8, padding: '10px 12px', fontSize: 13, resize: 'vertical', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+            onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) addNote(); }}
+          />
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <input
               value={noteAuthor}
               onChange={e => setNoteAuthor(e.target.value)}
               placeholder="Author (optional)"
-              style={{ marginTop: 6, border: '1px solid #e2e8f0', borderRadius: 6, padding: '6px 10px', fontSize: 12, width: '100%', boxSizing: 'border-box', outline: 'none' }}
+              style={{ flex: 1, border: '1px solid #e2e8f0', borderRadius: 6, padding: '7px 10px', fontSize: 12, outline: 'none', minWidth: 0 }}
             />
+            <button
+              onClick={addNote}
+              disabled={savingNote || !noteText.trim()}
+              style={{ ...s.btn, flexShrink: 0, background: noteText.trim() ? '#0f172a' : '#e2e8f0', color: noteText.trim() ? '#fff' : '#94a3b8', cursor: noteText.trim() ? 'pointer' : 'default' }}
+            >
+              {savingNote ? 'Saving…' : 'Add Note'}
+            </button>
           </div>
-          <button
-            onClick={addNote}
-            disabled={savingNote || !noteText.trim()}
-            style={{ ...s.btn, flexShrink: 0, background: noteText.trim() ? '#0f172a' : '#e2e8f0', color: noteText.trim() ? '#fff' : '#94a3b8', cursor: noteText.trim() ? 'pointer' : 'default' }}
-          >
-            {savingNote ? 'Saving…' : 'Add Note'}
-          </button>
         </div>
 
         {/* Note list */}

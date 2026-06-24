@@ -88,14 +88,15 @@ router.get('/clients', async (req, res) => {
 // Get single client details
 router.get('/clients/:id', async (req, res) => {
   try {
-    const client = await MFIClient.findById(req.params.id).lean();
+    const client = await MFIClient.findById(req.params.id).populate('referredBy', 'organizationName email').lean();
     if (!client) return res.status(404).json({ error: 'Client not found' });
-    const [keys, recentLogs, totalRequests] = await Promise.all([
+    const [keys, recentLogs, totalRequests, referrals] = await Promise.all([
       ApiKey.find({ client: client._id }).sort({ createdAt: -1 }),
       UsageLog.find({ client: client._id }).sort({ createdAt: -1 }).limit(20),
       UsageLog.countDocuments({ client: client._id }),
+      MFIClient.find({ referredBy: client._id }).select('organizationName email createdAt plan').lean(),
     ]);
-    res.json({ ...client, keys, recentLogs, totalRequests });
+    res.json({ ...client, keys, recentLogs, totalRequests, referrals });
   } catch (err) {
     console.error("[route] unhandled error:", err);
     res.status(500).json({ error: "Internal server error" });

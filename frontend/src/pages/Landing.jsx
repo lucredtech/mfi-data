@@ -54,9 +54,9 @@ export default function Landing() {
             bank statement analysis, credit bureau, identity verification and AI-powered credit scoring.
             All via a single dashboard.
           </p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/register" style={s.heroBtnPrimary}>Start for free →</Link>
-            <Link to="/login" style={s.heroBtnSecondary}>Sign in</Link>
+            <Link to="/pricing" style={s.heroBtnSecondary}>See pricing</Link>
           </div>
         </div>
       </section>
@@ -128,9 +128,9 @@ export default function Landing() {
           <p style={s.ctaSub}>Join MFIs already using Lucred's credit engine to make faster, smarter lending decisions.</p>
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/register" style={s.heroBtnPrimary}>Start for free →</Link>
-            <Link to="/docs" style={{ ...s.heroBtnSecondary, background: 'rgba(255,255,255,0.1)' }}>Read the docs</Link>
+            <Link to="/pricing" style={{ ...s.heroBtnSecondary, background: 'rgba(255,255,255,0.1)' }}>See pricing</Link>
           </div>
-          <p style={{ marginTop: 20, fontSize: 13, color: '#64748b' }}>No credit card required · API key in 60 seconds</p>
+          <p style={{ marginTop: 20, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>No credit card required · API key in 60 seconds</p>
         </div>
       </section>
 
@@ -166,7 +166,7 @@ const s = {
   featDesc: { fontSize: 14, color: '#64748b', lineHeight: 1.7, margin: 0 },
   stepsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24 },
   stepCard: { padding: '1.5rem' },
-  stepNum: { fontSize: 40, fontWeight: 800, color: '#e2e8f0', marginBottom: 12 },
+  stepNum: { fontSize: 40, fontWeight: 800, color: '#cbd5e1', marginBottom: 12 },
   stepTitle: { fontSize: 17, fontWeight: 700, color: '#0f172a', marginBottom: 8 },
   stepDesc: { fontSize: 14, color: '#64748b', lineHeight: 1.7, margin: 0 },
   codeBox: { background: '#0f172a', borderRadius: 14, padding: '2rem', overflowX: 'auto' },

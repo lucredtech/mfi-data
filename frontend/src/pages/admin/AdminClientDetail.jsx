@@ -110,6 +110,39 @@ export default function AdminClientDetail() {
         />
       </div>
 
+      {/* Referral info */}
+      {(client.referredBy || client.referralCount > 0) && (
+        <div style={s.box}>
+          <h3 style={s.boxTitle}>Referrals</h3>
+          {client.referredBy && (
+            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>
+              Referred by: <strong style={{ color: '#6d28d9' }}>{client.referredBy.organizationName}</strong>
+              <span style={{ color: '#94a3b8', marginLeft: 6 }}>({client.referredBy.email})</span>
+            </div>
+          )}
+          {client.referrals?.length > 0 && (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr>{['Organisation', 'Email', 'Plan', 'Joined'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {client.referrals.map(r => (
+                  <tr key={r._id}>
+                    <td style={s.td}><strong>{r.organizationName}</strong></td>
+                    <td style={s.td}>{r.email}</td>
+                    <td style={s.td}><span style={{ fontWeight: 700, color: { free: '#64748b', growth: '#0284c7', scale: '#6d28d9' }[r.plan || 'free'] }}>{r.plan || 'free'}</span></td>
+                    <td style={s.td}>{new Date(r.createdAt).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {(!client.referrals || client.referrals.length === 0) && client.referralCount === 0 && (
+            <p style={{ color: '#94a3b8', fontSize: 13 }}>No referrals yet.</p>
+          )}
+        </div>
+      )}
+
       {/* API Keys */}
       <div style={s.box}>
         <h3 style={s.boxTitle}>API Keys</h3>

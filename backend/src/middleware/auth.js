@@ -37,6 +37,10 @@ const requireApiKey = async (req, res, next) => {
       client: apiKey.client._id,
       createdAt: { $gte: startOfMonth },
     });
+    res.setHeader('X-RateLimit-Limit', limit);
+    res.setHeader('X-RateLimit-Remaining', Math.max(0, limit - usedThisMonth));
+    res.setHeader('X-RateLimit-Reset', new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString());
+
     if (usedThisMonth >= limit) {
       return res.status(429).json({
         error: 'Monthly API limit reached',

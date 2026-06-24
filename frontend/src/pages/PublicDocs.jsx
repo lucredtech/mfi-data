@@ -271,6 +271,89 @@ export default function PublicDocs() {
           );
         })}
 
+        {/* Rate limit headers */}
+        <div style={s.card}>
+          <h2 style={s.h2}>Rate Limit Headers</h2>
+          <p style={s.p}>Every successful API response includes headers showing your current plan usage for the billing month:</p>
+          <div style={{ background: '#0f172a', borderRadius: 10, padding: '1rem 1.25rem', marginBottom: 16 }}>
+            <pre style={s.codeBlock}>{`X-RateLimit-Limit: 5000
+X-RateLimit-Remaining: 4823
+X-RateLimit-Reset: 2026-02-01T00:00:00.000Z`}</pre>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <tbody>
+              {[
+                ['X-RateLimit-Limit', 'Total API calls allowed on your current plan per calendar month'],
+                ['X-RateLimit-Remaining', 'Calls remaining before you hit your monthly limit'],
+                ['X-RateLimit-Reset', 'ISO 8601 timestamp of when the counter resets (first of next month, UTC)'],
+              ].map(([header, desc]) => (
+                <tr key={header} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <td style={{ padding: '8px 12px', width: 240 }}><code style={{ color: '#6d28d9', fontWeight: 600 }}>{header}</code></td>
+                  <td style={{ padding: '8px 12px', color: '#64748b' }}>{desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p style={{ ...s.p, marginTop: 12 }}>When you exhaust your limit, subsequent calls return <code style={{ color: '#dc2626' }}>429 Monthly Quota Exceeded</code> until the counter resets. Upgrade your plan from the dashboard to increase your limit immediately.</p>
+        </div>
+
+        {/* Webhooks */}
+        <div style={s.card}>
+          <h2 style={s.h2}>Webhooks</h2>
+          <p style={s.p}>Lucred can push real-time event notifications to your server whenever a customer analysis completes. This lets you avoid polling — register a URL and receive the result the moment it's ready.</p>
+
+          <div style={{ marginBottom: 20 }}>
+            <div style={s.label}>Supported Events</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <tbody>
+                {[
+                  ['statement.completed', 'Bank statement analysis finished'],
+                  ['bvn.verified', 'BVN verification completed'],
+                  ['nin.verified', 'NIN verification completed'],
+                  ['bureau.completed', 'Credit bureau check completed'],
+                  ['scorecard.generated', 'Customer scorecard generated'],
+                  ['loan_review.completed', 'Loan eligibility review finished'],
+                ].map(([event, desc]) => (
+                  <tr key={event} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '8px 12px', width: 220 }}><code style={{ color: '#6d28d9', fontWeight: 600 }}>{event}</code></td>
+                    <td style={{ padding: '8px 12px', color: '#64748b' }}>{desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <div style={s.label}>Webhook Endpoints</div>
+            {[
+              { method: 'POST', path: '/v1/webhooks', desc: 'Register a new webhook URL with selected events' },
+              { method: 'GET', path: '/v1/webhooks', desc: 'List all registered webhooks' },
+              { method: 'DELETE', path: '/v1/webhooks/:id', desc: 'Remove a webhook' },
+              { method: 'POST', path: '/v1/webhooks/:id/test', desc: 'Send a test payload to verify your endpoint is reachable' },
+            ].map(ep => (
+              <div key={ep.path} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                <span style={{ ...s.badge, background: METHOD_COLOR[ep.method], minWidth: 52, textAlign: 'center' }}>{ep.method}</span>
+                <code style={{ fontSize: 13, color: '#0f172a', flex: 1 }}>{ep.path}</code>
+                <span style={{ fontSize: 13, color: '#64748b' }}>{ep.desc}</span>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <div style={s.label}>Register a Webhook — Request Body</div>
+            <pre style={s.codeBlock}>{JSON.stringify({ url: 'https://your-server.com/lucred-events', events: ['statement.completed', 'bvn.verified'], secret: 'optional_signing_secret' }, null, 2)}</pre>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <div style={s.label}>Example Payload</div>
+            <pre style={s.codeBlock}>{JSON.stringify({ event: 'statement.completed', customerId: '64a1b2c3d4e5f6a7b8c9d0e1', resultId: '64d...', data: { overallRiskScore: 'B', recommendation: 'Proceed with standard loan terms' }, timestamp: '2026-01-15T10:35:00.000Z' }, null, 2)}</pre>
+          </div>
+
+          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#15803d' }}>
+            <strong>Signature Verification:</strong> If you provide a <code>secret</code> when registering, Lucred signs every payload with HMAC-SHA256. The signature is sent in the <code>X-Lucred-Signature</code> header as <code>sha256=&lt;hex&gt;</code>. Verify it on your server before processing the event.
+          </div>
+        </div>
+
         {/* Error codes */}
         <div style={s.card}>
           <h2 style={s.h2}>Error Codes</h2>
@@ -285,7 +368,7 @@ export default function PublicDocs() {
                 ['400', 'Bad Request', 'Check required fields in the request body'],
                 ['401', 'Unauthorized', 'API key missing or invalid'],
                 ['404', 'Not Found', 'Customer ID does not exist or belongs to a different account'],
-                ['429', 'Rate Limited', 'You are sending too many requests — slow down or implement backoff'],
+                ['429', 'Monthly Quota Exceeded', 'You have used all API calls on your current plan this month — upgrade your plan to continue'],
                 ['502', 'Upstream Error', 'A downstream provider (identity/bureau) returned an error — check the error message'],
                 ['500', 'Server Error', 'Unexpected error on our end — contact support if it persists'],
               ].map(([code, meaning, fix]) => (
