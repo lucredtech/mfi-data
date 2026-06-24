@@ -313,6 +313,28 @@ router.post('/:id/loan-review', logUsage('/v1/customers/loan-review'), async (re
     });
 
     res.json({ success: true, review, recordId: saved._id });
+
+    // Notify borrower — fire-and-forget
+    const { sendLoanDecision } = require('../utils/mailer');
+    const { smsBorrowerDecision } = require('../utils/sms');
+    const orgName = req.client.organizationName || 'your lender';
+    if (customer.email) {
+      sendLoanDecision(customer.email, {
+        borrowerName: customer.name,
+        verdict: review.verdict,
+        summary: review.summary,
+        loanAmount,
+        loanTenor,
+        organizationName: orgName,
+      }).catch(e => console.error('[mailer] loan decision email failed:', e.message));
+    }
+    if (customer.phone) {
+      smsBorrowerDecision(customer.phone, {
+        borrowerName: customer.name,
+        verdict: review.verdict,
+        organizationName: orgName,
+      }).catch(e => console.error('[sms] loan decision sms failed:', e.message));
+    }
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }

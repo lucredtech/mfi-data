@@ -12,6 +12,7 @@ const BureauResult = require('../models/BureauResult');
 const AuditLog = require('../models/AuditLog');
 const FeatureRequest = require('../models/FeatureRequest');
 const Webhook = require('../models/Webhook');
+const Payment = require('../models/Payment');
 
 const PLAN_PRICE = { free: 0, growth: 50000, scale: 200000 };
 
@@ -335,6 +336,34 @@ router.patch('/feature-requests/:id', async (req, res) => {
     const request = await FeatureRequest.findByIdAndUpdate(req.params.id, { status }, { new: true });
     if (!request) return res.status(404).json({ error: 'Not found' });
     res.json({ request });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Record a manual payment and upgrade plan
+router.post('/clients/:id/payments', async (req, res) => {
+  try {
+    const { plan, amount, method = 'manual', reference, note } = req.body;
+    if (!['growth', 'scale'].includes(plan)) return res.status(400).json({ error: 'Plan must be growth or scale' });
+    if (!amount) return res.status(400).json({ error: 'amount is required' });
+    const client = await MFIClient.findByIdAndUpdate(req.params.id, { plan }, { new: true });
+    if (!client) return res.status(404).json({ error: 'Client not found' });
+    const payment = await Payment.create({
+      client: client._id, plan, amount, method, reference, note,
+      recordedBy: req.admin?.email || 'admin',
+    });
+    res.status(201).json({ payment, client });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// List payments for a client
+router.get('/clients/:id/payments', async (req, res) => {
+  try {
+    const payments = await Payment.find({ client: req.params.id }).sort({ createdAt: -1 }).lean();
+    res.json({ payments });
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }

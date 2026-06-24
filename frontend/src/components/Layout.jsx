@@ -53,6 +53,7 @@ const NAV_GROUPS = [
     icon: '◉',
     children: [
       { path: '/dashboard/profile', label: 'Profile' },
+      { path: '/dashboard/billing', label: 'Billing' },
       { path: '/dashboard/referral', label: 'Refer an MFI' },
       { path: '/dashboard/audit', label: 'Audit Log' },
       { path: '/dashboard/privacy', label: 'Privacy & Data' },

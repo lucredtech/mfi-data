@@ -8,10 +8,27 @@ export default function AdminClientDetail() {
   const navigate = useNavigate();
   const [client, setClient] = useState(null);
   const [analyses, setAnalyses] = useState(null);
+  const [payments, setPayments] = useState([]);
+  const [payForm, setPayForm] = useState({ plan: 'growth', amount: '', method: 'bank_transfer', reference: '', note: '' });
+  const [paying, setPaying] = useState(false);
 
   const load = () => {
     adminApi.get(`/api/admin/clients/${id}`).then(({ data }) => setClient(data)).catch(() => {});
     adminApi.get(`/api/admin/clients/${id}/analyses`).then(({ data }) => setAnalyses(data)).catch(() => {});
+    adminApi.get(`/api/admin/clients/${id}/payments`).then(({ data }) => setPayments(data.payments || [])).catch(() => {});
+  };
+
+  const recordPayment = async (e) => {
+    e.preventDefault();
+    if (!payForm.amount) return;
+    setPaying(true);
+    try {
+      await adminApi.post(`/api/admin/clients/${id}/payments`, { ...payForm, amount: Number(payForm.amount) });
+      toast.success(`Payment recorded — plan upgraded to ${payForm.plan}`);
+      setPayForm({ plan: 'growth', amount: '', method: 'bank_transfer', reference: '', note: '' });
+      load();
+    } catch { toast.error('Failed to record payment'); }
+    finally { setPaying(false); }
   };
 
   useEffect(() => { load(); }, [id]);
@@ -143,6 +160,47 @@ export default function AdminClientDetail() {
         </div>
       )}
 
+      {/* Billing / Payments */}
+      <div style={s.box}>
+        <h3 style={s.boxTitle}>Billing & Payments</h3>
+        <form onSubmit={recordPayment} style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20, background: '#f8fafc', borderRadius: 10, padding: '14px 16px', border: '1px solid #e2e8f0' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', width: '100%', marginBottom: 2 }}>Record a payment</div>
+          <select value={payForm.plan} onChange={e => setPayForm(f => ({ ...f, plan: e.target.value }))} style={si.sel}>
+            <option value="growth">Growth — ₦50,000</option>
+            <option value="scale">Scale — ₦200,000</option>
+          </select>
+          <input placeholder="Amount (₦)" value={payForm.amount} onChange={e => setPayForm(f => ({ ...f, amount: e.target.value }))} style={si.inp} required type="number" min="1" />
+          <select value={payForm.method} onChange={e => setPayForm(f => ({ ...f, method: e.target.value }))} style={si.sel}>
+            <option value="bank_transfer">Bank Transfer</option>
+            <option value="card">Card</option>
+            <option value="paystack">Paystack</option>
+            <option value="manual">Manual</option>
+          </select>
+          <input placeholder="Reference (optional)" value={payForm.reference} onChange={e => setPayForm(f => ({ ...f, reference: e.target.value }))} style={si.inp} />
+          <input placeholder="Note (optional)" value={payForm.note} onChange={e => setPayForm(f => ({ ...f, note: e.target.value }))} style={{ ...si.inp, flex: 2 }} />
+          <button disabled={paying || !payForm.amount} style={{ padding: '8px 18px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: paying || !payForm.amount ? 0.6 : 1 }}>
+            {paying ? 'Saving…' : 'Record'}
+          </button>
+        </form>
+        {payments.length > 0 ? (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead><tr>{['Date','Plan','Amount','Method','Reference','Note'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+            <tbody>
+              {payments.map(p => (
+                <tr key={p._id}>
+                  <td style={s.td}>{new Date(p.createdAt).toLocaleDateString()}</td>
+                  <td style={s.td}><strong>{p.plan}</strong></td>
+                  <td style={s.td}>₦{Number(p.amount).toLocaleString()}</td>
+                  <td style={s.td}>{p.method}</td>
+                  <td style={s.td}><code style={{ fontSize: 11 }}>{p.reference || '—'}</code></td>
+                  <td style={s.td}>{p.note || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <p style={{ color: '#94a3b8', fontSize: 13 }}>No payments recorded yet.</p>}
+      </div>
+
       {/* API Keys */}
       <div style={s.box}>
         <h3 style={s.boxTitle}>API Keys</h3>
@@ -198,6 +256,11 @@ function StatCard({ label, value, sub, color }) {
     </div>
   );
 }
+
+const si = {
+  inp: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 13, flex: 1, minWidth: 120, outline: 'none' },
+  sel: { padding: '8px 12px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 13, background: '#fff', cursor: 'pointer' },
+};
 
 const s = {
   back: { background: 'none', border: 'none', color: '#6d28d9', cursor: 'pointer', fontSize: 14, fontWeight: 600, padding: 0, marginBottom: 20 },

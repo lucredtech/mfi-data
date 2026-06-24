@@ -45,6 +45,8 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Profile from './pages/Profile';
 import Referral from './pages/Referral';
+import Billing from './pages/Billing';
+import Changelog from './pages/Changelog';
 
 function PrivateRoute({ children }) {
   const { client, loading } = useAuth();
@@ -88,7 +90,9 @@ function App() {
         <Route path="/dashboard/privacy" element={<PrivateRoute><Layout><Privacy /></Layout></PrivateRoute>} />
         <Route path="/dashboard/profile" element={<PrivateRoute><Layout><Profile /></Layout></PrivateRoute>} />
         <Route path="/dashboard/referral" element={<PrivateRoute><Layout><Referral /></Layout></PrivateRoute>} />
+        <Route path="/dashboard/billing" element={<PrivateRoute><Layout><Billing /></Layout></PrivateRoute>} />
         <Route path="/docs" element={<PublicDocs />} />
+        <Route path="/changelog" element={<Changelog />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/security" element={<Security />} />

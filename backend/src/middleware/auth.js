@@ -50,6 +50,21 @@ const requireApiKey = async (req, res, next) => {
         upgradeUrl: 'https://mfi-data.vercel.app/pricing',
       });
     }
+
+    // Fire 90% warning once per month — tracked in quotaWarningsSent
+    const threshold = Math.floor(limit * 0.9);
+    const monthKey = `${new Date().getFullYear()}-${new Date().getMonth()}`;
+    if (usedThisMonth >= threshold && !apiKey.client.quotaWarningsSent?.includes(monthKey)) {
+      const MFIClient = require('../models/MFIClient');
+      MFIClient.findByIdAndUpdate(apiKey.client._id, { $addToSet: { quotaWarningsSent: monthKey } }).catch(() => {});
+      const resetDate = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)
+        .toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      const payload = { organizationName: apiKey.client.organizationName, used: usedThisMonth, limit, plan, resetDate };
+      const { sendPlanLimitWarning } = require('../utils/mailer');
+      const { smsPlanLimitWarning } = require('../utils/sms');
+      if (apiKey.client.email) sendPlanLimitWarning(apiKey.client.email, payload).catch(() => {});
+      if (apiKey.client.phone) smsPlanLimitWarning(apiKey.client.phone, payload).catch(() => {});
+    }
   }
 
   apiKey.lastUsedAt = new Date();

@@ -2,7 +2,7 @@ const router = require('express').Router();
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const MFIClient = require('../models/MFIClient');
-const { sendPasswordReset } = require('../utils/mailer');
+const { sendPasswordReset, sendWelcome } = require('../utils/mailer');
 const ApiKey = require('../models/ApiKey');
 const Customer = require('../models/Customer');
 const BVNResult = require('../models/BVNResult');
@@ -104,6 +104,11 @@ router.post('/register', async (req, res) => {
       client: { id: client._id, organizationName: client.organizationName, email: client.email },
       apiKey: apiKey.key,
     });
+
+    // Fire-and-forget — don't block the response
+    sendWelcome(email, { organizationName }).catch(err =>
+      console.error('[mailer] welcome email failed:', err.message)
+    );
   } catch (err) {
     console.error('[auth] register error:', err);
     res.status(500).json({ error: 'Registration failed. Please try again.' });
@@ -215,6 +220,18 @@ router.delete('/account', requireJWT, async (req, res) => {
   } catch (err) {
     console.error('[auth] account deletion error:', err);
     res.status(500).json({ error: 'Account deletion failed. Please try again.' });
+  }
+});
+
+// Billing history — lender's own payment records
+router.get('/billing', requireJWT, async (req, res) => {
+  try {
+    const Payment = require('../models/Payment');
+    const payments = await Payment.find({ client: req.client.id }).sort({ createdAt: -1 }).lean();
+    const client = await MFIClient.findById(req.client.id).select('plan organizationName email').lean();
+    res.json({ payments, plan: client?.plan || 'free' });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

@@ -11,7 +11,7 @@ const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.rail
 function authHeaders() { return { Authorization: `Bearer ${localStorage.getItem('token')}` }; }
 function apiKeyHeaders() { return { 'X-Api-Key': localStorage.getItem('apiKey') }; }
 
-const TABS = ['Overview', 'Statement Analysis', 'BVN Verification', 'NIN Verification', 'Credit Bureau', 'Scorecard', 'Loan Review'];
+const TABS = ['Overview', 'Timeline', 'Statement Analysis', 'BVN Verification', 'NIN Verification', 'Credit Bureau', 'Scorecard', 'Loan Review'];
 
 // ── Discrepancy engine ───────────────────────────────────────────────────────
 function detectDiscrepancies(customer, bvnData, ninData) {
@@ -209,6 +209,7 @@ export default function CustomerDetail() {
 
       <div>
         {tab === 'Overview' && <OverviewTab customer={customer} statements={statements || []} bvnResults={bvnResults || []} ninResults={ninResults || []} bureauResults={bureauResults || []} discrepancies={discrepancies} setTab={setTab} customerId={id} />}
+        {tab === 'Timeline' && <TimelineTab customer={customer} statements={statements || []} bvnResults={bvnResults || []} ninResults={ninResults || []} bureauResults={bureauResults || []} loanReviews={loanReviews} setTab={setTab} />}
         {tab === 'Statement Analysis' && <StatementTab customer={customer} statements={statements || []} onRefresh={load} />}
         {tab === 'BVN Verification' && <BVNTab customer={customer} bvnResults={bvnResults || []} onRefresh={load} />}
         {tab === 'NIN Verification' && <NINTab customer={customer} ninResults={ninResults || []} onRefresh={load} />}
@@ -254,6 +255,51 @@ function worstPaymentCode(acc) {
 }
 
 // ── Overview ─────────────────────────────────────────────────────────────────
+
+function TimelineTab({ statements, bvnResults, ninResults, bureauResults, loanReviews, setTab }) {
+  const events = [
+    ...statements.map(r => ({ date: r.createdAt, type: 'Statement', label: `Statement analysis — ${r.bankName || 'bank'} · Grade ${r.result?.overallRiskScore?.overallRiskScore || '—'}`, status: r.status, color: '#0ea5e9', bg: '#e0f2fe', onClick: () => setTab('Statement Analysis') })),
+    ...bvnResults.map(r => ({ date: r.createdAt, type: 'BVN', label: `BVN verification — ${r.result?.isValid !== false ? 'Verified' : 'Failed'}${r.result?.watchListed ? ' · ⚠ Watchlisted' : ''}`, status: r.status, color: '#16a34a', bg: '#dcfce7', onClick: () => setTab('BVN Verification') })),
+    ...ninResults.map(r => ({ date: r.createdAt, type: 'NIN', label: `NIN verification — ${r.result?.isValid !== false ? 'Verified' : 'Failed'}`, status: r.status, color: '#6d28d9', bg: '#ede9fe', onClick: () => setTab('NIN Verification') })),
+    ...bureauResults.map(r => ({ date: r.createdAt, type: 'Bureau', label: `Credit bureau check — Score ${r.result?.creditScore ?? '—'}`, status: r.status, color: '#f59e0b', bg: '#fef3c7', onClick: () => setTab('Credit Bureau') })),
+    ...(loanReviews || []).map(r => ({ date: r.createdAt, type: 'Loan Review', label: `Loan review — ${r.verdict}${r.loanAmount ? ` · ₦${Number(r.loanAmount).toLocaleString()}` : ''}`, status: r.verdict === 'ELIGIBLE' ? 'success' : r.verdict === 'NOT_ELIGIBLE' ? 'failed' : 'conditional', color: r.verdict === 'ELIGIBLE' ? '#16a34a' : r.verdict === 'NOT_ELIGIBLE' ? '#dc2626' : '#d97706', bg: r.verdict === 'ELIGIBLE' ? '#dcfce7' : r.verdict === 'NOT_ELIGIBLE' ? '#fee2e2' : '#fef3c7', onClick: () => setTab('Loan Review') })),
+  ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  if (events.length === 0) return (
+    <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8', fontSize: 14 }}>
+      No activity yet. Run a BVN check, upload a statement, or pull a bureau report to see the timeline.
+    </div>
+  );
+
+  function timeAgo(date) {
+    const s = Math.floor((Date.now() - new Date(date)) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return `${Math.floor(s/60)}m ago`;
+    if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+    if (s < 604800) return `${Math.floor(s/86400)}d ago`;
+    return new Date(date).toLocaleDateString();
+  }
+
+  return (
+    <div style={{ paddingTop: 8 }}>
+      <div style={{ position: 'relative', paddingLeft: 32 }}>
+        <div style={{ position: 'absolute', left: 11, top: 0, bottom: 0, width: 2, background: '#e2e8f0', borderRadius: 1 }} />
+        {events.map((ev, i) => (
+          <div key={i} onClick={ev.onClick} style={{ position: 'relative', marginBottom: 20, cursor: 'pointer' }}>
+            <div style={{ position: 'absolute', left: -27, top: 10, width: 12, height: 12, borderRadius: '50%', background: ev.color, border: '2px solid #fff', boxShadow: `0 0 0 2px ${ev.color}` }} />
+            <div style={{ background: '#fff', borderRadius: 10, padding: '12px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, background: ev.bg, color: ev.color, padding: '2px 8px', borderRadius: 12, marginRight: 8 }}>{ev.type}</span>
+                <span style={{ fontSize: 13, color: '#334155', fontWeight: 500 }}>{ev.label}</span>
+              </div>
+              <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap', flexShrink: 0, marginTop: 2 }}>{timeAgo(ev.date)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function OverviewTab({ customer, statements, bvnResults, ninResults, bureauResults, discrepancies, setTab, customerId }) {
   const latestStatement = statements[0];

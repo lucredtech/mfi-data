@@ -387,7 +387,7 @@ X-RateLimit-Reset: 2026-02-01T00:00:00.000Z`}</pre>
         </div>
 
         <div style={{ textAlign: 'center', paddingTop: '2rem', paddingBottom: '3rem', color: '#94a3b8', fontSize: 13 }}>
-          Questions? Email <a href="mailto:support@lucred.co" style={{ color: '#0ea5e9' }}>support@lucred.co</a> &nbsp;·&nbsp; <a href="/login" style={{ color: '#0ea5e9' }}>Log in to your dashboard →</a>
+          Questions? Email <a href="mailto:support@lucred.co" style={{ color: '#0ea5e9' }}>support@lucred.co</a> &nbsp;·&nbsp; <a href="/changelog" style={{ color: '#0ea5e9' }}>Changelog</a> &nbsp;·&nbsp; <a href="/login" style={{ color: '#0ea5e9' }}>Log in to your dashboard →</a>
         </div>
       </div>
     </div>

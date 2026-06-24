@@ -56,8 +56,8 @@ router.post('/:id/test', async (req, res) => {
 module.exports = router;
 module.exports.ALL_EVENTS = ALL_EVENTS;
 
-// Fire a single webhook — exported for use in other routes
-async function fireWebhook(hook, payload) {
+// Fire a single webhook with up to 3 retries and exponential backoff
+async function fireWebhook(hook, payload, attempt = 1) {
   const body = JSON.stringify(payload);
   const sig = crypto.createHmac('sha256', hook.secret).update(body).digest('hex');
   try {
@@ -69,6 +69,12 @@ async function fireWebhook(hook, payload) {
     return { ok: true, status: resp.status };
   } catch (err) {
     const status = err.response?.status ?? 0;
+    // Retry on network errors or 5xx — not on 4xx (misconfigured endpoint)
+    const shouldRetry = attempt < 3 && (status === 0 || status >= 500);
+    if (shouldRetry) {
+      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt))); // 2s, 4s
+      return fireWebhook(hook, payload, attempt + 1);
+    }
     await Webhook.findByIdAndUpdate(hook._id, { lastFiredAt: new Date(), lastStatus: status });
     return { ok: false, status, error: err.message };
   }
