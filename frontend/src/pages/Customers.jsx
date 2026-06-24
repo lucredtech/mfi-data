@@ -285,6 +285,7 @@ export default function Customers() {
 function AddCustomerForm({ onClose, onCreated }) {
   const [form, setForm] = useState({ name: '', email: '', bvn: '', nin: '', phone: '', address: '', customerType: 'individual' });
   const [saving, setSaving] = useState(false);
+  const [dupWarning, setDupWarning] = useState(null); // { id, name }
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -292,9 +293,15 @@ function AddCustomerForm({ onClose, onCreated }) {
     e.preventDefault();
     if (!form.name) return toast.error('Name is required');
     setSaving(true);
+    setDupWarning(null);
     try {
       const { data } = await axios.post(`${API}/api/customers`, form, { headers: authHeaders() });
-      toast.success('Customer created');
+      if (data.duplicate) {
+        setDupWarning(data.duplicate);
+        toast(`Possible duplicate: ${data.duplicate.name}`, { icon: '⚠️' });
+      } else {
+        toast.success('Customer created');
+      }
       onCreated(data.customer);
     } catch (err) {
       toast.error(parseApiError(err, { default: 'Failed to create customer. Please try again.' }));
@@ -310,6 +317,15 @@ function AddCustomerForm({ onClose, onCreated }) {
           <div style={s.modalTitle}>New Customer</div>
           <button onClick={onClose} style={s.closeBtn}>✕</button>
         </div>
+        {dupWarning && (
+          <div style={{ background: '#fef3c7', border: '1.5px solid #fbbf24', borderRadius: 8, padding: '10px 14px', margin: '0 0 16px', fontSize: 13 }}>
+            <strong style={{ color: '#92400e' }}>⚠ Possible duplicate:</strong>{' '}
+            <a href={`/dashboard/customers/${dupWarning.id}`} target="_blank" rel="noreferrer" style={{ color: '#d97706', fontWeight: 600 }}>
+              {dupWarning.name}
+            </a>{' '}
+            <span style={{ color: '#78350f' }}>already exists with the same BVN, NIN, email, or phone.</span>
+          </div>
+        )}
         <form onSubmit={handleSubmit}>
           {/* Customer type selector */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>

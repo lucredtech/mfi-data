@@ -1,20 +1,29 @@
-const nodemailer = require('nodemailer');
+const axios = require('axios');
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.mailgun.org',
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USERNAME,
-    pass: process.env.SMTP_PASSWORD,
-  },
-});
+const MAILGUN_DOMAIN = process.env.MAILGUN_EMAIL_DOMAIN || 'lucred.co';
+const MAILGUN_API_KEY = process.env.MAILGUN_EMAIL_APIKEY;
+const FROM = `"Lucred" <noreply@${MAILGUN_DOMAIN}>`;
 
-const FROM = '"Lucred" <noreply@lucred.co>';
+// Mailgun HTTP API — avoids SMTP domain mismatch issues
+async function sendMail({ to, subject, html }) {
+  if (!MAILGUN_API_KEY) throw new Error('MAILGUN_EMAIL_APIKEY not set');
+  const form = new URLSearchParams();
+  form.append('from', FROM);
+  form.append('to', to);
+  form.append('subject', subject);
+  form.append('html', html);
+  await axios.post(
+    `https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`,
+    form.toString(),
+    {
+      auth: { username: 'api', password: MAILGUN_API_KEY },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    }
+  );
+}
 
 async function sendPasswordReset(to, resetUrl) {
-  await transporter.sendMail({
-    from: FROM,
+  await sendMail({
     to,
     subject: 'Reset your Lucred password',
     html: `
@@ -39,8 +48,7 @@ async function sendPasswordReset(to, resetUrl) {
 }
 
 async function sendWelcome(to, { organizationName }) {
-  await transporter.sendMail({
-    from: FROM,
+  await sendMail({
     to,
     subject: 'Welcome to Lucred — you\'re all set',
     html: `
@@ -71,8 +79,7 @@ async function sendWelcome(to, { organizationName }) {
 async function sendLoanDecision(to, { borrowerName, verdict, summary, loanAmount, loanTenor, organizationName }) {
   const verdictColor = verdict === 'ELIGIBLE' ? '#16a34a' : verdict === 'CONDITIONAL' ? '#d97706' : '#dc2626';
   const verdictLabel = verdict === 'ELIGIBLE' ? 'Approved' : verdict === 'CONDITIONAL' ? 'Conditionally Approved' : 'Not Approved';
-  await transporter.sendMail({
-    from: FROM,
+  await sendMail({
     to,
     subject: `Your loan application decision — ${organizationName}`,
     html: `
@@ -102,8 +109,7 @@ async function sendLoanDecision(to, { borrowerName, verdict, summary, loanAmount
 
 async function sendPlanLimitWarning(to, { organizationName, used, limit, plan, resetDate }) {
   const pct = Math.round((used / limit) * 100);
-  await transporter.sendMail({
-    from: FROM,
+  await sendMail({
     to,
     subject: `You've used ${pct}% of your Lucred API quota`,
     html: `
@@ -134,8 +140,7 @@ async function sendPlanLimitWarning(to, { organizationName, used, limit, plan, r
 }
 
 async function sendVerificationEmail(to, { organizationName, verifyUrl }) {
-  await transporter.sendMail({
-    from: FROM,
+  await sendMail({
     to,
     subject: 'Verify your Lucred email address',
     html: `
@@ -156,8 +161,7 @@ async function sendVerificationEmail(to, { organizationName, verifyUrl }) {
 }
 
 async function sendTeamInvite(to, { inviterName, orgName, inviteUrl, role }) {
-  await transporter.sendMail({
-    from: FROM,
+  await sendMail({
     to,
     subject: `You've been invited to join ${orgName} on Lucred`,
     html: `

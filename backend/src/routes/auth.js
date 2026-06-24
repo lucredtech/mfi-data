@@ -412,4 +412,16 @@ router.get('/billing/invoices/:id', requireJWT, async (req, res) => {
   }
 });
 
+// Diagnostic: POST /api/auth/test-email  (requires ?secret=<ADMIN_SECRET>)
+router.post('/test-email', async (req, res) => {
+  const { to, secret } = req.body;
+  if (!to || secret !== process.env.ADMIN_SECRET) return res.status(403).json({ error: 'Forbidden' });
+  try {
+    await sendWelcome(to, { organizationName: 'Lucred Test' });
+    res.json({ ok: true, message: `Test email sent to ${to}` });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message, details: err.response?.data });
+  }
+});
+
 module.exports = router;
