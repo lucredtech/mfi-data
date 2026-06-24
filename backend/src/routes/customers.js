@@ -14,6 +14,10 @@ const CustomerNote = require('../models/CustomerNote');
 const AuditLog = require('../models/AuditLog');
 const LoanReview = require('../models/LoanReview');
 const Scorecard = require('../models/Scorecard');
+const { smsBorrowerDecision } = require('../utils/sms');
+const { notify } = require('../utils/notify');
+const axios = require('axios');
+const { dispatchWebhook } = require('./webhooks');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -108,6 +112,44 @@ router.post('/', async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
+
+// ── Static routes MUST come before /:id to avoid shadowing ──────────────────
+// GET /pipeline/stats
+router.get('/pipeline/stats', async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const stats = await Customer.aggregate([
+      { $match: { client: new mongoose.Types.ObjectId(req.client.id) } },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]);
+    const result = { applied: 0, under_review: 0, approved: 0, rejected: 0, disbursed: 0 };
+    stats.forEach(({ _id, count }) => { if (_id) result[_id] = count; });
+    res.json({ stats: result });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH /bulk/status
+router.patch('/bulk/status', async (req, res) => {
+  try {
+    const VALID = ['applied', 'under_review', 'approved', 'rejected', 'disbursed'];
+    const { ids, status } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids array is required' });
+    if (!VALID.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    const result = await Customer.updateMany(
+      { _id: { $in: ids }, client: req.client.id },
+      { status }
+    );
+    AuditLog.create({ client: req.client.id, action: 'BULK_STATUS_CHANGE', entityType: 'Customer', label: `Bulk status → ${status} for ${result.modifiedCount} customers`, meta: { ids, status } }).catch(() => {});
+    res.json({ updated: result.modifiedCount });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /bulk/verify — batch BVN/NIN verification (defined below after helpers)
+// ─────────────────────────────────────────────────────────────────────────────
 
 // Get single customer with all their analyses
 router.get('/:id', async (req, res) => {
@@ -324,7 +366,7 @@ router.get('/export/all', async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     res.json({
       exportedAt: new Date().toISOString(),
-      organization: req.client.organizationName,
+      organization: req.client.organizationName || (await MFIClient.findById(req.client.id).select('organizationName').lean())?.organizationName,
       customers,
       bvnResults,
       ninResults,
@@ -466,8 +508,9 @@ router.post('/verify/nin', async (req, res) => {
   }
 });
 
-// AI loan eligibility review
-router.post('/:id/loan-review', async (req, res) => {
+// REMOVED: /:id/loan-review (singular) — AI scoring is now client-side; use POST /:id/loan-reviews to save
+// AI loan eligibility review (dead — kept as reference, not registered)
+const _unusedLoanReview = async (req, res) => {
   try {
     const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id }).lean();
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
@@ -566,7 +609,7 @@ Based on all available data, provide a JSON response (and ONLY JSON, no other te
     console.error("[route] unhandled error:", err);
     res.status(500).json({ error: "Internal server error" });
   }
-});
+};
 
 // GET /:id/scorecards — list saved scorecards
 router.get('/:id/scorecards', async (req, res) => {
@@ -609,24 +652,6 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
-// PATCH /bulk/status — update status on multiple customers at once
-router.patch('/bulk/status', async (req, res) => {
-  try {
-    const VALID = ['applied', 'under_review', 'approved', 'rejected', 'disbursed'];
-    const { ids, status } = req.body;
-    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids array is required' });
-    if (!VALID.includes(status)) return res.status(400).json({ error: 'Invalid status' });
-    const result = await Customer.updateMany(
-      { _id: { $in: ids }, client: req.client.id },
-      { status }
-    );
-    AuditLog.create({ client: req.client.id, action: 'BULK_STATUS_CHANGE', entityType: 'Customer', label: `Bulk status → ${status} for ${result.modifiedCount} customers`, meta: { ids, status } }).catch(() => {});
-    res.json({ updated: result.modifiedCount });
-  } catch (err) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // GET /:id/loan-reviews — list saved reviews
 router.get('/:id/loan-reviews', async (req, res) => {
   try {
@@ -641,26 +666,31 @@ router.get('/:id/loan-reviews', async (req, res) => {
 // POST /:id/loan-reviews — save a review run
 router.post('/:id/loan-reviews', async (req, res) => {
   try {
+    const mfiClient = await MFIClient.findById(req.client.id).lean();
     const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id });
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
     const review = await LoanReview.create({ client: req.client.id, customer: req.params.id, ...req.body });
     dispatchWebhook(req.client.id, 'loan_review.created', { customerId: req.params.id, verdict: review.verdict, reviewId: review._id });
-    res.json({ review });
-  } catch (err) {
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
-// GET /pipeline/stats — pipeline status counts
-router.get('/pipeline/stats', async (req, res) => {
-  try {
-    const stats = await Customer.aggregate([
-      { $match: { client: req.client._id } },
-      { $group: { _id: '$status', count: { $sum: 1 } } },
-    ]);
-    const result = { applied: 0, under_review: 0, approved: 0, rejected: 0, disbursed: 0 };
-    stats.forEach(({ _id, count }) => { if (_id) result[_id] = count; });
-    res.json({ stats: result });
+    // SMS borrower if they have a phone number
+    if (customer.phone) {
+      smsBorrowerDecision(customer.phone, {
+        borrowerName: customer.name,
+        verdict: review.verdict,
+        organizationName: mfiClient?.organizationName || 'your lender',
+      }).catch(() => {});
+    }
+
+    // In-app notification for the MFI
+    const verdictLabel = { ELIGIBLE: 'Approved', CONDITIONAL: 'Conditional', NOT_ELIGIBLE: 'Not Eligible' }[review.verdict] || review.verdict;
+    notify(req.client.id, {
+      type: 'loan_review',
+      title: `Loan review complete — ${verdictLabel}`,
+      body: `${customer.name} · ₦${(review.loanAmount || 0).toLocaleString()}`,
+      meta: { customerId: customer._id, reviewId: review._id, verdict: review.verdict },
+    });
+
+    res.json({ review });
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -716,7 +746,6 @@ router.post('/bulk/verify', async (req, res) => {
 
 // CSV import — POST /api/customers/import
 // Accepts multipart field "csv" (text) or raw body { csv: "..." }
-const { dispatchWebhook } = require('./webhooks');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 

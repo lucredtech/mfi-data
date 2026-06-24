@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import UpgradeModal from './UpgradeModal';
+import NotificationBell from './NotificationBell';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -298,19 +299,22 @@ export default function Layout({ children }) {
               {client?.name && <div style={{ fontSize: 10, color: '#334155', marginTop: 1 }}>{client.name} · {client.role}</div>}
             </div>
           )}
-          <button
-            onClick={handleLogout}
-            title={collapsed ? 'Sign out' : undefined}
-            style={{
-              fontSize: 12, color: '#475569', background: 'none', border: 'none',
-              cursor: 'pointer', padding: 0,
-              display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-start',
-              gap: 6, width: '100%', fontWeight: 500,
-            }}
-          >
-            <span style={{ fontSize: 15 }}>↩</span>
-            {!collapsed && 'Sign out'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between' }}>
+            <button
+              onClick={handleLogout}
+              title={collapsed ? 'Sign out' : undefined}
+              style={{
+                fontSize: 12, color: '#475569', background: 'none', border: 'none',
+                cursor: 'pointer', padding: 0,
+                display: 'flex', alignItems: 'center',
+                gap: 6, fontWeight: 500,
+              }}
+            >
+              <span style={{ fontSize: 15 }}>↩</span>
+              {!collapsed && 'Sign out'}
+            </button>
+            {!collapsed && <NotificationBell />}
+          </div>
         </div>
       </aside>
 
@@ -320,7 +324,7 @@ export default function Layout({ children }) {
           <div style={{ background: '#0f172a', padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
             <button onClick={() => setMobileOpen(o => !o)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: 4 }}>☰</button>
             <div style={{ fontSize: 17, fontWeight: 800, color: '#38bdf8' }}>Lucred</div>
-            <div style={{ width: 28 }} />
+            <NotificationBell />
           </div>
         )}
         <div style={{ padding: isMobile ? '1.25rem 1rem' : '2rem 2.5rem', flex: 1 }}>

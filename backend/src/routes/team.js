@@ -5,6 +5,7 @@ const TeamMember = require('../models/TeamMember');
 const MFIClient = require('../models/MFIClient');
 const { requireJWT } = require('../middleware/auth');
 const { sendTeamInvite } = require('../utils/mailer');
+const { notify } = require('../utils/notify');
 
 // All team management routes require JWT (org owner or admin member)
 router.use(requireJWT);
@@ -65,6 +66,12 @@ router.post('/invite', requireAdmin, async (req, res) => {
       role,
     }).catch(e => console.error('[mailer] team invite failed:', e.message));
 
+    notify(req.client.id, {
+      type: 'team_invite',
+      title: `Invite sent to ${email}`,
+      body: `${inviterName} invited ${email} as ${role}.`,
+      meta: { email, role },
+    });
     res.status(201).json({ member: { ...member.toObject(), inviteToken: undefined } });
   } catch (err) {
     console.error('[team] invite error:', err);

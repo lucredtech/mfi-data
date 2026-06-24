@@ -9,7 +9,10 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const stored = localStorage.getItem('client');
-    if (stored) setClient(JSON.parse(stored));
+    if (stored) {
+      try { setClient(JSON.parse(stored)); }
+      catch { localStorage.removeItem('client'); }
+    }
     setLoading(false);
   }, []);
 

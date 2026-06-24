@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const Webhook = require('../models/Webhook');
 const WebhookDelivery = require('../models/WebhookDelivery');
 const { requireJWT } = require('../middleware/auth');
+const { notify } = require('../utils/notify');
 
 router.use(requireJWT);
 
@@ -105,6 +106,12 @@ async function fireWebhook(hook, payload, attempt = 1) {
       Webhook.findByIdAndUpdate(hook._id, { lastFiredAt: new Date(), lastStatus: status }),
       WebhookDelivery.create({ webhook: hook._id, client: hook.client, event: payload.event, status, ok: false, error: err.message, attempt, duration }),
     ]);
+    notify(hook.client, {
+      type: 'webhook_failure',
+      title: `Webhook delivery failed — ${payload.event}`,
+      body: `${hook.url} returned ${status || 'no response'} after ${attempt} attempt${attempt > 1 ? 's' : ''}.`,
+      meta: { webhookId: hook._id, event: payload.event, status },
+    });
     return { ok: false, status, error: err.message };
   }
 }

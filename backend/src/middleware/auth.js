@@ -62,8 +62,15 @@ const requireApiKey = async (req, res, next) => {
       const payload = { organizationName: apiKey.client.organizationName, used: usedThisMonth, limit, plan, resetDate };
       const { sendPlanLimitWarning } = require('../utils/mailer');
       const { smsPlanLimitWarning } = require('../utils/sms');
+      const { notify } = require('../utils/notify');
       if (apiKey.client.email) sendPlanLimitWarning(apiKey.client.email, payload).catch(() => {});
       if (apiKey.client.phone) smsPlanLimitWarning(apiKey.client.phone, payload).catch(() => {});
+      notify(apiKey.client._id, {
+        type: 'quota_warning',
+        title: `You've used ${Math.round((usedThisMonth / limit) * 100)}% of your API quota`,
+        body: `${usedThisMonth.toLocaleString()} of ${limit.toLocaleString()} calls used on the ${plan} plan. Upgrade to avoid disruption.`,
+        meta: { used: usedThisMonth, limit, plan },
+      });
     }
   }
 
@@ -90,7 +97,7 @@ const logUsage = (endpoint) => async (req, res, next) => {
   res.on('finish', async () => {
     if (!req.client || !req.apiKey) return;
     await UsageLog.create({
-      client: req.client._id,
+      client: req.client._id || req.client.id,
       apiKey: req.apiKey._id,
       endpoint,
       method: req.method,

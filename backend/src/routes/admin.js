@@ -237,7 +237,7 @@ router.get('/analytics', async (req, res) => {
         { $group: { _id: '$plan', count: { $sum: 1 } } },
       ]),
       // Webhook failure count (last fired with non-2xx status)
-      Webhook.countDocuments({ lastStatus: { $exists: true, $not: { $gte: 200, $lte: 299 } }, lastFiredAt: { $exists: true } }),
+      Webhook.countDocuments({ lastStatus: { $exists: true }, $nor: [{ lastStatus: { $gte: 200, $lte: 299 } }], lastFiredAt: { $exists: true } }),
     ]);
 
     const sr = successRate[0] || { total: 0, success: 0 };

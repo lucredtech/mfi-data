@@ -19,6 +19,7 @@ const v1CustomerRoutes = require('./routes/v1Customers');
 const { requireJWT } = require('./middleware/auth');
 const FeatureRequest = require('./models/FeatureRequest');
 const webhookRoutes = require('./routes/webhooks');
+const notificationRoutes = require('./routes/notifications');
 const UsageLog = require('./models/UsageLog');
 
 const app = express();
@@ -61,6 +62,7 @@ app.use('/api/keys', apiKeyRoutes);
 app.use('/api/usage', usageRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Feature requests (JWT protected)
 app.post('/api/feature-requests', requireJWT, async (req, res) => {
@@ -83,9 +85,9 @@ app.get('/api/feature-requests', requireJWT, async (req, res) => {
   }
 });
 
-// Auto-log usage for all /v1 API key requests
+// Auto-log usage for all /v1 API key requests (skip sandbox/test mode)
 app.use('/v1', (req, res, next) => {
-  if (!req.apiKey) return next();
+  if (!req.apiKey || req._sandbox) return next();
   const start = Date.now();
   res.on('finish', () => {
     UsageLog.create({

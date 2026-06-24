@@ -9,7 +9,10 @@ export function AdminProvider({ children }) {
 
   useEffect(() => {
     const stored = localStorage.getItem('admin');
-    if (stored) setAdmin(JSON.parse(stored));
+    if (stored) {
+      try { setAdmin(JSON.parse(stored)); }
+      catch { localStorage.removeItem('admin'); }
+    }
     setLoading(false);
   }, []);
 

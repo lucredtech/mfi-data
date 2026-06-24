@@ -33,7 +33,7 @@ export default function Overview() {
 
   const fetchApiKeys = useCallback(async () => {
     try {
-      const { data } = await api.get('/api/api-keys');
+      const { data } = await api.get('/api/keys');
       setHasApiKey((data.keys || data)?.length > 0);
     } catch { /* silent */ }
   }, []);

@@ -6,6 +6,23 @@ const PLAN_PRICE = { free: 0, growth: 50000, scale: 200000 };
 const PLAN_COLOR = { free: ['#f1f5f9','#64748b'], growth: ['#e0f2fe','#0284c7'], scale: ['#ede9fe','#6d28d9'] };
 const METHOD_LABEL = { bank_transfer: 'Bank Transfer', card: 'Card', paystack: 'Paystack', manual: 'Manual' };
 
+const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
+
+async function downloadInvoice(id) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${API}/api/auth/billing/invoices/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return;
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `invoice-${id}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function Billing() {
   const [data, setData] = useState(null);
 
@@ -70,11 +87,11 @@ export default function Billing() {
                     <td style={s.td}><code style={{ fontSize: 11, color: '#64748b' }}>{p.reference || '—'}</code></td>
                     <td style={{ ...s.td, color: '#64748b' }}>{p.note || '—'}</td>
                     <td style={s.td}>
-                      <a href={`${import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app'}/api/auth/billing/invoices/${p._id}`}
-                        target="_blank" rel="noreferrer"
-                        style={{ fontSize: 12, color: '#0ea5e9', textDecoration: 'none', fontWeight: 600 }}>
+                      <button
+                        onClick={() => downloadInvoice(p._id)}
+                        style={{ fontSize: 12, color: '#0ea5e9', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, padding: 0 }}>
                         ↓ PDF
-                      </a>
+                      </button>
                     </td>
                   </tr>
                 );

@@ -228,6 +228,17 @@ export default function CustomerDetail() {
         {tab === 'Scorecard' && <ScorecardTab customer={customer} statements={statements || []} bvnResults={bvnResults || []} ninResults={ninResults || []} bureauResults={bureauResults || []} discrepancies={discrepancies} setTab={setTab} />}
         {tab === 'Loan Review' && <LoanReviewTab customer={customer} statements={statements || []} bvnResults={bvnResults || []} ninResults={ninResults || []} bureauResults={bureauResults || []} discrepancies={discrepancies} />}
       </div>
+
+      {/* Danger zone */}
+      <div style={{ marginTop: 32, padding: '16px 20px', border: '1.5px solid #fecaca', borderRadius: 10, background: '#fff5f5', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#dc2626' }}>Delete customer</div>
+          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>Permanently removes this customer and all their verification records. Cannot be undone.</div>
+        </div>
+        <button onClick={deleteCustomer} style={{ padding: '8px 20px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          Delete Customer
+        </button>
+      </div>
     </div>
   );
 }
@@ -2528,16 +2539,6 @@ function LoanReviewSection({ customer, latestBVN, latestNIN, latestBureau, lates
         </div>
       )}
 
-      {/* Danger zone */}
-      <div style={{ marginTop: 32, padding: '16px 20px', border: '1.5px solid #fecaca', borderRadius: 10, background: '#fff5f5', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#dc2626' }}>Delete customer</div>
-          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>Permanently removes this customer and all their verification records. Cannot be undone.</div>
-        </div>
-        <button onClick={deleteCustomer} style={{ padding: '8px 20px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-          Delete Customer
-        </button>
-      </div>
     </div>
   );
 }
