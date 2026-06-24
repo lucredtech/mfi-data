@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { requireJWT } = require('../middleware/auth');
+const { requireJWT, requireWriteAccess } = require('../middleware/auth');
 const dojahApi = require('../config/dojahApi');
 const Anthropic = require('@anthropic-ai/sdk');
 const Customer = require('../models/Customer');
@@ -16,8 +16,19 @@ const LoanReview = require('../models/LoanReview');
 const Scorecard = require('../models/Scorecard');
 const { smsBorrowerDecision } = require('../utils/sms');
 const { notify } = require('../utils/notify');
+const { sendStaffLoanReviewAlert, sendStaffStatusChangeAlert } = require('../utils/mailer');
 const axios = require('axios');
 const { dispatchWebhook } = require('./webhooks');
+const TeamMember = require('../models/TeamMember');
+
+// Get all admin emails for a client (owner + admin team members)
+async function getAdminEmails(clientId) {
+  const [owner, adminMembers] = await Promise.all([
+    MFIClient.findById(clientId).select('email').lean(),
+    TeamMember.find({ client: clientId, role: 'admin', status: 'active' }).select('email').lean(),
+  ]);
+  return [...new Set([owner?.email, ...adminMembers.map(m => m.email)].filter(Boolean))];
+}
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -90,7 +101,7 @@ router.get('/', async (req, res) => {
 });
 
 // Create customer
-router.post('/', async (req, res) => {
+router.post('/', requireWriteAccess, async (req, res) => {
   try {
     const { name, email, bvn, nin, phone, customerType } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
@@ -131,7 +142,7 @@ router.get('/pipeline/stats', async (req, res) => {
 });
 
 // PATCH /bulk/status
-router.patch('/bulk/status', async (req, res) => {
+router.patch('/bulk/status', requireWriteAccess, async (req, res) => {
   try {
     const VALID = ['applied', 'under_review', 'approved', 'rejected', 'disbursed'];
     const { ids, status } = req.body;
@@ -150,6 +161,65 @@ router.patch('/bulk/status', async (req, res) => {
 
 // POST /bulk/verify — batch BVN/NIN verification (defined below after helpers)
 // ─────────────────────────────────────────────────────────────────────────────
+
+// GET /duplicates — scan for customers sharing BVN, NIN, phone, or email
+router.get('/duplicates', async (req, res) => {
+  try {
+    const clientId = new mongoose.Types.ObjectId(req.client.id);
+    const fields = ['bvn', 'nin', 'phone', 'email'];
+
+    const groups = [];
+    for (const field of fields) {
+      const pipeline = [
+        { $match: { client: clientId, [field]: { $exists: true, $ne: null, $ne: '' } } },
+        { $group: { _id: `$${field}`, customers: { $push: { _id: '$_id', name: '$name', email: '$email', phone: '$phone', status: '$status', createdAt: '$createdAt' } }, count: { $sum: 1 } } },
+        { $match: { count: { $gt: 1 } } },
+        { $sort: { count: -1 } },
+      ];
+      const results = await Customer.aggregate(pipeline);
+      for (const r of results) {
+        groups.push({ field, value: r._id, customers: r.customers });
+      }
+    }
+
+    res.json({ groups, total: groups.length });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /duplicates/merge — keep one customer, delete the rest, merge key fields
+router.post('/duplicates/merge', requireWriteAccess, async (req, res) => {
+  try {
+    const { keepId, deleteIds } = req.body;
+    if (!keepId || !Array.isArray(deleteIds) || !deleteIds.length) {
+      return res.status(400).json({ error: 'keepId and deleteIds are required' });
+    }
+
+    // Verify all belong to this client
+    const all = await Customer.find({ _id: { $in: [keepId, ...deleteIds] }, client: req.client.id }).lean();
+    if (all.length !== deleteIds.length + 1) return res.status(404).json({ error: 'One or more customers not found' });
+
+    const keep = all.find(c => String(c._id) === String(keepId));
+
+    // Fill in missing fields on the kept customer from the deleted ones
+    const patch = {};
+    for (const field of ['bvn', 'nin', 'phone', 'email', 'address']) {
+      if (!keep[field]) {
+        const donor = all.find(c => String(c._id) !== String(keepId) && c[field]);
+        if (donor) patch[field] = donor[field];
+      }
+    }
+    if (Object.keys(patch).length) await Customer.findByIdAndUpdate(keepId, patch);
+
+    await Customer.deleteMany({ _id: { $in: deleteIds }, client: req.client.id });
+    AuditLog.create({ client: req.client.id, action: 'CUSTOMERS_MERGED', entityType: 'Customer', entityId: keepId, label: `Merged ${deleteIds.length} duplicate(s) into ${keep.name}`, meta: { keepId, deleteIds } }).catch(() => {});
+
+    res.json({ success: true, merged: deleteIds.length });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Get single customer with all their analyses
 router.get('/:id', async (req, res) => {
@@ -172,7 +242,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Update customer
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', requireWriteAccess, async (req, res) => {
   try {
     const { name, email, bvn, nin, phone, address, customerType } = req.body;
     const customer = await Customer.findOneAndUpdate(
@@ -189,7 +259,7 @@ router.patch('/:id', async (req, res) => {
 });
 
 // Delete customer — cascade-deletes all associated analysis records
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireWriteAccess, async (req, res) => {
   try {
     const customer = await Customer.findOneAndDelete({ _id: req.params.id, client: req.client.id });
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
@@ -227,7 +297,7 @@ router.get('/:id/notes', async (req, res) => {
 });
 
 // Add a note
-router.post('/:id/notes', async (req, res) => {
+router.post('/:id/notes', requireWriteAccess, async (req, res) => {
   try {
     const { text, author } = req.body;
     if (!text || !text.trim()) return res.status(400).json({ error: 'text is required' });
@@ -248,7 +318,7 @@ router.post('/:id/notes', async (req, res) => {
 });
 
 // Delete a note
-router.delete('/:id/notes/:noteId', async (req, res) => {
+router.delete('/:id/notes/:noteId', requireWriteAccess, async (req, res) => {
   try {
     const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id }).lean();
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
@@ -350,6 +420,89 @@ router.get('/analyses/stats', async (req, res) => {
   }
 });
 
+// GET /analyses/analytics — time-series + funnel + top borrowers for the dashboard
+router.get('/analyses/analytics', async (req, res) => {
+  try {
+    const clientId = new mongoose.Types.ObjectId(req.client.id);
+
+    // Last 6 months: customers added per month
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+    sixMonthsAgo.setDate(1); sixMonthsAgo.setHours(0, 0, 0, 0);
+
+    const [customerTrend, loanReviewTrend, pipelineFunnel, topBorrowers, verdictBreakdown] = await Promise.all([
+      // Customers created per month
+      Customer.aggregate([
+        { $match: { client: clientId, createdAt: { $gte: sixMonthsAgo } } },
+        { $group: { _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } }, count: { $sum: 1 } } },
+        { $sort: { '_id.year': 1, '_id.month': 1 } },
+      ]),
+
+      // Loan reviews per month
+      LoanReview.aggregate([
+        { $match: { client: clientId, createdAt: { $gte: sixMonthsAgo } } },
+        { $group: { _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } }, count: { $sum: 1 }, eligible: { $sum: { $cond: [{ $eq: ['$verdict', 'ELIGIBLE'] }, 1, 0] } } } },
+        { $sort: { '_id.year': 1, '_id.month': 1 } },
+      ]),
+
+      // Pipeline funnel: count per status
+      Customer.aggregate([
+        { $match: { client: clientId } },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ]),
+
+      // Top 5 borrowers by loan amount
+      LoanReview.aggregate([
+        { $match: { client: clientId, verdict: 'ELIGIBLE' } },
+        { $sort: { loanAmount: -1 } },
+        { $limit: 5 },
+        { $lookup: { from: 'customers', localField: 'customer', foreignField: '_id', as: 'cust' } },
+        { $unwind: '$cust' },
+        { $project: { _id: 0, customerId: '$cust._id', name: '$cust.name', loanAmount: 1, verdict: 1, createdAt: 1 } },
+      ]),
+
+      // Verdict breakdown
+      LoanReview.aggregate([
+        { $match: { client: clientId } },
+        { $group: { _id: '$verdict', count: { $sum: 1 } } },
+      ]),
+    ]);
+
+    // Normalise funnel into ordered array
+    const FUNNEL_ORDER = ['applied', 'under_review', 'approved', 'rejected', 'disbursed'];
+    const funnelMap = Object.fromEntries(pipelineFunnel.map(f => [f._id, f.count]));
+    const funnel = FUNNEL_ORDER.map(s => ({ status: s, count: funnelMap[s] ?? 0 }));
+
+    // Normalise verdict breakdown
+    const verdictMap = Object.fromEntries(verdictBreakdown.map(v => [v._id, v.count]));
+
+    // Build month labels for last 6 months
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(); d.setMonth(d.getMonth() - i); d.setDate(1);
+      months.push({ year: d.getFullYear(), month: d.getMonth() + 1, label: d.toLocaleString('default', { month: 'short', year: '2-digit' }) });
+    }
+
+    const toMonthMap = (arr) => Object.fromEntries(arr.map(r => [`${r._id.year}-${r._id.month}`, r]));
+    const ctMap = toMonthMap(customerTrend);
+    const lrMap = toMonthMap(loanReviewTrend);
+
+    const trend = months.map(({ year, month, label }) => {
+      const key = `${year}-${month}`;
+      return {
+        label,
+        customers: ctMap[key]?.count ?? 0,
+        reviews: lrMap[key]?.count ?? 0,
+        eligible: lrMap[key]?.eligible ?? 0,
+      };
+    });
+
+    res.json({ trend, funnel, topBorrowers, verdictBreakdown: verdictMap });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Export all data for this MFI (NDPR data portability)
 router.get('/export/all', async (req, res) => {
   try {
@@ -382,7 +535,7 @@ router.get('/export/all', async (req, res) => {
 // ── Dashboard-level identity verification (JWT auth, no API key needed) ─────
 
 // BVN verification via dashboard (Dojah)
-router.post('/verify/bvn', async (req, res) => {
+router.post('/verify/bvn', requireWriteAccess, async (req, res) => {
   try {
     const { bvn, customerId } = req.body;
     if (!bvn) return res.status(400).json({ error: 'bvn is required' });
@@ -445,7 +598,7 @@ router.post('/verify/bvn', async (req, res) => {
 });
 
 // NIN verification via dashboard (Dojah)
-router.post('/verify/nin', async (req, res) => {
+router.post('/verify/nin', requireWriteAccess, async (req, res) => {
   try {
     const { nin, customerId } = req.body;
     if (!nin) return res.status(400).json({ error: 'nin is required' });
@@ -623,7 +776,7 @@ router.get('/:id/scorecards', async (req, res) => {
 });
 
 // POST /:id/scorecards — save a scorecard from dashboard
-router.post('/:id/scorecards', async (req, res) => {
+router.post('/:id/scorecards', requireWriteAccess, async (req, res) => {
   try {
     const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id });
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
@@ -635,17 +788,46 @@ router.post('/:id/scorecards', async (req, res) => {
 });
 
 // PATCH /:id/status — update loan pipeline status
-router.patch('/:id/status', async (req, res) => {
+router.patch('/:id/status', requireWriteAccess, async (req, res) => {
   try {
     const VALID = ['applied', 'under_review', 'approved', 'rejected', 'disbursed'];
     const { status } = req.body;
     if (!VALID.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+
+    // Watchlist auto-block: cannot approve or disburse a watchlisted customer
+    if (['approved', 'disbursed'].includes(status)) {
+      const [bvnFlag, ninFlag] = await Promise.all([
+        BVNResult.findOne({ customer: req.params.id, 'result.watchListed': true }),
+        NINResult.findOne({ customer: req.params.id, 'result.watchListed': true }),
+      ]);
+      if (bvnFlag || ninFlag) {
+        return res.status(422).json({
+          error: 'Cannot approve or disburse a watchlisted customer',
+          watchlisted: true,
+          source: bvnFlag && ninFlag ? 'BVN and NIN' : bvnFlag ? 'BVN' : 'NIN',
+        });
+      }
+    }
+
     const customer = await Customer.findOneAndUpdate(
       { _id: req.params.id, client: req.client.id },
       { status }, { new: true }
     );
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
     AuditLog.create({ client: req.client.id, action: 'STATUS_CHANGED', entityType: 'Customer', entityId: customer._id, label: `Pipeline status changed to ${status}: ${customer.name}`, meta: { status, name: customer.name } }).catch(() => {});
+
+    // Email admins on meaningful stage transitions
+    if (['approved', 'disbursed', 'rejected'].includes(status)) {
+      getAdminEmails(req.client.id).then(emails => {
+        const dashboardUrl = `https://mfi-data.vercel.app/dashboard/customers/${customer._id}`;
+        emails.forEach(email => sendStaffStatusChangeAlert(email, {
+          customerName: customer.name,
+          newStatus: status,
+          dashboardUrl,
+        }).catch(() => {}));
+      }).catch(() => {});
+    }
+
     res.json({ customer });
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
@@ -664,7 +846,7 @@ router.get('/:id/loan-reviews', async (req, res) => {
 });
 
 // POST /:id/loan-reviews — save a review run
-router.post('/:id/loan-reviews', async (req, res) => {
+router.post('/:id/loan-reviews', requireWriteAccess, async (req, res) => {
   try {
     const mfiClient = await MFIClient.findById(req.client.id).lean();
     const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id });
@@ -690,6 +872,17 @@ router.post('/:id/loan-reviews', async (req, res) => {
       meta: { customerId: customer._id, reviewId: review._id, verdict: review.verdict },
     });
 
+    // Email all admins
+    getAdminEmails(req.client.id).then(emails => {
+      const dashboardUrl = `https://mfi-data.vercel.app/dashboard/customers/${customer._id}`;
+      emails.forEach(email => sendStaffLoanReviewAlert(email, {
+        customerName: customer.name,
+        verdict: review.verdict,
+        loanAmount: review.loanAmount,
+        dashboardUrl,
+      }).catch(() => {}));
+    }).catch(() => {});
+
     res.json({ review });
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
@@ -697,7 +890,7 @@ router.post('/:id/loan-reviews', async (req, res) => {
 });
 
 // POST /bulk/verify — batch BVN/NIN verification
-router.post('/bulk/verify', async (req, res) => {
+router.post('/bulk/verify', requireWriteAccess, async (req, res) => {
   try {
     const { items, type } = req.body; // items: [{customerId, number}], type: 'bvn'|'nin'
     if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'items required' });
@@ -749,7 +942,7 @@ router.post('/bulk/verify', async (req, res) => {
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } });
 
-router.post('/import', upload.single('file'), async (req, res) => {
+router.post('/import', requireWriteAccess, upload.single('file'), async (req, res) => {
   try {
     let csvText = '';
     if (req.file) {

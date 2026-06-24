@@ -45,8 +45,10 @@ export function AuthProvider({ children }) {
     setClient(null);
   };
 
+  const isViewer = client?._type === 'member' && client?.role === 'viewer';
+
   return (
-    <AuthContext.Provider value={{ client, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ client, login, register, logout, loading, isViewer }}>
       {children}
     </AuthContext.Provider>
   );

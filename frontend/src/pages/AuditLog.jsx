@@ -8,8 +8,15 @@ const ACTION_LABEL = {
   STATEMENT_ANALYSIS: 'Statement Analysis',
   STATEMENT_REANALYSIS: 'Statement Re-analysis',
   CUSTOMER_CREATED: 'Customer Created',
+  CUSTOMER_UPDATED: 'Customer Updated',
   CUSTOMER_DELETED: 'Customer Deleted',
   NOTE_ADDED: 'Note Added',
+  NOTE_DELETED: 'Note Deleted',
+  LOAN_REVIEW_CREATED: 'Loan Review',
+  STATUS_CHANGED: 'Status Changed',
+  BULK_STATUS_CHANGE: 'Bulk Status Change',
+  MERGE_DUPLICATES: 'Duplicates Merged',
+  SCORECARD_SAVED: 'Scorecard Saved',
 };
 
 const ACTION_COLOR = {
@@ -19,8 +26,15 @@ const ACTION_COLOR = {
   STATEMENT_ANALYSIS: ['#e0f2fe', '#0ea5e9'],
   STATEMENT_REANALYSIS: ['#f0f9ff', '#0284c7'],
   CUSTOMER_CREATED: ['#f0fdf4', '#16a34a'],
+  CUSTOMER_UPDATED: ['#f0fdf4', '#16a34a'],
   CUSTOMER_DELETED: ['#fee2e2', '#dc2626'],
   NOTE_ADDED: ['#f5f3ff', '#7c3aed'],
+  NOTE_DELETED: ['#fee2e2', '#dc2626'],
+  LOAN_REVIEW_CREATED: ['#fef3c7', '#d97706'],
+  STATUS_CHANGED: ['#dbeafe', '#1d4ed8'],
+  BULK_STATUS_CHANGE: ['#dbeafe', '#1d4ed8'],
+  MERGE_DUPLICATES: ['#fee2e2', '#dc2626'],
+  SCORECARD_SAVED: ['#f0fdf4', '#16a34a'],
 };
 
 const ALL_ACTIONS = Object.keys(ACTION_LABEL);
@@ -30,6 +44,8 @@ export default function AuditLog() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [actionFilter, setActionFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
 
@@ -37,13 +53,16 @@ export default function AuditLog() {
     setLoading(true);
     const params = new URLSearchParams({ limit: PAGE_SIZE, skip: page * PAGE_SIZE });
     if (actionFilter) params.set('action', actionFilter);
+    if (dateFrom) params.set('dateFrom', dateFrom);
+    if (dateTo) params.set('dateTo', dateTo);
     api.get(`/api/audit?${params}`)
       .then(({ data }) => { setLogs(data.logs || []); setTotal(data.total || 0); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [actionFilter, page]);
+  }, [actionFilter, dateFrom, dateTo, page]);
 
   function changeFilter(val) { setActionFilter(val); setPage(0); }
+  function clearDates() { setDateFrom(''); setDateTo(''); setPage(0); }
 
   return (
     <div>
@@ -54,7 +73,19 @@ export default function AuditLog() {
         </div>
       </div>
 
-      {/* Filter bar */}
+      {/* Date range filter */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
+        <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(0); }}
+          style={{ padding: '6px 10px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none', color: '#334155' }} />
+        <span style={{ fontSize: 12, color: '#94a3b8' }}>to</span>
+        <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(0); }}
+          style={{ padding: '6px 10px', borderRadius: 8, border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none', color: '#334155' }} />
+        {(dateFrom || dateTo) && (
+          <button onClick={clearDates} style={{ fontSize: 12, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer' }}>✕ Clear</button>
+        )}
+      </div>
+
+      {/* Action filter bar */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
         <button style={{ ...s.pill, ...(actionFilter === '' ? s.pillActive : {}) }} onClick={() => changeFilter('')}>All Actions</button>
         {ALL_ACTIONS.map(a => (

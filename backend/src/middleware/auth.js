@@ -108,4 +108,13 @@ const logUsage = (endpoint) => async (req, res, next) => {
   next();
 };
 
-module.exports = { requireJWT, requireApiKey, logUsage };
+// Viewer members can read but cannot create/update/delete
+// Org owners and admin members always pass
+const requireWriteAccess = (req, res, next) => {
+  if (req.client._type === 'member' && req.client.role === 'viewer') {
+    return res.status(403).json({ error: 'Viewers cannot perform this action. Ask an admin to do it.' });
+  }
+  next();
+};
+
+module.exports = { requireJWT, requireApiKey, logUsage, requireWriteAccess };

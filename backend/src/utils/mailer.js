@@ -184,4 +184,57 @@ async function sendTeamInvite(to, { inviterName, orgName, inviteUrl, role }) {
   });
 }
 
-module.exports = { sendPasswordReset, sendWelcome, sendLoanDecision, sendPlanLimitWarning, sendVerificationEmail, sendTeamInvite };
+// Notify org owner (and admin members) when a loan review is completed
+async function sendStaffLoanReviewAlert(to, { staffName, customerName, verdict, loanAmount, dashboardUrl }) {
+  const verdictColor = verdict === 'ELIGIBLE' ? '#16a34a' : verdict === 'CONDITIONAL' ? '#d97706' : '#dc2626';
+  const verdictLabel = verdict === 'ELIGIBLE' ? 'Eligible' : verdict === 'CONDITIONAL' ? 'Conditional' : 'Not Eligible';
+  await sendMail({
+    to,
+    subject: `Loan review complete — ${customerName} is ${verdictLabel}`,
+    html: `
+      <div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:12px">
+        <div style="font-size:22px;font-weight:800;color:#0ea5e9;margin-bottom:8px">Lucred MFI</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:28px">Staff Notification</div>
+        <h2 style="font-size:18px;color:#0f172a;margin:0 0 12px">Loan review ready for ${staffName ? staffName : 'your team'}</h2>
+        <div style="background:#fff;border-left:4px solid ${verdictColor};border-radius:8px;padding:16px 20px;margin-bottom:20px">
+          <div style="font-size:13px;color:#64748b;margin-bottom:4px">Customer</div>
+          <div style="font-size:16px;font-weight:700;color:#0f172a;margin-bottom:8px">${customerName}</div>
+          <div style="font-size:12px;color:#64748b">Verdict: <strong style="color:${verdictColor}">${verdictLabel}</strong>${loanAmount ? ` · ₦${Number(loanAmount).toLocaleString()}` : ''}</div>
+        </div>
+        <a href="${dashboardUrl}" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
+          View Customer →
+        </a>
+        <p style="color:#94a3b8;font-size:12px;margin-top:28px">You're receiving this because you are an admin on this Lucred MFI account.</p>
+      </div>
+    `,
+  });
+}
+
+// Notify org owner when a customer's pipeline status changes
+async function sendStaffStatusChangeAlert(to, { staffName, customerName, newStatus, dashboardUrl }) {
+  const STATUS_LABEL = { applied: 'Applied', under_review: 'Under Review', approved: 'Approved', rejected: 'Rejected', disbursed: 'Disbursed' };
+  const STATUS_COLOR = { applied: '#1d4ed8', under_review: '#d97706', approved: '#16a34a', rejected: '#dc2626', disbursed: '#6d28d9' };
+  const color = STATUS_COLOR[newStatus] ?? '#64748b';
+  await sendMail({
+    to,
+    subject: `${customerName} moved to ${STATUS_LABEL[newStatus] ?? newStatus}`,
+    html: `
+      <div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:12px">
+        <div style="font-size:22px;font-weight:800;color:#0ea5e9;margin-bottom:8px">Lucred MFI</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:28px">Pipeline Notification</div>
+        <h2 style="font-size:18px;color:#0f172a;margin:0 0 12px">Pipeline status updated</h2>
+        <div style="background:#fff;border-left:4px solid ${color};border-radius:8px;padding:16px 20px;margin-bottom:20px">
+          <div style="font-size:13px;color:#64748b;margin-bottom:4px">Customer</div>
+          <div style="font-size:16px;font-weight:700;color:#0f172a;margin-bottom:8px">${customerName}</div>
+          <div style="font-size:12px;color:#64748b">New status: <strong style="color:${color}">${STATUS_LABEL[newStatus] ?? newStatus}</strong></div>
+        </div>
+        <a href="${dashboardUrl}" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
+          View Customer →
+        </a>
+        <p style="color:#94a3b8;font-size:12px;margin-top:28px">You're receiving this because you are an admin on this Lucred MFI account.</p>
+      </div>
+    `,
+  });
+}
+
+module.exports = { sendPasswordReset, sendWelcome, sendLoanDecision, sendPlanLimitWarning, sendVerificationEmail, sendTeamInvite, sendStaffLoanReviewAlert, sendStaffStatusChangeAlert };

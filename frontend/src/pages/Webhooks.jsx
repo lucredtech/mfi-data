@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 function authHeaders() { return { Authorization: `Bearer ${localStorage.getItem('token')}` }; }
@@ -17,6 +18,7 @@ const ALL_EVENTS = [
 const STATUS_COLOR = (s) => s >= 200 && s < 300 ? '#16a34a' : s === 0 ? '#64748b' : '#dc2626';
 
 export default function Webhooks() {
+  const { isViewer } = useAuth();
   const [hooks, setHooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -111,7 +113,7 @@ export default function Webhooks() {
           <h1 style={s.h1}>Webhooks</h1>
           <p style={s.sub}>Get notified in real time when events happen in your Lucred account.</p>
         </div>
-        <button style={s.btn} onClick={() => setShowForm(f => !f)}>{showForm ? 'Cancel' : '+ Add Endpoint'}</button>
+        {!isViewer && <button style={s.btn} onClick={() => setShowForm(f => !f)}>{showForm ? 'Cancel' : '+ Add Endpoint'}</button>}
       </div>
 
       {showForm && (
@@ -231,6 +233,7 @@ export default function Webhooks() {
                     </div>
                   )}
                 </div>
+                {!isViewer && (
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
                   <button onClick={() => test(h._id)} disabled={testing[h._id]} style={{ ...s.ghostBtn, color: '#6d28d9', borderColor: '#6d28d9' }}>
                     {testing[h._id] ? 'Sending…' : 'Send Test'}
@@ -240,6 +243,7 @@ export default function Webhooks() {
                   </button>
                   <button onClick={() => remove(h._id)} style={{ ...s.ghostBtn, color: '#dc2626', borderColor: '#dc2626' }}>Delete</button>
                 </div>
+                )}
               </div>
             </div>
           ))}

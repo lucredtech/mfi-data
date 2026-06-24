@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { parseApiError, isUnauthorized } from '../utils/apiError';
 import { exportLoanReviewPDF } from '../services/exportLoanReviewPDF';
 import { exportCustomerReportPDF } from '../services/exportCustomerReportPDF';
+import { useAuth } from '../context/AuthContext';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -47,6 +48,7 @@ function detectDiscrepancies(customer, bvnData, ninData) {
 }
 
 export default function CustomerDetail() {
+  const { isViewer } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
   const [tab, setTab] = useState('Overview');
@@ -107,13 +109,18 @@ export default function CustomerDetail() {
   }
 
   async function updateStatus(newStatus) {
+    if (isWatchlisted && ['approved', 'disbursed'].includes(newStatus)) {
+      toast.error('Cannot approve or disburse a watchlisted customer');
+      return;
+    }
     setUpdatingStatus(true);
     try {
       await axios.patch(`${API}/api/customers/${id}/status`, { status: newStatus }, { headers: authHeaders() });
       setCustomerStatus(newStatus);
       toast.success('Status updated');
-    } catch {
-      toast.error('Failed to update status');
+    } catch (err) {
+      const msg = err?.response?.data?.error;
+      toast.error(msg || 'Failed to update status');
     } finally {
       setUpdatingStatus(false);
     }
@@ -171,20 +178,25 @@ export default function CustomerDetail() {
         </div>
 
         <div style={s.headerActions}>
-          {/* Status dropdown */}
+          {/* Status dropdown — hidden for viewers */}
+          {!isViewer && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 }}>Status</span>
             <select
               value={currentStatus}
               onChange={e => updateStatus(e.target.value)}
               disabled={updatingStatus}
+              title={isWatchlisted ? 'Approved and Disbursed are blocked — customer is watchlisted' : undefined}
               style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 20, border: 'none', background: STATUS_COLORS[currentStatus]?.[0] ?? '#f1f5f9', color: STATUS_COLORS[currentStatus]?.[1] ?? '#64748b', cursor: 'pointer', outline: 'none' }}
             >
-              {['applied', 'under_review', 'approved', 'rejected', 'disbursed'].map(s => (
-                <option key={s} value={s}>{s.replace('_', ' ')}</option>
+              {['applied', 'under_review', 'approved', 'rejected', 'disbursed'].map(st => (
+                <option key={st} value={st} disabled={isWatchlisted && ['approved', 'disbursed'].includes(st)}>
+                  {st.replace('_', ' ')}{isWatchlisted && ['approved', 'disbursed'].includes(st) ? ' 🚫' : ''}
+                </option>
               ))}
             </select>
           </div>
+          )}
 
           {discrepancies.length > 0 && (
             <div
@@ -229,7 +241,8 @@ export default function CustomerDetail() {
         {tab === 'Loan Review' && <LoanReviewTab customer={customer} statements={statements || []} bvnResults={bvnResults || []} ninResults={ninResults || []} bureauResults={bureauResults || []} discrepancies={discrepancies} />}
       </div>
 
-      {/* Danger zone */}
+      {/* Danger zone — hidden for viewers */}
+      {!isViewer && (
       <div style={{ marginTop: 32, padding: '16px 20px', border: '1.5px solid #fecaca', borderRadius: 10, background: '#fff5f5', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#dc2626' }}>Delete customer</div>
@@ -239,6 +252,7 @@ export default function CustomerDetail() {
           Delete Customer
         </button>
       </div>
+      )}
     </div>
   );
 }
@@ -458,7 +472,8 @@ function OverviewTab({ customer, statements, bvnResults, ninResults, bureauResul
           <span style={{ fontSize: 12, color: '#94a3b8' }}>{notes.length} note{notes.length !== 1 ? 's' : ''}</span>
         </div>
 
-        {/* Add note form */}
+        {/* Add note form — hidden for viewers */}
+        {!isViewer && (
         <div style={{ marginBottom: 16 }}>
           <textarea
             value={noteText}
@@ -484,6 +499,7 @@ function OverviewTab({ customer, statements, bvnResults, ninResults, bureauResul
             </button>
           </div>
         </div>
+        )}
 
         {/* Note list */}
         {notes.length === 0 && <div style={s.empty}>No notes yet. Add a note above to record observations about this customer.</div>}
@@ -496,6 +512,7 @@ function OverviewTab({ customer, statements, bvnResults, ninResults, bureauResul
                   {note.author || 'Credit Officer'} · {new Date(note.createdAt).toLocaleString()}
                 </div>
               </div>
+              {!isViewer && (
               <button
                 onClick={() => deleteNote(note._id)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#cbd5e1', fontSize: 16, padding: '0 4px', lineHeight: 1, flexShrink: 0 }}
@@ -503,6 +520,7 @@ function OverviewTab({ customer, statements, bvnResults, ninResults, bureauResul
               >
                 ×
               </button>
+              )}
             </div>
           </div>
         ))}

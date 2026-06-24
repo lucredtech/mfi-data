@@ -162,9 +162,14 @@ router.post('/api/statements/:id/reanalyze', requireJWT, reanalyzeUpload.single(
 router.get('/api/audit', requireJWT, async (req, res) => {
   try {
     const AuditLog = require('../models/AuditLog');
-    const { action, limit = 100, skip = 0 } = req.query;
+    const { action, limit = 100, skip = 0, dateFrom, dateTo } = req.query;
     const filter = { client: req.client.id };
     if (action) filter.action = action;
+    if (dateFrom || dateTo) {
+      filter.createdAt = {};
+      if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
+      if (dateTo) { const d = new Date(dateTo); d.setHours(23, 59, 59, 999); filter.createdAt.$lte = d; }
+    }
     const [logs, total] = await Promise.all([
       AuditLog.find(filter).sort({ createdAt: -1 }).limit(Number(limit)).skip(Number(skip)).lean(),
       AuditLog.countDocuments(filter),

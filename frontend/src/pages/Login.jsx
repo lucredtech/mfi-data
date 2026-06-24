@@ -48,7 +48,7 @@ export default function Login() {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <div style={styles.logo}>Lucred</div>
+        <div style={styles.logo}>Lucred MFI</div>
 
         <div style={{ display: 'flex', background: '#f1f5f9', borderRadius: 8, padding: 3, marginBottom: 24, gap: 2 }}>
           {[['org', 'Organisation'], ['member', 'Team Member']].map(([t, label]) => (

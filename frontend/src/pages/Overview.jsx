@@ -5,37 +5,50 @@ import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { exportStatementsCSV } from '../services/exportCSV';
 import OnboardingBanner from '../components/OnboardingBanner';
+import {
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, Cell, PieChart, Pie, Legend,
+} from 'recharts';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
+function authHeaders() { return { Authorization: `Bearer ${localStorage.getItem('token')}` }; }
 
-function authHeaders() {
-  return { Authorization: `Bearer ${localStorage.getItem('token')}` };
-}
+const FUNNEL_COLORS = {
+  applied: '#1d4ed8', under_review: '#d97706', approved: '#16a34a',
+  rejected: '#dc2626', disbursed: '#6d28d9',
+};
+const VERDICT_COLORS = { ELIGIBLE: '#16a34a', CONDITIONAL: '#d97706', NOT_ELIGIBLE: '#dc2626' };
+const FUNNEL_LABEL = { applied: 'Applied', under_review: 'Under Review', approved: 'Approved', rejected: 'Rejected', disbursed: 'Disbursed' };
 
 export default function Overview() {
   const { client } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
   const [statements, setStatements] = useState([]);
   const [search, setSearch] = useState('');
   const [searching, setSearching] = useState(false);
-
   const [hasApiKey, setHasApiKey] = useState(false);
 
   const fetchStats = useCallback(async () => {
     try {
       const { data } = await axios.get(`${API}/api/customers/analyses/stats`, { headers: authHeaders() });
       setStats(data);
-    } catch {
-      // backend not yet connected
-    }
+    } catch {}
+  }, []);
+
+  const fetchAnalytics = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${API}/api/customers/analyses/analytics`, { headers: authHeaders() });
+      setAnalytics(data);
+    } catch {}
   }, []);
 
   const fetchApiKeys = useCallback(async () => {
     try {
       const { data } = await api.get('/api/keys');
       setHasApiKey((data.keys || data)?.length > 0);
-    } catch { /* silent */ }
+    } catch {}
   }, []);
 
   const fetchStatements = useCallback(async (q = '') => {
@@ -43,44 +56,50 @@ export default function Overview() {
     try {
       const { data } = await api.get('/api/statements', { params: q ? { q } : {} });
       setStatements(data.statements);
-    } catch {
-      // backend not yet connected
-    } finally {
-      setSearching(false);
-    }
+    } catch {} finally { setSearching(false); }
   }, []);
 
   useEffect(() => {
-    fetchStats();
-    fetchStatements();
-    fetchApiKeys();
-  }, [fetchStats, fetchStatements, fetchApiKeys]);
+    fetchStats(); fetchAnalytics(); fetchStatements(); fetchApiKeys();
+  }, [fetchStats, fetchAnalytics, fetchStatements, fetchApiKeys]);
 
   useEffect(() => {
     const t = setTimeout(() => fetchStatements(search), 350);
     return () => clearTimeout(t);
   }, [search, fetchStatements]);
 
+  const hasData = analytics && (
+    analytics.trend?.some(t => t.customers > 0 || t.reviews > 0) ||
+    analytics.funnel?.some(f => f.count > 0)
+  );
+
+  const verdictPie = analytics ? [
+    { name: 'Eligible', value: analytics.verdictBreakdown?.ELIGIBLE ?? 0, color: '#16a34a' },
+    { name: 'Conditional', value: analytics.verdictBreakdown?.CONDITIONAL ?? 0, color: '#d97706' },
+    { name: 'Not Eligible', value: analytics.verdictBreakdown?.NOT_ELIGIBLE ?? 0, color: '#dc2626' },
+  ].filter(d => d.value > 0) : [];
+
+  const approvalRate = analytics
+    ? (() => {
+        const total = (analytics.verdictBreakdown?.ELIGIBLE ?? 0) + (analytics.verdictBreakdown?.CONDITIONAL ?? 0) + (analytics.verdictBreakdown?.NOT_ELIGIBLE ?? 0);
+        return total > 0 ? Math.round(((analytics.verdictBreakdown?.ELIGIBLE ?? 0) / total) * 100) : null;
+      })()
+    : null;
+
   return (
     <div>
       <OnboardingBanner stats={stats} hasApiKey={hasApiKey} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
         <div>
-          <h1 style={s.h1}>Welcome, {client?.organizationName}</h1>
+          <h1 style={s.h1}>Welcome, {client?.organizationName || client?.name}</h1>
           <p style={s.sub}>Your credit analysis dashboard</p>
         </div>
-        <button
-          style={s.exportBtn}
-          onClick={async () => {
-            const { default: exportSummaryPDF } = await import('../services/exportSummaryPDF');
-            exportSummaryPDF({ stats, orgName: client?.organizationName });
-          }}
-        >
-          ↓ Export Summary PDF
-        </button>
+        <button style={s.exportBtn} onClick={async () => {
+          const { default: exportSummaryPDF } = await import('../services/exportSummaryPDF');
+          exportSummaryPDF({ stats, orgName: client?.organizationName });
+        }}>↓ Export Summary PDF</button>
       </div>
 
-      {/* Empty state — shown when stats loaded but everything is zero */}
       {stats && stats.customers === 0 && !stats.statements?.total && !stats.bvn?.total && (
         <div style={{ background: 'linear-gradient(135deg,#f0f9ff,#e0f2fe)', border: '1.5px solid #bae6fd', borderRadius: 14, padding: '2rem', marginBottom: 28, textAlign: 'center' }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>👋</div>
@@ -95,42 +114,122 @@ export default function Overview() {
 
       {/* Stat cards */}
       <div style={s.statRow}>
-        <StatCard
-          label="Customers"
-          value={stats?.customers ?? '—'}
-          sub="Borrower profiles"
-          color="#0ea5e9"
-          onClick={() => navigate('/dashboard/customers')}
-        />
-        <StatCard
-          label="Statement Analyses"
-          value={stats?.statements?.total ?? '—'}
-          sub={stats?.statements ? `${stats.statements.failed ?? 0} failed` : ''}
-          color="#6d28d9"
-          onClick={() => navigate('/dashboard/statement')}
-        />
-        <StatCard
-          label="BVN Verifications"
-          value={stats?.bvn?.total ?? '—'}
-          sub={stats?.bvn ? `${stats.bvn.failed ?? 0} failed` : ''}
-          color="#16a34a"
-          onClick={() => navigate('/dashboard/bvn')}
-        />
-        <StatCard
-          label="NIN Verifications"
-          value={stats?.nin?.total ?? '—'}
-          sub={stats?.nin ? `${stats.nin.failed ?? 0} failed` : ''}
-          color="#6d28d9"
-          onClick={() => navigate('/dashboard/nin')}
-        />
-        <StatCard
-          label="Bureau Checks"
-          value={stats?.bureau?.total ?? '—'}
-          sub={stats?.bureau ? `${stats.bureau.failed ?? 0} failed` : ''}
-          color="#f59e0b"
-          onClick={() => navigate('/dashboard/credit-bureau')}
-        />
+        <StatCard label="Customers" value={stats?.customers ?? '—'} sub="Borrower profiles" color="#0ea5e9" onClick={() => navigate('/dashboard/customers')} />
+        <StatCard label="Statement Analyses" value={stats?.statements?.total ?? '—'} sub={stats?.statements ? `${stats.statements.failed ?? 0} failed` : ''} color="#6d28d9" onClick={() => navigate('/dashboard/statement')} />
+        <StatCard label="BVN Verifications" value={stats?.bvn?.total ?? '—'} sub={stats?.bvn ? `${stats.bvn.failed ?? 0} failed` : ''} color="#16a34a" onClick={() => navigate('/dashboard/bvn')} />
+        <StatCard label="NIN Verifications" value={stats?.nin?.total ?? '—'} sub={stats?.nin ? `${stats.nin.failed ?? 0} failed` : ''} color="#6d28d9" onClick={() => navigate('/dashboard/nin')} />
+        <StatCard label="Bureau Checks" value={stats?.bureau?.total ?? '—'} sub={stats?.bureau ? `${stats.bureau.failed ?? 0} failed` : ''} color="#f59e0b" onClick={() => navigate('/dashboard/credit-bureau')} />
+        {approvalRate !== null && (
+          <StatCard label="Approval Rate" value={`${approvalRate}%`} sub="Eligible loan reviews" color="#16a34a" onClick={() => navigate('/dashboard/pipeline')} />
+        )}
       </div>
+
+      {/* Analytics charts — only shown when there is data */}
+      {hasData && (
+        <>
+          {/* Row 1: trend + funnel */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, marginBottom: 16 }}>
+
+            {/* Customer & review trend */}
+            <div style={s.box}>
+              <h3 style={s.boxTitle}>Activity — Last 6 Months</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={analytics.trend} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                  <Bar dataKey="customers" name="New customers" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="reviews" name="Loan reviews" fill="#6d28d9" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+              <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+                {[['#0ea5e9', 'New customers'], ['#6d28d9', 'Loan reviews']].map(([color, label]) => (
+                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#64748b' }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 2, background: color }} />{label}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Pipeline funnel */}
+            <div style={s.box}>
+              <h3 style={s.boxTitle}>Loan Pipeline Funnel</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                {(() => {
+                  const total = analytics.funnel.reduce((a, f) => a + f.count, 0) || 1;
+                  return analytics.funnel.map(f => (
+                    <div key={f.status}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
+                        <span style={{ fontWeight: 600, color: FUNNEL_COLORS[f.status] }}>{FUNNEL_LABEL[f.status]}</span>
+                        <span style={{ color: '#64748b' }}>{f.count}</span>
+                      </div>
+                      <div style={{ height: 8, background: '#f1f5f9', borderRadius: 4, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${(f.count / total) * 100}%`, background: FUNNEL_COLORS[f.status], borderRadius: 4, transition: 'width 0.5s' }} />
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: eligible trend + verdict breakdown + top borrowers */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 16 }}>
+
+            {/* Eligible approvals trend */}
+            {analytics.trend.some(t => t.eligible > 0) && (
+              <div style={s.box}>
+                <h3 style={s.boxTitle}>Eligible Approvals Trend</h3>
+                <ResponsiveContainer width="100%" height={160}>
+                  <LineChart data={analytics.trend} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                    <Line type="monotone" dataKey="eligible" name="Eligible" stroke="#16a34a" strokeWidth={2.5} dot={{ r: 4, fill: '#16a34a' }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Verdict pie */}
+            {verdictPie.length > 0 && (
+              <div style={s.box}>
+                <h3 style={s.boxTitle}>Loan Review Verdicts</h3>
+                <ResponsiveContainer width="100%" height={160}>
+                  <PieChart>
+                    <Pie data={verdictPie} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} paddingAngle={3}>
+                      {verdictPie.map((entry) => <Cell key={entry.name} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                    <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Top borrowers */}
+            {analytics.topBorrowers?.length > 0 && (
+              <div style={s.box}>
+                <h3 style={s.boxTitle}>Top Approved Borrowers</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                  {analytics.topBorrowers.map((b, i) => (
+                    <div key={b.customerId} onClick={() => navigate(`/dashboard/customers/${b.customerId}`)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '6px 0', borderBottom: i < analytics.topBorrowers.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg,#0ea5e9,#6d28d9)', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {b.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.name}</div>
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#16a34a', flexShrink: 0 }}>₦{Number(b.loanAmount).toLocaleString()}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Recent statement analyses */}
       <div style={s.box}>
@@ -140,17 +239,11 @@ export default function Overview() {
             {statements.length > 0 && (
               <button style={s.csvBtn} onClick={() => exportStatementsCSV(statements)}>↓ CSV</button>
             )}
-            <input
-              style={s.search}
-              placeholder="Search by name, email, bank…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <input style={s.search} placeholder="Search by name, email, bank…" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
         </div>
 
         {searching && <p style={s.hint}>Searching…</p>}
-
         {!searching && statements.length === 0 && (
           <div style={s.empty}>
             <div style={{ fontWeight: 600, color: '#334155' }}>No analyses yet</div>
@@ -159,37 +252,23 @@ export default function Overview() {
             </div>
           </div>
         )}
-
         {statements.length > 0 && (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr>
-                {['Account Name', 'Email', 'Bank', 'File', 'Status', 'Date', ''].map(h => (
-                  <th key={h} style={s.th}>{h}</th>
-                ))}
-              </tr>
+              <tr>{['Account Name', 'Email', 'Bank', 'File', 'Status', 'Date', ''].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
             </thead>
             <tbody>
               {statements.map((st) => (
-                <tr key={st._id} style={{ cursor: 'pointer' }}
-                  onClick={() => navigate(`/dashboard/statements/${st._id}`)}>
+                <tr key={st._id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/dashboard/statements/${st._id}`)}>
                   <td style={s.td}>{st.accountName || '—'}</td>
                   <td style={s.td}>{st.email || '—'}</td>
                   <td style={s.td}>{st.bankName ? capitalize(st.bankName) : '—'}</td>
                   <td style={s.td}>{st.filename || '—'}</td>
                   <td style={s.td}>
-                    <span style={{
-                      ...s.badge,
-                      background: st.status === 'success' ? '#dcfce7' : '#fee2e2',
-                      color: st.status === 'success' ? '#16a34a' : '#dc2626',
-                    }}>
-                      {st.status}
-                    </span>
+                    <span style={{ ...s.badge, background: st.status === 'success' ? '#dcfce7' : '#fee2e2', color: st.status === 'success' ? '#16a34a' : '#dc2626' }}>{st.status}</span>
                   </td>
                   <td style={s.td}>{new Date(st.createdAt).toLocaleString()}</td>
-                  <td style={s.td}>
-                    <span style={{ color: '#0ea5e9', fontWeight: 600, fontSize: 12 }}>View →</span>
-                  </td>
+                  <td style={s.td}><span style={{ color: '#0ea5e9', fontWeight: 600, fontSize: 12 }}>View →</span></td>
                 </tr>
               ))}
             </tbody>
@@ -219,7 +298,7 @@ const s = {
   card: { background: '#fff', borderRadius: 12, padding: '1.25rem 1.5rem', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', transition: 'box-shadow 0.15s' },
   box: { background: '#fff', borderRadius: 12, padding: '1.5rem', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' },
   boxHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  boxTitle: { fontSize: 15, fontWeight: 600, color: '#0f172a', margin: 0 },
+  boxTitle: { fontSize: 15, fontWeight: 600, color: '#0f172a', margin: '0 0 4px' },
   search: { padding: '8px 14px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13, width: 260, outline: 'none' },
   hint: { color: '#94a3b8', fontSize: 13 },
   empty: { textAlign: 'center', padding: '3rem 0' },
