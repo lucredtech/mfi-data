@@ -36,6 +36,7 @@ export default function Usage() {
               <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{usage.thisMonth?.toLocaleString() ?? 0} API calls this month</span>
               {usage.limit != null && <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 8 }}>of {usage.limit.toLocaleString()} on {usage.plan} plan</span>}
               {usage.limit == null && <span style={{ fontSize: 12, color: '#16a34a', marginLeft: 8 }}>Unlimited — {usage.plan} plan</span>}
+              <ResetCountdown />
             </div>
             {usage.limit != null && usage.thisMonth / usage.limit > 0.8 && (
               <a href="/pricing" style={{ fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#dc2626', padding: '3px 10px', borderRadius: 20, textDecoration: 'none' }}>
@@ -97,6 +98,17 @@ export default function Usage() {
       {!usage && <p style={{ color: '#94a3b8' }}>Loading usage data…</p>}
       {usage && usage.total === 0 && <p style={{ color: '#94a3b8' }}>No requests yet. Start calling the API to see usage here.</p>}
     </div>
+  );
+}
+
+function ResetCountdown() {
+  const now = new Date();
+  const reset = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const daysLeft = Math.ceil((reset - now) / (1000 * 60 * 60 * 24));
+  return (
+    <span style={{ fontSize: 12, color: '#94a3b8', marginLeft: 10 }}>
+      · resets in {daysLeft} day{daysLeft !== 1 ? 's' : ''}
+    </span>
   );
 }
 

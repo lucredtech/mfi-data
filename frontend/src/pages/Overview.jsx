@@ -20,6 +20,8 @@ export default function Overview() {
   const [search, setSearch] = useState('');
   const [searching, setSearching] = useState(false);
 
+  const [hasApiKey, setHasApiKey] = useState(false);
+
   const fetchStats = useCallback(async () => {
     try {
       const { data } = await axios.get(`${API}/api/customers/analyses/stats`, { headers: authHeaders() });
@@ -27,6 +29,13 @@ export default function Overview() {
     } catch {
       // backend not yet connected
     }
+  }, []);
+
+  const fetchApiKeys = useCallback(async () => {
+    try {
+      const { data } = await api.get('/api/api-keys');
+      setHasApiKey((data.keys || data)?.length > 0);
+    } catch { /* silent */ }
   }, []);
 
   const fetchStatements = useCallback(async (q = '') => {
@@ -44,7 +53,8 @@ export default function Overview() {
   useEffect(() => {
     fetchStats();
     fetchStatements();
-  }, [fetchStats, fetchStatements]);
+    fetchApiKeys();
+  }, [fetchStats, fetchStatements, fetchApiKeys]);
 
   useEffect(() => {
     const t = setTimeout(() => fetchStatements(search), 350);
@@ -53,7 +63,7 @@ export default function Overview() {
 
   return (
     <div>
-      <OnboardingBanner stats={stats} />
+      <OnboardingBanner stats={stats} hasApiKey={hasApiKey} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
         <div>
           <h1 style={s.h1}>Welcome, {client?.organizationName}</h1>

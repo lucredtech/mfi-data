@@ -13,7 +13,7 @@ const STEPS = [
   { key: 'apikey',    label: 'Generate your API key',        path: '/dashboard/api-keys',      cta: 'Get API Key' },
 ];
 
-export default function OnboardingBanner({ stats }) {
+export default function OnboardingBanner({ stats, hasApiKey }) {
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(() => localStorage.getItem('onboarding_dismissed') === 'true');
 
@@ -24,7 +24,7 @@ export default function OnboardingBanner({ stats }) {
     bvn:       (stats?.bvn ?? 0) > 0,
     bureau:    (stats?.bureau ?? 0) > 0,
     statement: (stats?.statements ?? 0) > 0,
-    apikey:    !!localStorage.getItem('apiKey'),
+    apikey:    !!hasApiKey,
   };
 
   const doneCount = Object.values(completed).filter(Boolean).length;

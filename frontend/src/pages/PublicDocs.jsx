@@ -92,7 +92,11 @@ const ENDPOINTS = [
     title: 'Analyse Bank Statement',
     description: 'Upload a PDF bank statement for AI-powered analysis. Returns income, cash flow, spending behaviour, debt servicing ratio, and a risk grade (A–E).',
     contentType: 'multipart/form-data',
-    formFields: [{ key: 'statement', desc: 'PDF bank statement file (required)' }, { key: 'bankName', desc: 'Name of the bank (optional, improves parsing accuracy)' }, { key: 'password', desc: 'PDF password if the file is encrypted (optional)' }],
+    formFields: [
+      { key: 'statement', desc: 'PDF bank statement file (required)' },
+      { key: 'bankName', desc: 'Bank identifier string (optional but recommended — improves parsing accuracy). Supported values: access, fcmb, fidelity, firstbank, gtb, kuda, moniepoint, nova, opay, optimus, parallex, sterling, uba, vbank' },
+      { key: 'password', desc: 'PDF password if the file is encrypted (optional)' },
+    ],
     curlExample: `curl -X POST ${BASE}/v1/customers/64a1b2c3/statement \\
   -H "X-Api-Key: lcrd_your_api_key" \\
   -F "statement=@/path/to/statement.pdf" \\

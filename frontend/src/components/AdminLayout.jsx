@@ -5,6 +5,7 @@ const NAV = [
   { path: '/admin', label: 'Overview' },
   { path: '/admin/clients', label: 'MFI Clients' },
   { path: '/admin/feature-requests', label: 'Feature Requests' },
+  { path: '/admin/audit', label: 'Audit Log' },
 ];
 
 export default function AdminLayout({ children }) {

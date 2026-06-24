@@ -13,6 +13,10 @@ api.interceptors.response.use(
   (err) => {
     if (err.response?.status === 429 && err.response?.data?.upgradeUrl) {
       window.dispatchEvent(new CustomEvent('lucred:plan-limit'));
+      // Dynamically import toast to avoid circular deps
+      import('react-hot-toast').then(({ default: toast }) => {
+        toast.error(`Monthly API limit reached (${err.response.data.used}/${err.response.data.limit} calls). Upgrade to continue.`, { duration: 5000 });
+      });
     }
     return Promise.reject(err);
   }

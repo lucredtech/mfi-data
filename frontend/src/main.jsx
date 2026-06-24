@@ -39,6 +39,7 @@ import Security from './pages/Security';
 import Support from './pages/Support';
 import FeatureRequest from './pages/FeatureRequest';
 import AdminFeatureRequests from './pages/admin/AdminFeatureRequests';
+import AdminAuditLog from './pages/admin/AdminAuditLog';
 import Webhooks from './pages/Webhooks';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -97,6 +98,7 @@ function App() {
         <Route path="/admin/clients" element={<AdminRoute><AdminLayout><AdminClients /></AdminLayout></AdminRoute>} />
         <Route path="/admin/clients/:id" element={<AdminRoute><AdminLayout><AdminClientDetail /></AdminLayout></AdminRoute>} />
         <Route path="/admin/feature-requests" element={<AdminRoute><AdminLayout><AdminFeatureRequests /></AdminLayout></AdminRoute>} />
+        <Route path="/admin/audit" element={<AdminRoute><AdminLayout><AdminAuditLog /></AdminLayout></AdminRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>
