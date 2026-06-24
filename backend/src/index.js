@@ -8,6 +8,7 @@ const mongoose = require('mongoose');
 
 const authRoutes = require('./routes/auth');
 const statusRoutes = require('./routes/status');
+const teamRoutes = require('./routes/team');
 const adminRoutes = require('./routes/admin');
 const apiKeyRoutes = require('./routes/apiKeys');
 const creditRoutes = require('./routes/credit');
@@ -55,6 +56,7 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Protected dashboard routes
+app.use('/api/team', teamRoutes);
 app.use('/api/keys', apiKeyRoutes);
 app.use('/api/usage', usageRoutes);
 app.use('/api/customers', customerRoutes);

@@ -49,6 +49,8 @@ import Billing from './pages/Billing';
 import Changelog from './pages/Changelog';
 import VerifyEmail from './pages/VerifyEmail';
 import Status from './pages/Status';
+import Team from './pages/Team';
+import AcceptInvite from './pages/AcceptInvite';
 
 function PrivateRoute({ children }) {
   const { client, loading } = useAuth();
@@ -97,6 +99,8 @@ function App() {
         <Route path="/changelog" element={<Changelog />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/status" element={<Status />} />
+        <Route path="/accept-invite" element={<AcceptInvite />} />
+        <Route path="/dashboard/team" element={<PrivateRoute><Layout><Team /></Layout></PrivateRoute>} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/security" element={<Security />} />

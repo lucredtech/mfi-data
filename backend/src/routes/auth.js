@@ -2,6 +2,7 @@ const router = require('express').Router();
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const MFIClient = require('../models/MFIClient');
+const TeamMember = require('../models/TeamMember');
 const { sendPasswordReset, sendWelcome, sendVerificationEmail } = require('../utils/mailer');
 const ApiKey = require('../models/ApiKey');
 const Customer = require('../models/Customer');
@@ -279,6 +280,84 @@ router.post('/resend-verification', requireJWT, async (req, res) => {
     res.json({ message: 'Verification email sent.' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to resend verification email' });
+  }
+});
+
+// Validate invite token (GET — for pre-filling the accept form)
+router.get('/invite', async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ error: 'token is required' });
+    const hashed = crypto.createHash('sha256').update(token).digest('hex');
+    const member = await TeamMember.findOne({ inviteToken: hashed, inviteExpires: { $gt: new Date() }, status: 'pending' })
+      .populate('client', 'organizationName')
+      .lean();
+    if (!member) return res.status(400).json({ error: 'Invite link is invalid or has expired.' });
+    res.json({ email: member.email, role: member.role, orgName: member.client?.organizationName });
+  } catch {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Accept invite — set name + password, activate member
+router.post('/accept-invite', async (req, res) => {
+  try {
+    const { token, name, password } = req.body;
+    if (!token || !name || !password) return res.status(400).json({ error: 'token, name and password are required' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+    const hashed = crypto.createHash('sha256').update(token).digest('hex');
+    const member = await TeamMember.findOne({ inviteToken: hashed, inviteExpires: { $gt: new Date() }, status: 'pending' })
+      .populate('client', 'organizationName');
+    if (!member) return res.status(400).json({ error: 'Invite link is invalid or has expired.' });
+
+    member.name = name;
+    member.password = password;
+    member.status = 'active';
+    member.inviteToken = undefined;
+    member.inviteExpires = undefined;
+    await member.save();
+
+    const jwtToken = jwt.sign(
+      { id: member.client._id, email: member.email, _type: 'member', memberId: member._id, role: member.role, name },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    res.json({
+      token: jwtToken,
+      client: { id: member.client._id, organizationName: member.client.organizationName, email: member.email, role: member.role, name },
+    });
+  } catch (err) {
+    console.error('[auth] accept-invite error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Team member login
+router.post('/member-login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'email and password are required' });
+
+    const member = await TeamMember.findOne({ email: email.toLowerCase(), status: 'active' })
+      .populate('client', 'organizationName status');
+    if (!member || !(await member.comparePassword(password)))
+      return res.status(401).json({ error: 'Invalid credentials' });
+    if (member.client.status !== 'active')
+      return res.status(403).json({ error: 'Organisation account is suspended' });
+
+    const jwtToken = jwt.sign(
+      { id: member.client._id, email: member.email, _type: 'member', memberId: member._id, role: member.role, name: member.name },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    res.json({
+      token: jwtToken,
+      client: { id: member.client._id, organizationName: member.client.organizationName, email: member.email, role: member.role, name: member.name },
+    });
+  } catch (err) {
+    console.error('[auth] member-login error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

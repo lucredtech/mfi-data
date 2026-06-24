@@ -4,6 +4,12 @@ const { requireJWT } = require('../middleware/auth');
 
 router.use(requireJWT);
 
+const viewerBlocked = (req, res, next) => {
+  if (req.client._type === 'member' && req.client.role !== 'admin')
+    return res.status(403).json({ error: 'Admin access required to manage API keys' });
+  next();
+};
+
 // List all keys for the authenticated client
 router.get('/', async (req, res) => {
   const keys = await ApiKey.find({ client: req.client.id }).sort({ createdAt: -1 });
@@ -11,7 +17,7 @@ router.get('/', async (req, res) => {
 });
 
 // Generate a new key
-router.post('/', async (req, res) => {
+router.post('/', viewerBlocked, async (req, res) => {
   const { label, mode } = req.body;
   const key = await ApiKey.create({
     client: req.client.id,
@@ -22,7 +28,7 @@ router.post('/', async (req, res) => {
 });
 
 // Revoke a key
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', viewerBlocked, async (req, res) => {
   const key = await ApiKey.findOneAndUpdate(
     { _id: req.params.id, client: req.client.id },
     { isActive: false },

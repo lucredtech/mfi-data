@@ -53,6 +53,7 @@ const NAV_GROUPS = [
     icon: '◉',
     children: [
       { path: '/dashboard/profile', label: 'Profile' },
+      { path: '/dashboard/team', label: 'Team' },
       { path: '/dashboard/billing', label: 'Billing' },
       { path: '/dashboard/referral', label: 'Refer an MFI' },
       { path: '/dashboard/audit', label: 'Audit Log' },
@@ -294,6 +295,7 @@ export default function Layout({ children }) {
           {!collapsed && (
             <div style={{ fontSize: 11, color: '#475569', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
               {client?.organizationName}
+              {client?.name && <div style={{ fontSize: 10, color: '#334155', marginTop: 1 }}>{client.name} · {client.role}</div>}
             </div>
           )}
           <button

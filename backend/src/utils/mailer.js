@@ -155,4 +155,29 @@ async function sendVerificationEmail(to, { organizationName, verifyUrl }) {
   });
 }
 
-module.exports = { sendPasswordReset, sendWelcome, sendLoanDecision, sendPlanLimitWarning, sendVerificationEmail };
+async function sendTeamInvite(to, { inviterName, orgName, inviteUrl, role }) {
+  await transporter.sendMail({
+    from: FROM,
+    to,
+    subject: `You've been invited to join ${orgName} on Lucred`,
+    html: `
+      <div style="font-family:Inter,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px">
+        <div style="font-size:22px;font-weight:800;color:#6d28d9;margin-bottom:4px">Lucred</div>
+        <div style="font-size:12px;color:#94a3b8;margin-bottom:28px">Credit Engine</div>
+        <h2 style="font-size:20px;color:#0f172a;margin:0 0 12px">You've been invited</h2>
+        <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 8px">
+          <strong>${inviterName}</strong> has invited you to join <strong>${orgName}</strong> on Lucred as a <strong>${role}</strong>.
+        </p>
+        <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 24px">
+          Click below to set your password and access the dashboard.
+        </p>
+        <a href="${inviteUrl}" style="display:inline-block;background:#6d28d9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
+          Accept Invitation →
+        </a>
+        <p style="color:#94a3b8;font-size:12px;margin-top:28px">Link expires in 48 hours. If you weren't expecting this, you can ignore this email.</p>
+      </div>
+    `,
+  });
+}
+
+module.exports = { sendPasswordReset, sendWelcome, sendLoanDecision, sendPlanLimitWarning, sendVerificationEmail, sendTeamInvite };
