@@ -338,6 +338,7 @@ function TimelineTab({ statements, bvnResults, ninResults, bureauResults, loanRe
 }
 
 function OverviewTab({ customer, statements, bvnResults, ninResults, bureauResults, discrepancies, setTab, customerId }) {
+  const { isViewer } = useAuth();
   const latestStatement = statements[0];
   const latestBVN = bvnResults.find(r => r.status === 'success');
   const latestNIN = ninResults.find(r => r.status === 'success');
