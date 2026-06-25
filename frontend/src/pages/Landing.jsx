@@ -21,7 +21,7 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { step: '01', title: 'Register your MFI', desc: 'Create an account and get your API key instantly.' },
+  { step: '01', title: 'Register your MFI', desc: 'Apply online — our team reviews and activates vetted organisations within 1–2 business days.' },
   { step: '02', title: 'Integrate the API', desc: 'Use our simple REST API with your existing loan management system.' },
   { step: '03', title: 'Make better lending decisions', desc: 'Access real-time credit data on every borrower.' },
 ];
@@ -130,7 +130,7 @@ export default function Landing() {
             <Link to="/register" style={s.heroBtnPrimary}>Start for free →</Link>
             <Link to="/pricing" style={{ ...s.heroBtnSecondary, background: 'rgba(255,255,255,0.1)' }}>See pricing</Link>
           </div>
-          <p style={{ marginTop: 20, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>No credit card required · API key in 60 seconds</p>
+          <p style={{ marginTop: 20, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>No credit card required · Vetted organisations only</p>
         </div>
       </section>
 

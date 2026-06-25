@@ -82,7 +82,7 @@ function useIsMobile() {
 }
 
 export default function Layout({ children }) {
-  const { client, logout } = useAuth();
+  const { client, logout, isPending } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { unread: notifUnread } = useNotifications();
@@ -336,9 +336,50 @@ export default function Layout({ children }) {
           </div>
         )}
         <div style={{ padding: isMobile ? '1.25rem 1rem' : '2rem 2.5rem', flex: 1 }}>
-          {children}
+          {isPending ? <PendingApprovalWall client={client} logout={logout} /> : children}
         </div>
       </main>
+    </div>
+  );
+}
+
+function PendingApprovalWall({ client, logout }) {
+  return (
+    <div style={{ maxWidth: 560, margin: '0 auto', paddingTop: '4rem', textAlign: 'center' }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
+      <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: '0 0 12px' }}>
+        Account under review
+      </h1>
+      <p style={{ fontSize: 15, color: '#64748b', lineHeight: 1.7, margin: '0 0 8px' }}>
+        Hi <strong>{client?.organizationName}</strong>, your application is being reviewed by our team.
+        We complete KYB verification within <strong>1–2 business days</strong>.
+      </p>
+      <p style={{ fontSize: 14, color: '#94a3b8', margin: '0 0 32px' }}>
+        You'll receive an email at <strong>{client?.email}</strong> once your account is approved.
+      </p>
+      <div style={{ background: '#f0f9ff', border: '1.5px solid #bae6fd', borderRadius: 12, padding: '20px 24px', marginBottom: 32, textAlign: 'left' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#0284c7', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>What happens next</div>
+        {[
+          ['KYB review', 'Our team verifies your organisation details and registration documents.'],
+          ['SLA agreement', 'You\'ll receive a Service Level Agreement to review and sign.'],
+          ['Account activation', 'Once approved, you can create API keys and start using the platform.'],
+        ].map(([title, desc], i) => (
+          <div key={i} style={{ display: 'flex', gap: 12, marginBottom: i < 2 ? 14 : 0 }}>
+            <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#0ea5e9', color: '#fff', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>{i + 1}</div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 2 }}>{title}</div>
+              <div style={{ fontSize: 13, color: '#64748b' }}>{desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p style={{ fontSize: 13, color: '#94a3b8', marginBottom: 20 }}>
+        Questions? Email us at{' '}
+        <a href="mailto:support@lucred.co" style={{ color: '#0ea5e9', fontWeight: 600 }}>support@lucred.co</a>
+      </p>
+      <button onClick={logout} style={{ fontSize: 13, color: '#64748b', background: 'none', border: '1.5px solid #e2e8f0', borderRadius: 8, padding: '8px 20px', cursor: 'pointer' }}>
+        Sign out
+      </button>
     </div>
   );
 }

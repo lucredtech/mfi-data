@@ -24,8 +24,12 @@ const requireApiKey = async (req, res, next) => {
 
   const apiKey = await ApiKey.findOne({ key, isActive: true }).populate('client');
   if (!apiKey) return res.status(401).json({ error: 'Invalid or inactive API key' });
+  if (apiKey.client.status === 'pending')
+    return res.status(403).json({ error: 'Your account is pending approval. Our team will contact you once your KYB review is complete.' });
+  if (apiKey.client.status === 'suspended')
+    return res.status(403).json({ error: 'Account suspended. Contact support@lucred.co for assistance.' });
   if (apiKey.client.status !== 'active')
-    return res.status(403).json({ error: 'Account suspended' });
+    return res.status(403).json({ error: 'Account not active.' });
 
   // Per-plan monthly rate limit
   const plan = apiKey.client.plan || 'free';

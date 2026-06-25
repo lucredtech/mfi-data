@@ -18,8 +18,8 @@ export default function Register() {
     e.preventDefault();
     setLoading(true);
     try {
-      const data = await register({ ...form, ...(ref ? { ref } : {}) });
-      toast.success(`Welcome! Your API key: ${data.apiKey}`);
+      await register({ ...form, ...(ref ? { ref } : {}) });
+      toast.success('Application submitted! Check your email — our team will review and contact you within 1–2 business days.');
       navigate('/dashboard');
     } catch (err) {
       toast.error(parseApiError(err, {

@@ -18,6 +18,10 @@ export default function AdminClientDetail() {
   const [walletTxs, setWalletTxs] = useState([]);
   const [creditForm, setCreditForm] = useState({ amount: '', description: '' });
   const [crediting, setCrediting] = useState(false);
+  const [kybNotes, setKybNotes] = useState('');
+  const [kybSaving, setKybSaving] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [sendingSla, setSendingSla] = useState(false);
 
   const load = () => {
     adminApi.get(`/api/admin/clients/${id}`).then(({ data }) => setClient(data)).catch(() => {});
@@ -55,7 +59,39 @@ export default function AdminClientDetail() {
     finally { setCrediting(false); }
   };
 
+  const approveClient = async () => {
+    if (!confirm('Approve this client and send activation email?')) return;
+    setApproving(true);
+    try {
+      await adminApi.post(`/api/admin/clients/${id}/approve`, { kybNotes });
+      toast.success('Client approved and notified');
+      load();
+    } catch { toast.error('Failed to approve'); }
+    finally { setApproving(false); }
+  };
+
+  const sendSla = async () => {
+    if (!confirm('Send SLA agreement email to this client?')) return;
+    setSendingSla(true);
+    try {
+      await adminApi.post(`/api/admin/clients/${id}/send-sla`);
+      toast.success('SLA email sent');
+      load();
+    } catch { toast.error('Failed to send SLA'); }
+    finally { setSendingSla(false); }
+  };
+
+  const saveKybNotes = async () => {
+    setKybSaving(true);
+    try {
+      await adminApi.patch(`/api/admin/clients/${id}/kyb`, { kybNotes });
+      toast.success('KYB notes saved');
+    } catch { toast.error('Failed to save notes'); }
+    finally { setKybSaving(false); }
+  };
+
   useEffect(() => { load(); }, [id]);
+  useEffect(() => { if (client?.kybNotes) setKybNotes(client.kybNotes); }, [client?.kybNotes]);
 
   const updatePlan = async (plan) => {
     try {
@@ -87,7 +123,10 @@ export default function AdminClientDetail() {
           <p style={s.sub}>{client.email} · {client.contactPerson}{client.phone ? ` · ${client.phone}` : ''}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ ...s.badge, background: client.status === 'active' ? '#dcfce7' : '#fee2e2', color: client.status === 'active' ? '#16a34a' : '#dc2626' }}>
+          <span style={{ ...s.badge,
+            background: client.status === 'active' ? '#dcfce7' : client.status === 'pending' ? '#fef3c7' : '#fee2e2',
+            color: client.status === 'active' ? '#16a34a' : client.status === 'pending' ? '#d97706' : '#dc2626',
+          }}>
             {client.status}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -108,6 +147,54 @@ export default function AdminClientDetail() {
           </button>
         </div>
       </div>
+
+      {/* KYB & Approval */}
+      {client.status === 'pending' && (
+        <div style={{ ...s.box, border: '2px solid #fcd34d', background: '#fffbeb', marginBottom: 24 }}>
+          <h3 style={{ ...s.boxTitle, color: '#d97706', marginBottom: 12 }}>⏳ Pending KYB Approval</h3>
+          <p style={{ fontSize: 13, color: '#92400e', marginTop: 0, marginBottom: 16 }}>
+            This organisation is awaiting KYB review and admin approval before they can access the platform.
+            Complete KYB, optionally send the SLA, then approve when ready.
+          </p>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+            <button onClick={sendSla} disabled={sendingSla} style={{ padding: '9px 18px', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: sendingSla ? 0.6 : 1 }}>
+              {sendingSla ? 'Sending…' : `${client.slaSentAt ? 'Resend' : 'Send'} SLA Email`}
+            </button>
+            <button onClick={approveClient} disabled={approving} style={{ padding: '9px 18px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: approving ? 0.6 : 1 }}>
+              {approving ? 'Approving…' : '✓ Approve & Activate'}
+            </button>
+          </div>
+          {client.slaSentAt && (
+            <p style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
+              SLA sent: {new Date(client.slaSentAt).toLocaleString()}
+            </p>
+          )}
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>KYB Notes (internal)</label>
+          <textarea
+            value={kybNotes}
+            onChange={e => setKybNotes(e.target.value)}
+            rows={4}
+            placeholder="Add KYB review notes, CAC number, documents checked, etc."
+            style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 13, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
+          />
+          <button onClick={saveKybNotes} disabled={kybSaving} style={{ marginTop: 8, padding: '7px 16px', background: '#f1f5f9', color: '#334155', border: '1.5px solid #e2e8f0', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+            {kybSaving ? 'Saving…' : 'Save Notes'}
+          </button>
+        </div>
+      )}
+
+      {/* KYB summary (approved clients) */}
+      {client.status !== 'pending' && (client.approvedAt || client.kybNotes) && (
+        <div style={{ ...s.box, marginBottom: 24 }}>
+          <h3 style={{ ...s.boxTitle, marginBottom: 10 }}>KYB Record</h3>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', fontSize: 13, color: '#64748b', marginBottom: 12 }}>
+            {client.approvedAt && <span>Approved: <strong style={{ color: '#16a34a' }}>{new Date(client.approvedAt).toLocaleString()}</strong>{client.approvedBy ? ` by ${client.approvedBy}` : ''}</span>}
+            {client.slaSentAt && <span>SLA sent: <strong>{new Date(client.slaSentAt).toLocaleDateString()}</strong></span>}
+            {client.kybCompletedAt && <span>KYB completed: <strong>{new Date(client.kybCompletedAt).toLocaleDateString()}</strong></span>}
+          </div>
+          {client.kybNotes && <p style={{ fontSize: 13, color: '#334155', background: '#f8fafc', padding: '10px 14px', borderRadius: 8, margin: 0, whiteSpace: 'pre-wrap' }}>{client.kybNotes}</p>}
+        </div>
+      )}
 
       {/* Account stats */}
       <div style={s.sectionLabel}>Account</div>

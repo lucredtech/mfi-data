@@ -8,6 +8,7 @@ const statementResultSchema = new mongoose.Schema(
     accountName: { type: String },
     bankName: { type: String },
     filename: { type: String },
+    s3Key: { type: String },
     result: { type: Object },
     status: { type: String, enum: ['success', 'failed'], default: 'success' },
   },

@@ -57,7 +57,14 @@ export default function AdminClients() {
   return (
     <div>
       <h1 style={s.h1}>MFI Clients</h1>
-      <p style={s.sub}>{clients.length} registered microfinance institutions</p>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 4, flexWrap: 'wrap' }}>
+        <p style={{ ...s.sub, margin: 0 }}>{clients.length} registered</p>
+        {clients.filter(c => c.status === 'pending').length > 0 && (
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '2px 10px', borderRadius: 20 }}>
+            {clients.filter(c => c.status === 'pending').length} pending review
+          </span>
+        )}
+      </div>
 
       <div style={{ ...s.toolbar, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <input style={s.search} placeholder="Search by name or email…" value={search}
@@ -91,7 +98,10 @@ export default function AdminClients() {
                   </select>
                 </td>
                 <td style={s.td}>
-                  <span style={{ ...s.badge, background: c.status === 'active' ? '#dcfce7' : '#fee2e2', color: c.status === 'active' ? '#16a34a' : '#dc2626' }}>
+                  <span style={{ ...s.badge,
+                    background: c.status === 'active' ? '#dcfce7' : c.status === 'pending' ? '#fef3c7' : '#fee2e2',
+                    color:      c.status === 'active' ? '#16a34a' : c.status === 'pending' ? '#d97706' : '#dc2626',
+                  }}>
                     {c.status}
                   </span>
                 </td>

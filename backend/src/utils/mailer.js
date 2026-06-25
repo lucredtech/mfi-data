@@ -50,26 +50,80 @@ async function sendPasswordReset(to, resetUrl) {
 async function sendWelcome(to, { organizationName }) {
   await sendMail({
     to,
-    subject: 'Welcome to Lucred MFI — you\'re all set',
+    subject: 'Application received — Lucred MFI',
     html: `
       <div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:12px">
         <div style="font-size:22px;font-weight:800;color:#0ea5e9;margin-bottom:8px">Lucred MFI</div>
         <div style="font-size:13px;color:#64748b;margin-bottom:28px">B2B Credit Engine</div>
-        <h2 style="font-size:18px;color:#0f172a;margin:0 0 12px">Welcome, ${organizationName}!</h2>
-        <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 24px">
-          Your account is set up. Head to your dashboard to find your API key under <strong>API Keys</strong>.
+        <h2 style="font-size:18px;color:#0f172a;margin:0 0 12px">Thanks for applying, ${organizationName}!</h2>
+        <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 16px">
+          We've received your application and our team is reviewing it. We typically complete KYB verification within <strong>1–2 business days</strong>.
         </p>
         <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 24px">
-          <strong>Start with these three steps:</strong><br>
-          1. Add your first borrower via the dashboard or <code style="background:#e2e8f0;padding:1px 5px;border-radius:3px">POST /v1/customers</code><br>
-          2. Run a BVN or NIN verification<br>
-          3. Upload a bank statement for AI analysis
+          You'll receive a separate email once your account is approved and you can start using the platform. In the meantime, you can explore the dashboard and read our documentation.
         </p>
-        <a href="https://mfi.lucred.co/dashboard" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
-          Go to Dashboard →
+        <a href="https://mfi-data.vercel.app/dashboard" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
+          View Dashboard →
         </a>
         <p style="color:#94a3b8;font-size:12px;margin-top:28px">
-          Questions? Reply to this email or visit <a href="https://mfi.lucred.co/docs" style="color:#0ea5e9">mfi.lucred.co/docs</a>
+          Questions? Contact us at <a href="mailto:support@lucred.co" style="color:#0ea5e9">support@lucred.co</a>
+        </p>
+      </div>
+    `,
+  });
+}
+
+async function sendApprovalNotification(to, { organizationName }) {
+  await sendMail({
+    to,
+    subject: 'Your Lucred MFI account is approved — you\'re ready to go',
+    html: `
+      <div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:12px">
+        <div style="font-size:22px;font-weight:800;color:#0ea5e9;margin-bottom:8px">Lucred MFI</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:28px">B2B Credit Engine</div>
+        <div style="background:#dcfce7;border-radius:10px;padding:16px 20px;margin-bottom:24px;display:inline-block">
+          <span style="font-size:20px;font-weight:800;color:#16a34a">✓ Account Approved</span>
+        </div>
+        <h2 style="font-size:18px;color:#0f172a;margin:0 0 12px">Welcome aboard, ${organizationName}!</h2>
+        <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 20px">
+          Your KYB review is complete and your account is now fully activated. Here's how to get started:
+        </p>
+        <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 24px">
+          1. Go to <strong>API Keys</strong> in your dashboard and create your first key<br>
+          2. Add your first borrower via the dashboard or API<br>
+          3. Run a BVN/NIN verification or upload a bank statement
+        </p>
+        <a href="https://mfi-data.vercel.app/dashboard/api-keys" style="display:inline-block;background:#16a34a;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
+          Create Your API Key →
+        </a>
+        <p style="color:#94a3b8;font-size:12px;margin-top:28px">
+          Need help? Visit <a href="https://mfi-data.vercel.app/docs" style="color:#0ea5e9">our docs</a> or contact <a href="mailto:support@lucred.co" style="color:#0ea5e9">support@lucred.co</a>
+        </p>
+      </div>
+    `,
+  });
+}
+
+async function sendSLARequest(to, { organizationName }) {
+  await sendMail({
+    to,
+    subject: 'Action required: Sign your Lucred MFI Service Agreement',
+    html: `
+      <div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:12px">
+        <div style="font-size:22px;font-weight:800;color:#0ea5e9;margin-bottom:8px">Lucred MFI</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:28px">B2B Credit Engine</div>
+        <h2 style="font-size:18px;color:#0f172a;margin:0 0 12px">Service Level Agreement — ${organizationName}</h2>
+        <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 16px">
+          As part of completing your onboarding, please review and sign the Lucred MFI Service Level Agreement (SLA).
+        </p>
+        <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 24px">
+          This agreement covers data handling, API usage terms, liability, and your obligations as a platform user. Your account activation will be finalised once the agreement is signed.
+        </p>
+        <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 24px">
+          Please reply to this email with your signed copy, or contact <a href="mailto:support@lucred.co" style="color:#0ea5e9">support@lucred.co</a> if you have any questions about the terms.
+        </p>
+        <p style="color:#94a3b8;font-size:12px;margin-top:28px">
+          Lucred MFI · <a href="mailto:support@lucred.co" style="color:#0ea5e9">support@lucred.co</a>
         </p>
       </div>
     `,
@@ -330,4 +384,39 @@ async function sendTopupConfirmation(to, { organizationName, amount, balance, de
   });
 }
 
-module.exports = { sendPasswordReset, sendWelcome, sendLoanDecision, sendPlanLimitWarning, sendVerificationEmail, sendTeamInvite, sendStaffLoanReviewAlert, sendStaffStatusChangeAlert, sendLowBalanceAlert, sendMonthlySummary, sendTopupConfirmation };
+async function sendNewSignupAlert({ organizationName, email, contactPerson, phone, adminUrl }) {
+  const ADMIN_EMAIL = process.env.ADMIN_ALERT_EMAIL || 'dahunsitemitope@gmail.com';
+  await sendMail({
+    to: ADMIN_EMAIL,
+    subject: `New MFI signup: ${organizationName}`,
+    html: `
+      <div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:12px">
+        <div style="font-size:22px;font-weight:800;color:#0ea5e9;margin-bottom:8px">Lucred MFI</div>
+        <h2 style="font-size:20px;color:#0f172a;margin:0 0 8px">New signup — review required</h2>
+        <p style="font-size:14px;color:#64748b;margin:0 0 24px">A new organisation has applied for API access and is pending KYB approval.</p>
+        <div style="background:#fff;border-radius:10px;padding:20px 24px;margin-bottom:24px;border:1px solid #e2e8f0">
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9">
+            <span style="font-size:13px;color:#64748b;font-weight:600">Organisation</span>
+            <span style="font-size:14px;font-weight:700;color:#0f172a">${organizationName}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9">
+            <span style="font-size:13px;color:#64748b;font-weight:600">Contact person</span>
+            <span style="font-size:13px;color:#0f172a">${contactPerson}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9">
+            <span style="font-size:13px;color:#64748b;font-weight:600">Email</span>
+            <span style="font-size:13px;color:#0f172a">${email}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0">
+            <span style="font-size:13px;color:#64748b;font-weight:600">Phone</span>
+            <span style="font-size:13px;color:#0f172a">${phone || '—'}</span>
+          </div>
+        </div>
+        <a href="${adminUrl}" style="display:inline-block;background:#6d28d9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">Review in Admin →</a>
+        <p style="color:#94a3b8;font-size:12px;margin-top:28px">Complete KYB, send the SLA, and activate the account when ready.</p>
+      </div>
+    `,
+  });
+}
+
+module.exports = { sendPasswordReset, sendWelcome, sendLoanDecision, sendPlanLimitWarning, sendVerificationEmail, sendTeamInvite, sendStaffLoanReviewAlert, sendStaffStatusChangeAlert, sendLowBalanceAlert, sendMonthlySummary, sendTopupConfirmation, sendApprovalNotification, sendSLARequest, sendNewSignupAlert };

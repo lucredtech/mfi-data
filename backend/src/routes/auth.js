@@ -3,7 +3,8 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const MFIClient = require('../models/MFIClient');
 const TeamMember = require('../models/TeamMember');
-const { sendPasswordReset, sendWelcome, sendVerificationEmail } = require('../utils/mailer');
+const { sendPasswordReset, sendWelcome, sendVerificationEmail, sendNewSignupAlert } = require('../utils/mailer');
+const Notification = require('../models/Notification');
 const ApiKey = require('../models/ApiKey');
 const Customer = require('../models/Customer');
 const BVNResult = require('../models/BVNResult');
@@ -95,15 +96,11 @@ router.post('/register', async (req, res) => {
       MFIClient.findByIdAndUpdate(referrer._id, { $inc: { referralCount: 1 } }).catch(() => {});
     }
 
-    // Auto-generate a first API key
-    const apiKey = await ApiKey.create({ client: client._id, label: 'Default Key' });
-
     const token = jwt.sign({ id: client._id, email: client.email }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
     res.status(201).json({
       token,
-      client: { id: client._id, organizationName: client.organizationName, email: client.email },
-      apiKey: apiKey.key,
+      client: { id: client._id, organizationName: client.organizationName, email: client.email, status: client.status },
     });
 
     // Send verification + welcome emails — fire-and-forget
@@ -120,6 +117,10 @@ router.post('/register', async (req, res) => {
     sendWelcome(email, { organizationName }).catch(err =>
       console.error('[mailer] welcome email failed:', err.message)
     );
+    const adminUrl = `${process.env.FRONTEND_URL || 'https://mfi-data.vercel.app'}/admin/clients/${client._id}`;
+    sendNewSignupAlert({ organizationName, email, contactPerson, phone, adminUrl }).catch(err =>
+      console.error('[mailer] admin signup alert failed:', err.message)
+    );
   } catch (err) {
     console.error('[auth] register error:', err);
     res.status(500).json({ error: 'Registration failed. Please try again.' });
@@ -135,13 +136,13 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
 
     if (client.status === 'suspended')
-      return res.status(403).json({ error: 'Account suspended' });
+      return res.status(403).json({ error: 'Your account has been suspended. Contact support@lucred.co for assistance.' });
 
     const token = jwt.sign({ id: client._id, email: client.email }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
     res.json({
       token,
-      client: { id: client._id, organizationName: client.organizationName, email: client.email },
+      client: { id: client._id, organizationName: client.organizationName, email: client.email, status: client.status },
     });
   } catch (err) {
     console.error('[auth] login error:', err);

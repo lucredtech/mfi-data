@@ -16,7 +16,7 @@ const Payment = require('../models/Payment');
 const WalletTransaction = require('../models/WalletTransaction');
 const Wallet = require('../models/Wallet');
 const { creditWallet } = require('../utils/wallet');
-const { sendTopupConfirmation } = require('../utils/mailer');
+const { sendTopupConfirmation, sendApprovalNotification, sendSLARequest } = require('../utils/mailer');
 const Notification = require('../models/Notification');
 
 const PLAN_PRICE = { free: 0, starter: 25000, growth: 50000, scale: 100000 };
@@ -136,6 +136,51 @@ router.patch('/clients/:id/status', async (req, res) => {
   } catch (err) {
     console.error("[route] unhandled error:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Approve a pending client — activate + fire approval email + in-app notification
+router.post('/clients/:id/approve', async (req, res) => {
+  try {
+    const { adminName = 'Lucred Team', kybNotes } = req.body;
+    const client = await MFIClient.findByIdAndUpdate(
+      req.params.id,
+      { status: 'active', approvedAt: new Date(), approvedBy: adminName, ...(kybNotes ? { kybNotes, kybCompletedAt: new Date() } : {}) },
+      { new: true }
+    ).lean();
+    if (!client) return res.status(404).json({ error: 'Client not found' });
+    sendApprovalNotification(client.email, { organizationName: client.organizationName }).catch(() => {});
+    Notification.create({ client: client._id, type: 'plan_upgraded', title: 'Account approved!', body: 'Your account has been reviewed and activated. You can now create API keys and start using the platform.' }).catch(() => {});
+    res.json({ message: 'Client approved and notified', client });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Send SLA agreement email to a client
+router.post('/clients/:id/send-sla', async (req, res) => {
+  try {
+    const client = await MFIClient.findByIdAndUpdate(req.params.id, { slaSentAt: new Date() }, { new: true }).lean();
+    if (!client) return res.status(404).json({ error: 'Client not found' });
+    sendSLARequest(client.email, { organizationName: client.organizationName }).catch(() => {});
+    res.json({ message: 'SLA email sent', slaSentAt: client.slaSentAt });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update KYB notes for a client
+router.patch('/clients/:id/kyb', async (req, res) => {
+  try {
+    const { kybNotes, kybCompleted } = req.body;
+    const update = {};
+    if (kybNotes !== undefined) update.kybNotes = kybNotes;
+    if (kybCompleted) update.kybCompletedAt = new Date();
+    const client = await MFIClient.findByIdAndUpdate(req.params.id, update, { new: true }).lean();
+    if (!client) return res.status(404).json({ error: 'Client not found' });
+    res.json({ client });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

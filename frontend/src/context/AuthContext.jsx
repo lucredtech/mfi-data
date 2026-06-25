@@ -34,7 +34,6 @@ export function AuthProvider({ children }) {
     const { data } = await api.post('/api/auth/register', payload);
     localStorage.setItem('token', data.token);
     localStorage.setItem('client', JSON.stringify(data.client));
-    if (data.apiKey) localStorage.setItem('apiKey', data.apiKey);
     setClient(data.client);
     return data;
   };
@@ -46,9 +45,10 @@ export function AuthProvider({ children }) {
   };
 
   const isViewer = client?._type === 'member' && client?.role === 'viewer';
+  const isPending = client?.status === 'pending';
 
   return (
-    <AuthContext.Provider value={{ client, login, register, logout, loading, isViewer }}>
+    <AuthContext.Provider value={{ client, login, register, logout, loading, isViewer, isPending }}>
       {children}
     </AuthContext.Provider>
   );

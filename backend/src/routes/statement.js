@@ -8,6 +8,7 @@ const StatementResult = require('../models/StatementResult');
 const AuditLog = require('../models/AuditLog');
 const Customer = require('../models/Customer');
 const { deductCharge, refundCharge } = require('../utils/wallet');
+const { uploadStatement } = require('../utils/s3');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -65,11 +66,20 @@ router.post(
         status: 'success',
       });
 
+      // Upload file to S3 (fire-and-forget — don't block response)
+      uploadStatement(req.file.buffer, {
+        clientId: req.client._id,
+        resultId: saved._id,
+        filename: req.file.originalname,
+        mimetype: req.file.mimetype,
+      }).then(s3Key => StatementResult.findByIdAndUpdate(saved._id, { s3Key }).catch(() => {}))
+        .catch(err => console.error('[s3] upload failed:', err.message));
+
       AuditLog.create({ client: req.client._id, action: 'STATEMENT_ANALYSIS', entityType: 'StatementResult', entityId: saved._id, label: `Statement analysis: ${accountName || email || req.file.originalname}`, meta: { bankName, filename: req.file.originalname, customerId } }).catch(() => {});
       res.json({ success: true, data });
     } catch (err) {
-      // Save failed attempt too
-      await StatementResult.create({
+      // Save failed attempt and upload file for debugging
+      const failed = await StatementResult.create({
         client: req.client._id,
         customer: customerId || undefined,
         email,
@@ -77,7 +87,16 @@ router.post(
         bankName,
         filename: req.file?.originalname,
         status: 'failed',
-      }).catch(() => {});
+      }).catch(() => null);
+      if (failed && req.file?.buffer) {
+        uploadStatement(req.file.buffer, {
+          clientId: req.client._id,
+          resultId: failed._id,
+          filename: req.file.originalname,
+          mimetype: req.file.mimetype,
+        }).then(s3Key => StatementResult.findByIdAndUpdate(failed._id, { s3Key }).catch(() => {}))
+          .catch(err => console.error('[s3] upload failed:', err.message));
+      }
 
       if (!charge.freeQuota) refundCharge(clientId, 'STATEMENT_ANALYSIS', { customerName: customer?.name || accountName, customerId }).catch(() => {});
       const status = err.response?.status || 502;
