@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import CustomerSelect from '../components/CustomerSelect';
@@ -83,6 +84,7 @@ export default function StatementAnalysis() {
   const [meta, setMeta] = useState({ email: '', accountName: '', bankName: '', password: '' });
   const [customerId, setCustomerId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [walletError, setWalletError] = useState(false);
   const [result, setResult] = useState(null);
   const inputRef = useRef();
 
@@ -104,6 +106,7 @@ export default function StatementAnalysis() {
   const submit = async (e) => {
     e.preventDefault();
     if (!file) return toast.error('Please select a bank statement file');
+    setWalletError(false);
     setLoading(true);
     try {
       const form = new FormData();
@@ -124,6 +127,7 @@ export default function StatementAnalysis() {
       setResult(data.data);
       toast.success('Analysis complete');
     } catch (err) {
+      if (err?.response?.status === 402) { setWalletError(true); return; }
       toast.error(parseApiError(err, {
         400: 'The statement could not be processed. Please check the file and try again.',
         413: 'The file is too large. Please upload a file under 10MB.',
@@ -139,6 +143,16 @@ export default function StatementAnalysis() {
     <div>
       <h1 style={s.h1}>Bank Statement Analysis</h1>
       <p style={s.sub}>Upload a borrower's bank statement to get income, spending, and creditworthiness analysis.</p>
+
+      {walletError && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <span style={{ fontWeight: 700, color: '#dc2626' }}>Insufficient wallet balance</span>
+            <span style={{ color: '#7f1d1d', fontSize: 13, marginLeft: 8 }}>Statement analysis costs ₦400. Top up your wallet to continue.</span>
+          </div>
+          <Link to="/dashboard/billing" style={{ fontSize: 13, fontWeight: 700, color: '#dc2626', background: '#fee2e2', padding: '6px 14px', borderRadius: 8, textDecoration: 'none', whiteSpace: 'nowrap' }}>Top up →</Link>
+        </div>
+      )}
 
       <div style={s.grid}>
         {/* Upload form */}

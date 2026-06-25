@@ -40,6 +40,9 @@ export function parseApiError(err, context = {}) {
   if (status === 400) {
     return backendMsg || context[400] || 'Please check your input and try again.';
   }
+  if (status === 402) {
+    return context[402] || 'Insufficient wallet balance. Please top up to continue running analyses.';
+  }
   if (status >= 500) {
     return context[500] || 'The service is temporarily unavailable. Please try again shortly.';
   }

@@ -9,7 +9,7 @@ const mfiClientSchema = new mongoose.Schema(
     contactPerson: { type: String, required: true },
     phone: { type: String },
     status: { type: String, enum: ['pending', 'active', 'suspended'], default: 'active' },
-    plan: { type: String, enum: ['free', 'growth', 'scale'], default: 'free' },
+    plan: { type: String, enum: ['free', 'starter', 'growth', 'scale'], default: 'free' },
     resetToken: { type: String },
     resetTokenExpires: { type: Date },
     referralCode: { type: String, unique: true, sparse: true },

@@ -17,6 +17,7 @@ const Scorecard = require('../models/Scorecard');
 const { smsBorrowerDecision } = require('../utils/sms');
 const { notify } = require('../utils/notify');
 const { sendStaffLoanReviewAlert, sendStaffStatusChangeAlert } = require('../utils/mailer');
+const { deductCharge, refundCharge } = require('../utils/wallet');
 const axios = require('axios');
 const { dispatchWebhook } = require('./webhooks');
 const TeamMember = require('../models/TeamMember');
@@ -540,6 +541,10 @@ router.post('/verify/bvn', requireWriteAccess, async (req, res) => {
     const { bvn, customerId } = req.body;
     if (!bvn) return res.status(400).json({ error: 'bvn is required' });
 
+    const customer = customerId ? await Customer.findById(customerId).select('name').lean() : null;
+    const charge = await deductCharge(req.client.id, 'BVN_CHECK', { customerName: customer?.name, customerId });
+    if (!charge.ok) return res.status(402).json({ error: charge.error, required: charge.required, balance: charge.balance });
+
     let normalized;
     try {
       const { data } = await dojahApi.get('/api/v1/kyc/bvn/advance', { params: { bvn } });
@@ -563,6 +568,7 @@ router.post('/verify/bvn', requireWriteAccess, async (req, res) => {
         image: e.image, // returned to caller but not stored in DB
       };
     } catch (upstreamErr) {
+      if (!charge.freeQuota) refundCharge(req.client.id, 'BVN_CHECK', { customerName: customer?.name, customerId }).catch(() => {});
       await BVNResult.create({
         client: req.client.id,
         customer: customerId || undefined,
@@ -603,6 +609,10 @@ router.post('/verify/nin', requireWriteAccess, async (req, res) => {
     const { nin, customerId } = req.body;
     if (!nin) return res.status(400).json({ error: 'nin is required' });
 
+    const customer = customerId ? await Customer.findById(customerId).select('name').lean() : null;
+    const charge = await deductCharge(req.client.id, 'NIN_CHECK', { customerName: customer?.name, customerId });
+    if (!charge.ok) return res.status(402).json({ error: charge.error, required: charge.required, balance: charge.balance });
+
     let normalized;
     try {
       const { data } = await dojahApi.get('/api/v1/kyc/nin', { params: { nin } });
@@ -627,6 +637,7 @@ router.post('/verify/nin', requireWriteAccess, async (req, res) => {
         photo: e.photo, // returned to caller but not stored in DB
       };
     } catch (upstreamErr) {
+      if (!charge.freeQuota) refundCharge(req.client.id, 'NIN_CHECK', { customerName: customer?.name, customerId }).catch(() => {});
       await NINResult.create({
         client: req.client.id,
         customer: customerId || undefined,

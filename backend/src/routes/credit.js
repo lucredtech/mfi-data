@@ -14,6 +14,8 @@ const BVNResult = require('../models/BVNResult');
 const BureauResult = require('../models/BureauResult');
 const NINResult = require('../models/NINResult');
 const AuditLog = require('../models/AuditLog');
+const Customer = require('../models/Customer');
+const { deductCharge, refundCharge } = require('../utils/wallet');
 
 const limiter = rateLimit({ windowMs: 60 * 1000, max: 60, keyGenerator: (req) => req.apiKey?.key });
 
@@ -42,6 +44,11 @@ router.post('/credit-bureau/check', logUsage('/v1/credit-bureau/check'), async (
     const { bvn, firstName, lastName, dateOfBirth, phone, customerId } = req.body;
     if (!bvn && !phone) return res.status(400).json({ error: 'bvn or phone is required' });
 
+    const clientId = req.apiKey?.client?._id ?? req.apiKey?.client;
+    const customer = customerId ? await Customer.findById(customerId).select('name').lean() : null;
+    const charge = await deductCharge(clientId, 'BUREAU_CHECK', { customerName: customer?.name, customerId });
+    if (!charge.ok) return res.status(402).json({ error: charge.error, required: charge.required, balance: charge.balance });
+
     const name = [firstName, lastName].filter(Boolean).join(' ');
 
     let upstreamData;
@@ -65,6 +72,7 @@ router.post('/credit-bureau/check', logUsage('/v1/credit-bureau/check'), async (
         upstreamData = await getXScoreConsumerReport({ consumerID, consumerMergeList, subscriberEnquiryEngineID, enquiryID });
       }
     } catch (upstreamErr) {
+      refundCharge(clientId, 'BUREAU_CHECK', { customerName: customer?.name, customerId }).catch(() => {});
       const errBody = upstreamErr.response?.data || { message: upstreamErr.message };
       console.error('[Bureau] upstream error:', {
         status: upstreamErr.response?.status,

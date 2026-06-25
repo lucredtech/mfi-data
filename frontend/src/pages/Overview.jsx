@@ -25,6 +25,7 @@ export default function Overview() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [analytics, setAnalytics] = useState(null);
+  const [wallet, setWallet] = useState(null);
   const [statements, setStatements] = useState([]);
   const [search, setSearch] = useState('');
   const [searching, setSearching] = useState(false);
@@ -61,6 +62,7 @@ export default function Overview() {
 
   useEffect(() => {
     fetchStats(); fetchAnalytics(); fetchStatements(); fetchApiKeys();
+    api.get('/api/wallet').then(({ data }) => setWallet(data.wallet)).catch(() => {});
   }, [fetchStats, fetchAnalytics, fetchStatements, fetchApiKeys]);
 
   useEffect(() => {
@@ -109,6 +111,23 @@ export default function Overview() {
             <button onClick={() => navigate('/dashboard/customers')} style={{ padding: '10px 22px', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>+ Add a customer</button>
             <button onClick={() => navigate('/dashboard/api-keys')} style={{ padding: '10px 22px', background: '#fff', color: '#0f172a', border: '1.5px solid #e2e8f0', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>Get API key</button>
           </div>
+        </div>
+      )}
+
+      {/* Wallet widget */}
+      {wallet !== null && (
+        <div onClick={() => navigate('/dashboard/billing')} style={{ background: wallet?.balance <= 1000 ? '#fff5f5' : '#f0fdf4', border: `1.5px solid ${wallet?.balance <= 1000 ? '#fecaca' : '#bbf7d0'}`, borderRadius: 12, padding: '14px 20px', marginBottom: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ fontSize: 24 }}>{wallet?.balance <= 1000 ? '⚠️' : '💳'}</div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>Wallet Balance</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: wallet?.balance <= 1000 ? '#dc2626' : '#16a34a' }}>₦{(wallet?.balance || 0).toLocaleString()}</div>
+            </div>
+            {wallet?.balance <= 1000 && (
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#dc2626' }}>Low balance — top up to avoid interruptions</div>
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>View billing →</div>
         </div>
       )}
 

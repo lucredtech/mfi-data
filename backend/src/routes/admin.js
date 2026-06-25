@@ -13,8 +13,12 @@ const AuditLog = require('../models/AuditLog');
 const FeatureRequest = require('../models/FeatureRequest');
 const Webhook = require('../models/Webhook');
 const Payment = require('../models/Payment');
+const WalletTransaction = require('../models/WalletTransaction');
+const Wallet = require('../models/Wallet');
+const { creditWallet } = require('../utils/wallet');
 
-const PLAN_PRICE = { free: 0, growth: 50000, scale: 200000 };
+const PLAN_PRICE = { free: 0, starter: 25000, growth: 50000, scale: 100000 };
+const PLAN_CREDITS = { starter: 32500, growth: 70000, scale: 150000 };
 
 // Admin JWT middleware
 const requireAdmin = (req, res, next) => {
@@ -341,19 +345,66 @@ router.patch('/feature-requests/:id', async (req, res) => {
   }
 });
 
-// Record a manual payment and upgrade plan
+// Record a manual payment, upgrade plan, and load wallet credits
 router.post('/clients/:id/payments', async (req, res) => {
   try {
-    const { plan, amount, method = 'manual', reference, note } = req.body;
-    if (!['growth', 'scale'].includes(plan)) return res.status(400).json({ error: 'Plan must be growth or scale' });
+    const { plan, amount, method = 'manual', reference, note, months = 1 } = req.body;
+    if (!['starter', 'growth', 'scale'].includes(plan)) return res.status(400).json({ error: 'Plan must be starter, growth, or scale' });
     if (!amount) return res.status(400).json({ error: 'amount is required' });
+
     const client = await MFIClient.findByIdAndUpdate(req.params.id, { plan }, { new: true });
     if (!client) return res.status(404).json({ error: 'Client not found' });
+
     const payment = await Payment.create({
       client: client._id, plan, amount, method, reference, note,
+      months: Number(months),
       recordedBy: req.admin?.email || 'admin',
     });
-    res.status(201).json({ payment, client });
+
+    // Load wallet credits: base credits × months × loyalty bonus
+    const baseCredits = PLAN_CREDITS[plan] || 0;
+    const loyaltyTiers = [{ min: 12, bonus: 0.20 }, { min: 9, bonus: 0.15 }, { min: 6, bonus: 0.10 }, { min: 3, bonus: 0.05 }];
+    const loyalty = loyaltyTiers.find(t => Number(months) >= t.min)?.bonus ?? 0;
+    const totalCredits = Math.round(baseCredits * Number(months) * (1 + loyalty));
+
+    if (totalCredits > 0) {
+      await creditWallet(client._id, totalCredits, {
+        type: 'subscription_credit',
+        description: `${plan.charAt(0).toUpperCase() + plan.slice(1)} plan — ${months} month${months > 1 ? 's' : ''}${loyalty > 0 ? ` (+${loyalty * 100}% loyalty bonus)` : ''}`,
+        ref: reference,
+      });
+    }
+
+    res.status(201).json({ payment, client, creditsLoaded: totalCredits });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Admin: manually credit a client's wallet (e.g. bank transfer top-up)
+router.post('/clients/:id/wallet/credit', async (req, res) => {
+  try {
+    const { amount, description = 'Manual top-up', ref } = req.body;
+    if (!amount || amount <= 0) return res.status(400).json({ error: 'amount must be a positive number' });
+    const client = await MFIClient.findById(req.params.id).select('_id organizationName').lean();
+    if (!client) return res.status(404).json({ error: 'Client not found' });
+    const wallet = await creditWallet(client._id, Number(amount), { type: 'topup', description, ref });
+    res.json({ balance: wallet.balance, credited: Number(amount) });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Admin: wallet transaction history for a client
+router.get('/clients/:id/wallet/transactions', async (req, res) => {
+  try {
+    const { limit = 50, skip = 0 } = req.query;
+    const [wallet, transactions, total] = await Promise.all([
+      Wallet.findOne({ client: req.params.id }).lean(),
+      WalletTransaction.find({ client: req.params.id }).sort({ createdAt: -1 }).limit(Number(limit)).skip(Number(skip)).lean(),
+      WalletTransaction.countDocuments({ client: req.params.id }),
+    ]);
+    res.json({ wallet, transactions, total });
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -369,35 +420,49 @@ router.get('/clients/:id/payments', async (req, res) => {
   }
 });
 
-// MRR chart — last 12 months of revenue grouped by month
+// Revenue chart — last 12 months: subscription payments + PAYG top-ups
 router.get('/mrr', async (req, res) => {
   try {
     const since = new Date();
     since.setMonth(since.getMonth() - 11);
     since.setDate(1); since.setHours(0, 0, 0, 0);
 
-    const rows = await Payment.aggregate([
+    // Subscription revenue from Payment records
+    const subRows = await Payment.aggregate([
       { $match: { createdAt: { $gte: since } } },
       { $group: {
         _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
-        revenue: { $sum: '$amount' },
-        count: { $sum: 1 },
+        subscriptionRevenue: { $sum: '$amount' },
+        subscriptionCount: { $sum: 1 },
       }},
-      { $sort: { '_id.year': 1, '_id.month': 1 } },
     ]);
 
-    // Fill in missing months with 0
+    // PAYG top-up revenue from WalletTransactions
+    const topupRows = await WalletTransaction.aggregate([
+      { $match: { type: 'topup', createdAt: { $gte: since } } },
+      { $group: {
+        _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
+        topupRevenue: { $sum: '$amount' },
+        topupCount: { $sum: 1 },
+      }},
+    ]);
+
     const result = [];
     for (let i = 11; i >= 0; i--) {
       const d = new Date();
       d.setMonth(d.getMonth() - i);
       const year = d.getFullYear();
       const month = d.getMonth() + 1;
-      const found = rows.find(r => r._id.year === year && r._id.month === month);
+      const sub = subRows.find(r => r._id.year === year && r._id.month === month);
+      const topup = topupRows.find(r => r._id.year === year && r._id.month === month);
+      const subscriptionRevenue = sub?.subscriptionRevenue || 0;
+      const topupRevenue = topup?.topupRevenue || 0;
       result.push({
         label: d.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }),
-        revenue: found?.revenue || 0,
-        count: found?.count || 0,
+        revenue: subscriptionRevenue + topupRevenue,
+        subscriptionRevenue,
+        topupRevenue,
+        count: (sub?.subscriptionCount || 0) + (topup?.topupCount || 0),
       });
     }
     res.json({ mrr: result });

@@ -6,6 +6,8 @@ const { requireApiKey, requireJWT, logUsage } = require('../middleware/auth');
 const lucredApi = require('../config/lucredApi');
 const StatementResult = require('../models/StatementResult');
 const AuditLog = require('../models/AuditLog');
+const Customer = require('../models/Customer');
+const { deductCharge, refundCharge } = require('../utils/wallet');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -30,6 +32,11 @@ router.post(
     if (!req.file) return res.status(400).json({ error: 'No file uploaded. Send file as multipart field named "statement"' });
 
     const { email, accountName, bankName, password, customerId } = req.body;
+
+    const clientId = req.client?._id ?? req.client?.id;
+    const customer = customerId ? await Customer.findById(customerId).select('name').lean() : null;
+    const charge = await deductCharge(clientId, 'STATEMENT_ANALYSIS', { customerName: customer?.name || accountName, customerId });
+    if (!charge.ok) return res.status(402).json({ error: charge.error, required: charge.required, balance: charge.balance });
 
     try {
       const form = new FormData();
@@ -72,6 +79,7 @@ router.post(
         status: 'failed',
       }).catch(() => {});
 
+      if (!charge.freeQuota) refundCharge(clientId, 'STATEMENT_ANALYSIS', { customerName: customer?.name || accountName, customerId }).catch(() => {});
       const status = err.response?.status || 502;
       res.status(status).json({ error: err.response?.data || err.message || 'Upstream error' });
     }

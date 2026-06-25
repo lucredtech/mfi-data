@@ -20,6 +20,7 @@ const { requireJWT } = require('./middleware/auth');
 const FeatureRequest = require('./models/FeatureRequest');
 const webhookRoutes = require('./routes/webhooks');
 const notificationRoutes = require('./routes/notifications');
+const walletRoutes = require('./routes/wallet');
 const UsageLog = require('./models/UsageLog');
 
 const app = express();
@@ -63,6 +64,7 @@ app.use('/api/usage', usageRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/wallet', walletRoutes);
 
 // Feature requests (JWT protected)
 app.post('/api/feature-requests', requireJWT, async (req, res) => {
@@ -122,6 +124,8 @@ mongoose
   .then(() => {
     dbConnected = true;
     console.log('MongoDB connected');
+    const { startMonthlySummaryCron } = require('./utils/monthlySummary');
+    startMonthlySummaryCron();
   })
   .catch((err) => {
     console.error('MongoDB connection error:', err);

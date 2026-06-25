@@ -3,19 +3,30 @@ import { useParams, useNavigate } from 'react-router-dom';
 import adminApi from '../../services/adminApi';
 import toast from 'react-hot-toast';
 
+const TX_COLOR = { topup: '#16a34a', charge: '#dc2626', refund: '#0ea5e9', subscription_credit: '#6d28d9' };
+const TX_LABEL = { topup: 'Top-up', charge: 'Charge', refund: 'Refund', subscription_credit: 'Sub credits' };
+
 export default function AdminClientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [client, setClient] = useState(null);
   const [analyses, setAnalyses] = useState(null);
   const [payments, setPayments] = useState([]);
-  const [payForm, setPayForm] = useState({ plan: 'growth', amount: '', method: 'bank_transfer', reference: '', note: '' });
+  const [payForm, setPayForm] = useState({ plan: 'growth', amount: '', method: 'bank_transfer', reference: '', note: '', months: 1 });
   const [paying, setPaying] = useState(false);
+  const [wallet, setWallet] = useState(null);
+  const [walletTxs, setWalletTxs] = useState([]);
+  const [creditForm, setCreditForm] = useState({ amount: '', description: '' });
+  const [crediting, setCrediting] = useState(false);
 
   const load = () => {
     adminApi.get(`/api/admin/clients/${id}`).then(({ data }) => setClient(data)).catch(() => {});
     adminApi.get(`/api/admin/clients/${id}/analyses`).then(({ data }) => setAnalyses(data)).catch(() => {});
     adminApi.get(`/api/admin/clients/${id}/payments`).then(({ data }) => setPayments(data.payments || [])).catch(() => {});
+    adminApi.get(`/api/admin/clients/${id}/wallet/transactions?limit=10`).then(({ data }) => {
+      setWallet(data.wallet);
+      setWalletTxs(data.transactions || []);
+    }).catch(() => {});
   };
 
   const recordPayment = async (e) => {
@@ -23,12 +34,25 @@ export default function AdminClientDetail() {
     if (!payForm.amount) return;
     setPaying(true);
     try {
-      await adminApi.post(`/api/admin/clients/${id}/payments`, { ...payForm, amount: Number(payForm.amount) });
+      await adminApi.post(`/api/admin/clients/${id}/payments`, { ...payForm, amount: Number(payForm.amount), months: Number(payForm.months) });
       toast.success(`Payment recorded — plan upgraded to ${payForm.plan}`);
-      setPayForm({ plan: 'growth', amount: '', method: 'bank_transfer', reference: '', note: '' });
+      setPayForm({ plan: 'growth', amount: '', method: 'bank_transfer', reference: '', note: '', months: 1 });
       load();
     } catch { toast.error('Failed to record payment'); }
     finally { setPaying(false); }
+  };
+
+  const creditWallet = async (e) => {
+    e.preventDefault();
+    if (!creditForm.amount) return;
+    setCrediting(true);
+    try {
+      await adminApi.post(`/api/admin/clients/${id}/wallet/credit`, { amount: Number(creditForm.amount), description: creditForm.description || 'Admin top-up' });
+      toast.success(`₦${Number(creditForm.amount).toLocaleString()} credited to wallet`);
+      setCreditForm({ amount: '', description: '' });
+      load();
+    } catch { toast.error('Failed to credit wallet'); }
+    finally { setCrediting(false); }
   };
 
   useEffect(() => { load(); }, [id]);
@@ -74,6 +98,7 @@ export default function AdminClientDetail() {
               style={{ fontSize: 13, fontWeight: 700, padding: '6px 10px', borderRadius: 8, border: '1.5px solid #e2e8f0', background: '#fff', cursor: 'pointer', color: { free: '#0ea5e9', growth: '#6d28d9', scale: '#16a34a' }[client.plan || 'free'] }}
             >
               <option value="free">Free</option>
+              <option value="starter">Starter</option>
               <option value="growth">Growth</option>
               <option value="scale">Scale</option>
             </select>
@@ -166,8 +191,12 @@ export default function AdminClientDetail() {
         <form onSubmit={recordPayment} style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20, background: '#f8fafc', borderRadius: 10, padding: '14px 16px', border: '1px solid #e2e8f0' }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', width: '100%', marginBottom: 2 }}>Record a payment</div>
           <select value={payForm.plan} onChange={e => setPayForm(f => ({ ...f, plan: e.target.value }))} style={si.sel}>
+            <option value="starter">Starter — ₦25,000</option>
             <option value="growth">Growth — ₦50,000</option>
-            <option value="scale">Scale — ₦200,000</option>
+            <option value="scale">Scale — ₦100,000</option>
+          </select>
+          <select value={payForm.months} onChange={e => setPayForm(f => ({ ...f, months: e.target.value }))} style={si.sel}>
+            {[1,2,3,4,5,6,9,12].map(m => <option key={m} value={m}>{m} month{m > 1 ? 's' : ''}</option>)}
           </select>
           <input placeholder="Amount (₦)" value={payForm.amount} onChange={e => setPayForm(f => ({ ...f, amount: e.target.value }))} style={si.inp} required type="number" min="1" />
           <select value={payForm.method} onChange={e => setPayForm(f => ({ ...f, method: e.target.value }))} style={si.sel}>
@@ -199,6 +228,49 @@ export default function AdminClientDetail() {
             </tbody>
           </table>
         ) : <p style={{ color: '#94a3b8', fontSize: 13 }}>No payments recorded yet.</p>}
+      </div>
+
+      {/* Wallet */}
+      <div style={s.box}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ ...s.boxTitle, margin: 0 }}>Wallet</h3>
+          {wallet !== null && (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: wallet?.balance <= 1000 ? '#dc2626' : '#0f172a' }}>
+                ₦{(wallet?.balance || 0).toLocaleString()}
+              </div>
+              {wallet?.balance <= 1000 && <div style={{ fontSize: 11, color: '#dc2626', fontWeight: 600 }}>Low balance</div>}
+            </div>
+          )}
+        </div>
+
+        {/* Credit form */}
+        <form onSubmit={creditWallet} style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20, background: '#f0fdf4', borderRadius: 10, padding: '14px 16px', border: '1px solid #bbf7d0' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#16a34a', width: '100%', marginBottom: 2 }}>Credit wallet (manual top-up)</div>
+          <input placeholder="Amount (₦)" value={creditForm.amount} onChange={e => setCreditForm(f => ({ ...f, amount: e.target.value }))} style={si.inp} required type="number" min="1" />
+          <input placeholder="Description (optional)" value={creditForm.description} onChange={e => setCreditForm(f => ({ ...f, description: e.target.value }))} style={{ ...si.inp, flex: 2 }} />
+          <button disabled={crediting || !creditForm.amount} style={{ padding: '8px 18px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: crediting || !creditForm.amount ? 0.6 : 1 }}>
+            {crediting ? 'Crediting…' : 'Credit'}
+          </button>
+        </form>
+
+        {/* Recent wallet transactions */}
+        {walletTxs.length > 0 ? (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead><tr>{['Time','Description','Type','Amount','Balance After'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+            <tbody>
+              {walletTxs.map((tx, i) => (
+                <tr key={tx._id} style={{ background: i % 2 ? '#fafafa' : '#fff' }}>
+                  <td style={{ ...s.td, fontSize: 12, color: '#94a3b8', whiteSpace: 'nowrap' }}>{new Date(tx.createdAt).toLocaleString()}</td>
+                  <td style={s.td}>{tx.description || '—'}{tx.freeQuota && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: '#0ea5e9', background: '#e0f2fe', padding: '1px 6px', borderRadius: 8 }}>FREE</span>}</td>
+                  <td style={s.td}><span style={{ fontSize: 11, fontWeight: 700, color: TX_COLOR[tx.type] || '#64748b', background: `${TX_COLOR[tx.type]}18`, padding: '2px 8px', borderRadius: 10 }}>{TX_LABEL[tx.type] || tx.type}</span></td>
+                  <td style={{ ...s.td, fontWeight: 700, color: tx.type === 'charge' ? '#dc2626' : '#16a34a' }}>{tx.type === 'charge' ? '-' : '+'}₦{tx.amount.toLocaleString()}</td>
+                  <td style={{ ...s.td, color: '#64748b' }}>₦{tx.balanceAfter.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <p style={{ color: '#94a3b8', fontSize: 13 }}>No wallet transactions yet.</p>}
       </div>
 
       {/* API Keys */}

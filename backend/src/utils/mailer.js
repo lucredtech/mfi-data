@@ -237,4 +237,67 @@ async function sendStaffStatusChangeAlert(to, { staffName, customerName, newStat
   });
 }
 
-module.exports = { sendPasswordReset, sendWelcome, sendLoanDecision, sendPlanLimitWarning, sendVerificationEmail, sendTeamInvite, sendStaffLoanReviewAlert, sendStaffStatusChangeAlert };
+async function sendLowBalanceAlert(to, { organizationName, balance, threshold }) {
+  await sendMail({
+    to,
+    subject: `Low wallet balance — ₦${balance.toLocaleString()} remaining`,
+    html: `
+      <div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:12px">
+        <div style="font-size:22px;font-weight:800;color:#0ea5e9;margin-bottom:8px">Lucred MFI</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:28px">Wallet Alert</div>
+        <h2 style="font-size:18px;color:#0f172a;margin:0 0 12px">Your wallet balance is low</h2>
+        <div style="background:#fff;border-left:4px solid #f59e0b;border-radius:8px;padding:16px 20px;margin-bottom:20px">
+          <div style="font-size:13px;color:#64748b;margin-bottom:4px">${organizationName}</div>
+          <div style="font-size:28px;font-weight:800;color:#dc2626">₦${balance.toLocaleString()}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:4px">remaining in your wallet</div>
+        </div>
+        <p style="font-size:14px;color:#334155;line-height:1.6">Your wallet balance has dropped below ₦${threshold.toLocaleString()}. Top up now to avoid interruptions when running BVN, NIN, bureau or statement analyses.</p>
+        <a href="https://mfi-data.vercel.app/dashboard/billing" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
+          Top Up Wallet →
+        </a>
+        <p style="color:#94a3b8;font-size:12px;margin-top:28px">You're receiving this because you are the account owner on Lucred MFI.</p>
+      </div>
+    `,
+  });
+}
+
+async function sendMonthlySummary(to, { organizationName, month, analyses, totalSpent, savedVsPayg, plan }) {
+  const rows = Object.entries(analyses)
+    .filter(([, v]) => v.count > 0)
+    .map(([service, v]) => `
+      <tr>
+        <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;color:#334155">${v.label}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;text-align:center">${v.count}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;text-align:right">₦${v.spent.toLocaleString()}</td>
+      </tr>`).join('');
+
+  await sendMail({
+    to,
+    subject: `Your ${month} usage summary — Lucred MFI`,
+    html: `
+      <div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:12px">
+        <div style="font-size:22px;font-weight:800;color:#0ea5e9;margin-bottom:8px">Lucred MFI</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:28px">Monthly Summary — ${month}</div>
+        <h2 style="font-size:18px;color:#0f172a;margin:0 0 16px">Here's how ${organizationName} used Lucred in ${month}</h2>
+        <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;margin-bottom:20px">
+          <thead><tr style="background:#f8fafc">
+            <th style="padding:8px 12px;text-align:left;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Service</th>
+            <th style="padding:8px 12px;text-align:center;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Runs</th>
+            <th style="padding:8px 12px;text-align:right;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Spent</th>
+          </tr></thead>
+          <tbody>${rows || '<tr><td colspan="3" style="padding:16px;text-align:center;color:#94a3b8;font-size:13px">No analyses run this month</td></tr>'}</tbody>
+        </table>
+        <div style="background:#fff;border-radius:8px;padding:16px 20px;margin-bottom:20px;display:flex;justify-content:space-between">
+          <div><div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Total spent</div><div style="font-size:22px;font-weight:800;color:#0f172a">₦${totalSpent.toLocaleString()}</div></div>
+          ${savedVsPayg > 0 ? `<div style="text-align:right"><div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Saved vs PAYG</div><div style="font-size:22px;font-weight:800;color:#16a34a">₦${savedVsPayg.toLocaleString()}</div></div>` : ''}
+        </div>
+        <a href="https://mfi-data.vercel.app/dashboard/billing" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
+          View Full Transaction Log →
+        </a>
+        <p style="color:#94a3b8;font-size:12px;margin-top:28px">You're receiving this monthly summary as the account owner on Lucred MFI.</p>
+      </div>
+    `,
+  });
+}
+
+module.exports = { sendPasswordReset, sendWelcome, sendLoanDecision, sendPlanLimitWarning, sendVerificationEmail, sendTeamInvite, sendStaffLoanReviewAlert, sendStaffStatusChangeAlert, sendLowBalanceAlert, sendMonthlySummary };

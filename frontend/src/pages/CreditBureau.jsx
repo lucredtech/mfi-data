@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { exportBureauHistoryCSV } from '../services/exportCSV';
@@ -18,6 +18,7 @@ export default function CreditBureau() {
   const [form, setForm] = useState({ bvn: '', firstName: '', lastName: '', dateOfBirth: '' });
   const [customerId, setCustomerId] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [walletError, setWalletError] = useState(false);
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -54,6 +55,7 @@ export default function CreditBureau() {
     const apiKey = localStorage.getItem('apiKey');
     if (!apiKey) return toast.error('No API key found. Please re-login.');
 
+    setWalletError(false);
     setLoading(true);
     setResult(null);
     try {
@@ -68,11 +70,13 @@ export default function CreditBureau() {
         },
         { headers: { 'X-Api-Key': apiKey } },
       );
+      setWalletError(false);
       setResult(data.data || data);
       toast.success('Bureau check complete and saved');
       fetchHistory();
     } catch (err) {
       if (isUnauthorized(err)) { toast.error('Your session has expired. Please sign in again.'); navigate('/login'); return; }
+      if (err?.response?.status === 402) { setWalletError(true); return; }
       toast.error(parseApiError(err, {
         400: 'Please check the BVN and borrower details and try again.',
         404: 'No credit record found for this individual in the bureau.',
@@ -91,6 +95,16 @@ export default function CreditBureau() {
           <p style={s.sub}>Pull a borrower's credit history and outstanding obligations. Every result is saved automatically.</p>
         </div>
       </div>
+
+      {walletError && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <span style={{ fontWeight: 700, color: '#dc2626' }}>Insufficient wallet balance</span>
+            <span style={{ color: '#7f1d1d', fontSize: 13, marginLeft: 8 }}>Bureau checks cost ₦700. Top up your wallet to continue.</span>
+          </div>
+          <Link to="/dashboard/billing" style={{ fontSize: 13, fontWeight: 700, color: '#dc2626', background: '#fee2e2', padding: '6px 14px', borderRadius: 8, textDecoration: 'none', whiteSpace: 'nowrap' }}>Top up →</Link>
+        </div>
+      )}
 
       <div style={s.layout}>
         {/* Form */}
