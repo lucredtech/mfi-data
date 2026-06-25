@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
+import { useNotifications } from '../context/NotificationContext';
 
 const TYPE_ICON = {
   webhook_failure: '🔴',
@@ -13,20 +14,19 @@ const TYPE_ICON = {
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [unread, setUnread] = useState(0);
+  const { unread, markAllRead: ctxMarkAllRead, refresh } = useNotifications();
   const ref = useRef(null);
 
   async function load() {
     try {
       const { data } = await api.get('/api/notifications');
       setNotifications(data.notifications || []);
-      setUnread(data.unread || 0);
     } catch {}
   }
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 30000); // poll every 30s
+    const interval = setInterval(load, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -40,13 +40,13 @@ export default function NotificationBell() {
   async function markAllRead() {
     await api.patch('/api/notifications/read-all').catch(() => {});
     setNotifications(n => n.map(x => ({ ...x, read: true })));
-    setUnread(0);
+    ctxMarkAllRead();
   }
 
   async function markRead(id) {
     await api.patch(`/api/notifications/${id}/read`).catch(() => {});
     setNotifications(n => n.map(x => x._id === id ? { ...x, read: true } : x));
-    setUnread(u => Math.max(0, u - 1));
+    refresh();
   }
 
   function toggle() {

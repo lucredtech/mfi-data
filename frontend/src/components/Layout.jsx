@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import UpgradeModal from './UpgradeModal';
 import NotificationBell from './NotificationBell';
+import { useNotifications } from '../context/NotificationContext';
 
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
@@ -56,6 +57,7 @@ const NAV_GROUPS = [
       { path: '/dashboard/profile', label: 'Profile' },
       { path: '/dashboard/team', label: 'Team' },
       { path: '/dashboard/billing', label: 'Billing' },
+      { path: '/dashboard/notifications', label: 'Notifications' },
       { path: '/dashboard/referral', label: 'Refer an MFI' },
       { path: '/dashboard/audit', label: 'Audit Log' },
       { path: '/dashboard/privacy', label: 'Privacy & Data' },
@@ -83,6 +85,7 @@ export default function Layout({ children }) {
   const { client, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { unread: notifUnread } = useNotifications();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activity, setActivity] = useState([]);
@@ -238,15 +241,20 @@ export default function Layout({ children }) {
                           key={child.path}
                           to={child.path}
                           style={{
-                            display: 'block', padding: '7px 10px', borderRadius: 6, marginBottom: 1,
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '7px 10px', borderRadius: 6, marginBottom: 1,
                             color: active ? '#38bdf8' : '#64748b',
                             background: active ? '#1e293b' : 'transparent',
                             textDecoration: 'none', fontSize: 13, fontWeight: active ? 600 : 400,
                             transition: 'background 0.12s',
-                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                           }}
                         >
-                          {child.label}
+                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{child.label}</span>
+                          {child.path === '/dashboard/notifications' && notifUnread > 0 && (
+                            <span style={{ flexShrink: 0, background: '#ef4444', color: '#fff', fontSize: 9, fontWeight: 800, borderRadius: 20, minWidth: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>
+                              {notifUnread > 9 ? '9+' : notifUnread}
+                            </span>
+                          )}
                         </Link>
                       );
                     })}

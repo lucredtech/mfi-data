@@ -201,6 +201,7 @@ export default function Billing() {
 
       <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 16 }}>
         To subscribe or top up, contact <a href="mailto:support@lucred.co" style={{ color: '#0ea5e9' }}>support@lucred.co</a> or visit the <Link to="/pricing" style={{ color: '#0ea5e9' }}>pricing page</Link>.
+        {' '}Read our <Link to="/dashboard/cancellation-policy" style={{ color: '#0ea5e9' }}>cancellation &amp; credits policy</Link>.
       </p>
     </div>
   );

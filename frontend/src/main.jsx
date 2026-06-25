@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AdminProvider, useAdmin } from './context/AdminContext';
 import Landing from './pages/Landing';
@@ -48,6 +49,8 @@ import Referral from './pages/Referral';
 import Billing from './pages/Billing';
 import Changelog from './pages/Changelog';
 import VerifyEmail from './pages/VerifyEmail';
+import Notifications from './pages/Notifications';
+import CancellationPolicy from './pages/CancellationPolicy';
 import Status from './pages/Status';
 import Team from './pages/Team';
 import AcceptInvite from './pages/AcceptInvite';
@@ -95,6 +98,8 @@ function App() {
         <Route path="/dashboard/profile" element={<PrivateRoute><Layout><Profile /></Layout></PrivateRoute>} />
         <Route path="/dashboard/referral" element={<PrivateRoute><Layout><Referral /></Layout></PrivateRoute>} />
         <Route path="/dashboard/billing" element={<PrivateRoute><Layout><Billing /></Layout></PrivateRoute>} />
+        <Route path="/dashboard/notifications" element={<PrivateRoute><Layout><Notifications /></Layout></PrivateRoute>} />
+        <Route path="/dashboard/cancellation-policy" element={<PrivateRoute><Layout><CancellationPolicy /></Layout></PrivateRoute>} />
         <Route path="/docs" element={<PublicDocs />} />
         <Route path="/changelog" element={<Changelog />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
@@ -118,5 +123,5 @@ function App() {
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <AdminProvider><AuthProvider><App /><Analytics /></AuthProvider></AdminProvider>
+  <AdminProvider><AuthProvider><NotificationProvider><App /><Analytics /></NotificationProvider></AuthProvider></AdminProvider>
 );

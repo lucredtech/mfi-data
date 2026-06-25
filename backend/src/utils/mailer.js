@@ -300,4 +300,34 @@ async function sendMonthlySummary(to, { organizationName, month, analyses, total
   });
 }
 
-module.exports = { sendPasswordReset, sendWelcome, sendLoanDecision, sendPlanLimitWarning, sendVerificationEmail, sendTeamInvite, sendStaffLoanReviewAlert, sendStaffStatusChangeAlert, sendLowBalanceAlert, sendMonthlySummary };
+async function sendTopupConfirmation(to, { organizationName, amount, balance, description }) {
+  await sendMail({
+    to,
+    subject: `Wallet credited — ₦${Number(amount).toLocaleString()} added to your Lucred wallet`,
+    html: `
+      <div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:12px">
+        <div style="font-size:22px;font-weight:800;color:#0ea5e9;margin-bottom:8px">Lucred MFI</div>
+        <h2 style="font-size:20px;color:#0f172a;margin:0 0 20px">Wallet top-up confirmed</h2>
+        <p style="font-size:14px;color:#334155;margin-bottom:24px">Hi ${organizationName},<br/><br/>Your Lucred wallet has been credited. Here's the summary:</p>
+        <div style="background:#fff;border-radius:10px;padding:20px 24px;margin-bottom:24px">
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9">
+            <span style="font-size:13px;color:#64748b">Amount credited</span>
+            <span style="font-size:15px;font-weight:800;color:#16a34a">+₦${Number(amount).toLocaleString()}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9">
+            <span style="font-size:13px;color:#64748b">Description</span>
+            <span style="font-size:13px;color:#0f172a">${description || 'Manual top-up'}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0">
+            <span style="font-size:13px;color:#64748b">New balance</span>
+            <span style="font-size:18px;font-weight:800;color:#0f172a">₦${Number(balance).toLocaleString()}</span>
+          </div>
+        </div>
+        <a href="https://mfi-data.vercel.app/dashboard/billing" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">View Wallet →</a>
+        <p style="color:#94a3b8;font-size:12px;margin-top:28px">If you didn't request this top-up, please contact <a href="mailto:support@lucred.co" style="color:#0ea5e9">support@lucred.co</a> immediately.</p>
+      </div>
+    `,
+  });
+}
+
+module.exports = { sendPasswordReset, sendWelcome, sendLoanDecision, sendPlanLimitWarning, sendVerificationEmail, sendTeamInvite, sendStaffLoanReviewAlert, sendStaffStatusChangeAlert, sendLowBalanceAlert, sendMonthlySummary, sendTopupConfirmation };

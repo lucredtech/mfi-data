@@ -16,6 +16,8 @@ const Payment = require('../models/Payment');
 const WalletTransaction = require('../models/WalletTransaction');
 const Wallet = require('../models/Wallet');
 const { creditWallet } = require('../utils/wallet');
+const { sendTopupConfirmation } = require('../utils/mailer');
+const Notification = require('../models/Notification');
 
 const PLAN_PRICE = { free: 0, starter: 25000, growth: 50000, scale: 100000 };
 const PLAN_CREDITS = { starter: 32500, growth: 70000, scale: 150000 };
@@ -386,9 +388,12 @@ router.post('/clients/:id/wallet/credit', async (req, res) => {
   try {
     const { amount, description = 'Manual top-up', ref } = req.body;
     if (!amount || amount <= 0) return res.status(400).json({ error: 'amount must be a positive number' });
-    const client = await MFIClient.findById(req.params.id).select('_id organizationName').lean();
+    const client = await MFIClient.findById(req.params.id).select('_id email organizationName').lean();
     if (!client) return res.status(404).json({ error: 'Client not found' });
     const wallet = await creditWallet(client._id, Number(amount), { type: 'topup', description, ref });
+    // Email + in-app notification (fire and forget)
+    sendTopupConfirmation(client.email, { organizationName: client.organizationName, amount: Number(amount), balance: wallet.balance, description }).catch(() => {});
+    Notification.create({ client: client._id, type: 'general', title: 'Wallet credited', body: `₦${Number(amount).toLocaleString()} has been added to your wallet. New balance: ₦${wallet.balance.toLocaleString()}.` }).catch(() => {});
     res.json({ balance: wallet.balance, credited: Number(amount) });
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
