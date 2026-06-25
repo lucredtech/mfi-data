@@ -17,8 +17,12 @@ const { requireJWT } = require('../middleware/auth');
 // Get referral info
 router.get('/referral', requireJWT, async (req, res) => {
   try {
-    const client = await MFIClient.findById(req.client.id).select('referralCode referralCount').lean();
+    let client = await MFIClient.findById(req.client.id).select('referralCode referralCount').lean();
     if (!client) return res.status(404).json({ error: 'Not found' });
+    if (!client.referralCode) {
+      const referralCode = crypto.randomBytes(4).toString('hex').toUpperCase();
+      client = await MFIClient.findByIdAndUpdate(req.client.id, { referralCode }, { new: true }).select('referralCode referralCount').lean();
+    }
     res.json({ referralCode: client.referralCode, referralCount: client.referralCount || 0 });
   } catch (err) {
     res.status(500).json({ error: 'Failed' });

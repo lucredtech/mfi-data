@@ -54,6 +54,7 @@ import CancellationPolicy from './pages/CancellationPolicy';
 import Status from './pages/Status';
 import Team from './pages/Team';
 import AcceptInvite from './pages/AcceptInvite';
+import Settings from './pages/Settings';
 
 function PrivateRoute({ children }) {
   const { client, loading } = useAuth();
@@ -96,6 +97,7 @@ function App() {
         <Route path="/dashboard/feature-request" element={<PrivateRoute><Layout><FeatureRequest /></Layout></PrivateRoute>} />
         <Route path="/dashboard/privacy" element={<PrivateRoute><Layout><Privacy /></Layout></PrivateRoute>} />
         <Route path="/dashboard/profile" element={<PrivateRoute><Layout><Profile /></Layout></PrivateRoute>} />
+        <Route path="/dashboard/settings" element={<PrivateRoute><Layout><Settings /></Layout></PrivateRoute>} />
         <Route path="/dashboard/referral" element={<PrivateRoute><Layout><Referral /></Layout></PrivateRoute>} />
         <Route path="/dashboard/billing" element={<PrivateRoute><Layout><Billing /></Layout></PrivateRoute>} />
         <Route path="/dashboard/notifications" element={<PrivateRoute><Layout><Notifications /></Layout></PrivateRoute>} />

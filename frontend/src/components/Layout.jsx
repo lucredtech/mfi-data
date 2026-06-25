@@ -54,6 +54,7 @@ const NAV_GROUPS = [
     abbr: 'AC',
     icon: '◉',
     children: [
+      { path: '/dashboard/settings', label: 'Settings' },
       { path: '/dashboard/profile', label: 'Profile' },
       { path: '/dashboard/team', label: 'Team' },
       { path: '/dashboard/billing', label: 'Billing' },

@@ -24,6 +24,8 @@ const requireApiKey = async (req, res, next) => {
 
   const apiKey = await ApiKey.findOne({ key, isActive: true }).populate('client');
   if (!apiKey) return res.status(401).json({ error: 'Invalid or inactive API key' });
+  if (!apiKey.client.emailVerified)
+    return res.status(403).json({ error: 'Please verify your email address before using the API. Check your inbox for the verification link.' });
   if (apiKey.client.status === 'pending')
     return res.status(403).json({ error: 'Your account is pending approval. Our team will contact you once your KYB review is complete.' });
   if (apiKey.client.status === 'suspended')
