@@ -93,7 +93,7 @@ router.get('/:id', async (req, res) => {
       BVNResult.find({ customer: customer._id }).sort({ createdAt: -1 }).limit(5).lean(),
       NINResult.find({ customer: customer._id }).sort({ createdAt: -1 }).limit(5).lean(),
       BureauResult.find({ customer: customer._id }).sort({ createdAt: -1 }).limit(5).lean(),
-      StatementResult.find({ customer: customer._id }).sort({ createdAt: -1 }).limit(5).lean(),
+      StatementResult.find({ customer: customer._id }).select("-s3Key").sort({ createdAt: -1 }).limit(5).lean(),
       LoanReview.find({ customer: customer._id }).sort({ createdAt: -1 }).limit(5).lean(),
       Scorecard.find({ customer: customer._id }).sort({ createdAt: -1 }).limit(1).lean(),
     ]);
@@ -257,7 +257,7 @@ router.post('/:id/scorecard', logUsage('/v1/customers/scorecard'), async (req, r
       BVNResult.find({ customer: customer._id, status: 'success' }).sort({ createdAt: -1 }).limit(1).lean(),
       NINResult.find({ customer: customer._id, status: 'success' }).sort({ createdAt: -1 }).limit(1).lean(),
       BureauResult.find({ customer: customer._id, status: 'success' }).sort({ createdAt: -1 }).limit(1).lean(),
-      StatementResult.find({ customer: customer._id, status: 'success' }).sort({ createdAt: -1 }).limit(1).lean(),
+      StatementResult.find({ customer: customer._id, status: "success" }).select("-s3Key").sort({ createdAt: -1 }).limit(1).lean(),
     ]);
 
     const result = computeScorecard({
@@ -286,7 +286,7 @@ router.post('/:id/loan-review', sandboxMock('loan_review'), logUsage('/v1/custom
       BVNResult.find({ customer: customer._id, status: 'success' }).sort({ createdAt: -1 }).limit(1).lean(),
       NINResult.find({ customer: customer._id, status: 'success' }).sort({ createdAt: -1 }).limit(1).lean(),
       BureauResult.find({ customer: customer._id, status: 'success' }).sort({ createdAt: -1 }).limit(1).lean(),
-      StatementResult.find({ customer: customer._id, status: 'success' }).sort({ createdAt: -1 }).limit(1).lean(),
+      StatementResult.find({ customer: customer._id, status: "success" }).select("-s3Key").sort({ createdAt: -1 }).limit(1).lean(),
     ]);
 
     const review = computeLoanReview({

@@ -99,7 +99,7 @@ export default function PrivacyPolicy() {
               'BVN verification results: name, date of birth, gender, phone, email, enrollment bank, NIN linkage, account level, watchlist status, and biometric image (from NIBSS via Dojah)',
               'NIN verification results: name, date of birth, gender, address, state of origin, LGA, nationality, religion, marital status, watchlist status, and biometric photo (from NIMC via Dojah)',
               'Credit bureau data: FirstCentral XScore, credit account summary, credit account details, delinquency records, and repayment history',
-              'Bank statement analysis: income metrics, spending patterns, debt servicing ratios, account sweep analysis, weekly and monthly transaction summaries (no raw transaction data is stored)',
+              'Bank statement analysis: the uploaded statement file and derived metrics (income, spending patterns, debt servicing ratios, account sweep analysis, weekly and monthly transaction summaries) are retained securely for the duration set out in the Retention section below.',
               'Customer profile data entered by Clients: name, email, phone, BVN, NIN, address, customer type',
             ]} />
 
@@ -162,7 +162,8 @@ export default function PrivacyPolicy() {
             <UL items={[
               "Dojah (identity API provider) — BVN and NIN verification requests are forwarded to Dojah, which queries NIBSS and NIMC respectively. Dojah's own privacy policy governs their handling of this data.",
               "FirstCentral Credit Bureau — credit bureau check requests are forwarded to FirstCentral. Their data is subject to FirstCentral's terms and NDPC authorisation.",
-              'MongoDB Atlas (cloud database) — all stored data is encrypted at rest on MongoDB Atlas (AWS-hosted within the applicable region).',
+              'MongoDB Atlas (cloud database) — all stored data is encrypted at rest on MongoDB Atlas (hosted within the applicable region).',
+              'Cloud file storage — uploaded bank statement files are stored in an encrypted, access-controlled cloud storage service. Files are never shared with third parties and are accessible only to authorised Lucred systems.',
               'Railway (backend hosting) — application servers run on Railway infrastructure. No persistent data is stored on Railway beyond in-flight request processing.',
               'Vercel (frontend hosting) — the dashboard application is served via Vercel. No personal data is stored on Vercel.',
             ]} />

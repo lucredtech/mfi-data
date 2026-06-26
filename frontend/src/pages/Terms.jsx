@@ -57,7 +57,7 @@ export default function Terms() {
             <h1 style={s.h1}>Terms of Service</h1>
             <p style={s.meta}>Last updated: {LAST_UPDATED}</p>
             <p style={s.lead}>
-              These Terms of Service ("Terms") govern your access to and use of the Lucred B2B Developer Portal
+              These Terms of Service ("Terms") govern your access to and use of the Lucred Credit Engine
               and API ("Service") provided by Lucred Technology LLC ("Lucred", "we", "us"). By creating an account
               or using the Service, you agree to be bound by these Terms in full. If you are using the Service on
               behalf of an organisation, you represent that you are authorised to bind that organisation to these Terms.

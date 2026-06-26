@@ -35,10 +35,15 @@ async function getOrCreateWallet(clientId) {
   return wallet;
 }
 
+async function getRateForClient(clientId, service) {
+  const client = await MFIClient.findById(clientId).select('customRates').lean();
+  return client?.customRates?.[service] ?? RATES[service];
+}
+
 // Returns { ok, error, freeQuota } — call before upstream API
 async function deductCharge(clientId, service, { customerName, customerId } = {}) {
-  const rate = RATES[service];
-  if (!rate) return { ok: false, error: `Unknown service: ${service}` };
+  const rate = await getRateForClient(clientId, service);
+  if (rate == null) return { ok: false, error: `Unknown service: ${service}` };
 
   const wallet = await getOrCreateWallet(clientId);
 
@@ -102,8 +107,8 @@ async function deductCharge(clientId, service, { customerName, customerId } = {}
 
 // Call on upstream failure to reverse the charge
 async function refundCharge(clientId, service, { customerName, customerId } = {}) {
-  const rate = RATES[service];
-  if (!rate) return;
+  const rate = await getRateForClient(clientId, service);
+  if (rate == null) return;
 
   const updated = await Wallet.findOneAndUpdate(
     { client: clientId },

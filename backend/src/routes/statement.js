@@ -118,7 +118,7 @@ router.get('/api/statements', requireJWT, async (req, res) => {
         { filename: { $regex: q, $options: 'i' } },
       ];
     }
-    const statements = await StatementResult.find(filter).sort({ createdAt: -1 }).limit(50).lean();
+    const statements = await StatementResult.find(filter).select('-s3Key').sort({ createdAt: -1 }).limit(50).lean();
     const total = await StatementResult.countDocuments({ client: req.client.id });
     res.json({ total, statements });
   } catch (err) {
@@ -130,7 +130,7 @@ router.get('/api/statements', requireJWT, async (req, res) => {
 // Get single statement analysis
 router.get('/api/statements/:id', requireJWT, async (req, res) => {
   try {
-    const statement = await StatementResult.findOne({ _id: req.params.id, client: req.client.id });
+    const statement = await StatementResult.findOne({ _id: req.params.id, client: req.client.id }).select('-s3Key').lean();
     if (!statement) return res.status(404).json({ error: 'Not found' });
     res.json(statement);
   } catch (err) {

@@ -22,6 +22,10 @@ export default function AdminClientDetail() {
   const [kybSaving, setKybSaving] = useState(false);
   const [approving, setApproving] = useState(false);
   const [sendingSla, setSendingSla] = useState(false);
+  const GLOBAL_RATES = { BVN_CHECK: 75, NIN_CHECK: 100, BUREAU_CHECK: 700, STATEMENT_ANALYSIS: 400 };
+  const RATE_LABELS  = { BVN_CHECK: 'BVN Check', NIN_CHECK: 'NIN Check', BUREAU_CHECK: 'Credit Bureau', STATEMENT_ANALYSIS: 'Statement Analysis' };
+  const [rateForm, setRateForm] = useState({ BVN_CHECK: '', NIN_CHECK: '', BUREAU_CHECK: '', STATEMENT_ANALYSIS: '' });
+  const [savingRates, setSavingRates] = useState(false);
 
   const load = () => {
     adminApi.get(`/api/admin/clients/${id}`).then(({ data }) => setClient(data)).catch(() => {});
@@ -90,8 +94,33 @@ export default function AdminClientDetail() {
     finally { setKybSaving(false); }
   };
 
+  const saveRates = async () => {
+    setSavingRates(true);
+    try {
+      const payload = {};
+      for (const key of Object.keys(GLOBAL_RATES)) {
+        const val = rateForm[key];
+        payload[key] = val === '' ? null : Number(val);
+      }
+      await adminApi.patch(`/api/admin/clients/${id}/rates`, payload);
+      toast.success('Custom rates saved');
+      load();
+    } catch { toast.error('Failed to save rates'); }
+    finally { setSavingRates(false); }
+  };
+
   useEffect(() => { load(); }, [id]);
   useEffect(() => { if (client?.kybNotes) setKybNotes(client.kybNotes); }, [client?.kybNotes]);
+  useEffect(() => {
+    if (!client) return;
+    const r = client.customRates || {};
+    setRateForm({
+      BVN_CHECK:          r.BVN_CHECK          != null ? String(r.BVN_CHECK)          : '',
+      NIN_CHECK:          r.NIN_CHECK          != null ? String(r.NIN_CHECK)          : '',
+      BUREAU_CHECK:       r.BUREAU_CHECK       != null ? String(r.BUREAU_CHECK)       : '',
+      STATEMENT_ANALYSIS: r.STATEMENT_ANALYSIS != null ? String(r.STATEMENT_ANALYSIS) : '',
+    });
+  }, [client?._id]);
 
   const updatePlan = async (plan) => {
     try {
@@ -273,6 +302,45 @@ export default function AdminClientDetail() {
       )}
 
       {/* Billing / Payments */}
+      <div style={s.box}>
+        <h3 style={s.boxTitle}>Custom Pricing</h3>
+        <p style={{ fontSize: 13, color: '#64748b', marginTop: 0, marginBottom: 16 }}>
+          Override the global rate for this client. Leave blank to use the platform default.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 16 }}>
+          {Object.keys(GLOBAL_RATES).map(key => (
+            <div key={key}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 5, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                {RATE_LABELS[key]}
+              </label>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#64748b' }}>₦</span>
+                <input
+                  type="number" min="0"
+                  placeholder={`default ${GLOBAL_RATES[key]}`}
+                  value={rateForm[key]}
+                  onChange={e => setRateForm(f => ({ ...f, [key]: e.target.value }))}
+                  style={{ ...si.inp, paddingLeft: 24, width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+              {rateForm[key] !== '' && Number(rateForm[key]) !== GLOBAL_RATES[key] && (
+                <div style={{ fontSize: 11, color: '#6d28d9', marginTop: 3, fontWeight: 600 }}>
+                  Custom · global is ₦{GLOBAL_RATES[key]}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button onClick={saveRates} disabled={savingRates} style={{ padding: '8px 18px', background: '#6d28d9', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer', opacity: savingRates ? 0.6 : 1 }}>
+            {savingRates ? 'Saving…' : 'Save rates'}
+          </button>
+          <button onClick={() => { setRateForm({ BVN_CHECK: '', NIN_CHECK: '', BUREAU_CHECK: '', STATEMENT_ANALYSIS: '' }); }} style={{ padding: '8px 14px', background: 'none', border: '1.5px solid #e2e8f0', borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: 'pointer', color: '#64748b' }}>
+            Reset to defaults
+          </button>
+        </div>
+      </div>
+
       <div style={s.box}>
         <h3 style={s.boxTitle}>Billing & Payments</h3>
         <form onSubmit={recordPayment} style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20, background: '#f8fafc', borderRadius: 10, padding: '14px 16px', border: '1px solid #e2e8f0' }}>

@@ -184,6 +184,27 @@ router.patch('/clients/:id/kyb', async (req, res) => {
   }
 });
 
+// Set / clear custom pricing rates for a client
+router.patch('/clients/:id/rates', async (req, res) => {
+  try {
+    const { RATES } = require('../utils/wallet');
+    const allowed = ['BVN_CHECK', 'NIN_CHECK', 'BUREAU_CHECK', 'STATEMENT_ANALYSIS'];
+    const update = {};
+    for (const key of allowed) {
+      if (req.body[key] === null || req.body[key] === '') {
+        update[`customRates.${key}`] = undefined; // clear — use global
+      } else if (typeof req.body[key] === 'number' && req.body[key] >= 0) {
+        update[`customRates.${key}`] = req.body[key];
+      }
+    }
+    const client = await MFIClient.findByIdAndUpdate(req.params.id, { $set: update }, { new: true }).select('customRates organizationName').lean();
+    if (!client) return res.status(404).json({ error: 'Client not found' });
+    res.json({ customRates: client.customRates, globalRates: RATES });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Platform-wide usage stats
 router.get('/stats', async (req, res) => {
   try {
