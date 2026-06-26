@@ -96,10 +96,16 @@ export default function Overview() {
           <h1 style={s.h1}>Welcome, {client?.organizationName || client?.name}</h1>
           <p style={s.sub}>Your credit analysis dashboard</p>
         </div>
-        <button style={s.exportBtn} onClick={async () => {
-          const { default: exportSummaryPDF } = await import('../services/exportSummaryPDF');
-          exportSummaryPDF({ stats, orgName: client?.organizationName });
-        }}>↓ Export Summary PDF</button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button onClick={() => navigate('/dashboard/statement')}
+            style={{ padding: '9px 18px', background: '#6d28d9', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+            + Analyse Statement
+          </button>
+          <button style={s.exportBtn} onClick={async () => {
+            const { default: exportSummaryPDF } = await import('../services/exportSummaryPDF');
+            exportSummaryPDF({ stats, orgName: client?.organizationName });
+          }}>↓ Export Summary PDF</button>
+        </div>
       </div>
 
       {stats && stats.customers === 0 && !stats.statements?.total && !stats.bvn?.total && (
