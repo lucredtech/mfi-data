@@ -20,6 +20,8 @@ const BANKS = [
   { value: "fcmb", label: "FCMB" },
   { value: "firstbank", label: "First Bank" },
   { value: "nova", label: "Nova Bank" },
+  { value: "palmpay", label: "Palmpay" },
+  { value: "ecobank", label: "Ecobank" },
 ];
 
 function BankSelect({ value, onChange }) {

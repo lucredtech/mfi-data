@@ -24,6 +24,7 @@ const walletRoutes = require('./routes/wallet');
 const UsageLog = require('./models/UsageLog');
 
 const app = express();
+app.set('trust proxy', 1); // Railway sits behind a reverse proxy
 
 app.use(helmet());
 app.use(cors({
