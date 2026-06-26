@@ -2,7 +2,7 @@ const router = require('express').Router();
 const multer = require('multer');
 const FormData = require('form-data');
 const rateLimit = require('express-rate-limit');
-const { requireApiKey, requireJWT, logUsage } = require('../middleware/auth');
+const { requireApiKey, requireApiKeyOrJWT, requireJWT, logUsage } = require('../middleware/auth');
 const lucredApi = require('../config/lucredApi');
 const StatementResult = require('../models/StatementResult');
 const AuditLog = require('../models/AuditLog');
@@ -25,7 +25,7 @@ const limiter = rateLimit({ windowMs: 60 * 1000, max: 30, keyGenerator: (req) =>
 // Upload bank statement and run transaction analysis
 router.post(
   '/v1/statement/upload-analyze',
-  requireApiKey,
+  requireApiKeyOrJWT,
   limiter,
   logUsage('/v1/statement/upload-analyze'),
   upload.single('statement'),

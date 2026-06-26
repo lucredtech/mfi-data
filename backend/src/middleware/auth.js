@@ -98,6 +98,23 @@ const requireApiKey = async (req, res, next) => {
   next();
 };
 
+// Accepts either API key (programmatic) or JWT (dashboard) — for routes used by both
+const requireApiKeyOrJWT = async (req, res, next) => {
+  const key = req.headers['x-api-key'];
+  if (key) return requireApiKey(req, res, next);
+
+  // Fall back to JWT
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Authentication required. Provide an X-Api-Key header or log in.' });
+  try {
+    req.client = jwt.verify(token, process.env.JWT_SECRET);
+    req._dashboardUpload = true; // flag so logUsage knows there's no apiKey
+    return next();
+  } catch {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+};
+
 // Log usage after response
 const logUsage = (endpoint) => async (req, res, next) => {
   res.on('finish', async () => {
@@ -123,4 +140,4 @@ const requireWriteAccess = (req, res, next) => {
   next();
 };
 
-module.exports = { requireJWT, requireApiKey, logUsage, requireWriteAccess };
+module.exports = { requireJWT, requireApiKey, requireApiKeyOrJWT, logUsage, requireWriteAccess };
