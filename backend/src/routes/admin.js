@@ -492,6 +492,66 @@ router.get('/clients/:id/payments', async (req, res) => {
 });
 
 // Revenue chart — last 12 months: subscription payments + PAYG top-ups
+// Export all wallet transactions as CSV
+router.get('/wallet-transactions/export', async (req, res) => {
+  try {
+    const { from, to, clientId } = req.query;
+    const filter = { type: { $in: ['topup', 'charge', 'refund'] } };
+    if (from || to) {
+      filter.createdAt = {};
+      if (from) filter.createdAt.$gte = new Date(from);
+      if (to)   filter.createdAt.$lte = new Date(new Date(to).setHours(23, 59, 59, 999));
+    }
+    if (clientId) filter.client = clientId;
+    const txs = await WalletTransaction.find(filter).populate('client', 'organizationName email').sort({ createdAt: -1 }).limit(5000).lean();
+    const rows = txs.map(t => [
+      new Date(t.createdAt).toISOString(),
+      `"${(t.client?.organizationName || '').replace(/"/g, '""')}"`,
+      t.client?.email || '',
+      t.type,
+      t.amount,
+      t.balanceAfter,
+      `"${(t.description || '').replace(/"/g, '""')}"`,
+      t.service || '',
+    ]);
+    const csv = [
+      ['Date','Organisation','Email','Type','Amount','Balance After','Description','Service'].join(','),
+      ...rows.map(r => r.join(',')),
+    ].join('\n');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="wallet-transactions-${new Date().toISOString().slice(0,10)}.csv"`);
+    res.send(csv);
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Platform revenue totals
+router.get('/revenue/totals', async (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const dateFilter = {};
+    if (from || to) {
+      dateFilter.createdAt = {};
+      if (from) dateFilter.createdAt.$gte = new Date(from);
+      if (to)   dateFilter.createdAt.$lte = new Date(new Date(to).setHours(23, 59, 59, 999));
+    }
+    const [subAgg, topupAgg, chargeAgg] = await Promise.all([
+      Payment.aggregate([{ $match: dateFilter }, { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }]),
+      WalletTransaction.aggregate([{ $match: { ...dateFilter, type: 'topup' } }, { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }]),
+      WalletTransaction.aggregate([{ $match: { ...dateFilter, type: 'charge', freeQuota: { $ne: true } } }, { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }]),
+    ]);
+    res.json({
+      subscriptions: { total: subAgg[0]?.total || 0, count: subAgg[0]?.count || 0 },
+      walletTopups:  { total: topupAgg[0]?.total || 0, count: topupAgg[0]?.count || 0 },
+      walletCharges: { total: chargeAgg[0]?.total || 0, count: chargeAgg[0]?.count || 0 },
+      grandTotal:    (subAgg[0]?.total || 0) + (topupAgg[0]?.total || 0),
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.get('/mrr', async (req, res) => {
   try {
     const since = new Date();

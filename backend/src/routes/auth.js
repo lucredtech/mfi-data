@@ -32,9 +32,22 @@ router.get('/referral', requireJWT, async (req, res) => {
 // Get current client profile
 router.get('/me', requireJWT, async (req, res) => {
   try {
+    const ApiKey    = require('../models/ApiKey');
+    const Customer  = require('../models/Customer');
+    const UsageLog  = require('../models/UsageLog');
     const client = await MFIClient.findById(req.client.id).select('-password -resetToken -resetTokenExpires').lean();
     if (!client) return res.status(404).json({ error: 'Not found' });
-    res.json({ client });
+    const [hasApiKey, hasCustomer, hasRun] = await Promise.all([
+      ApiKey.exists({ client: req.client.id, isActive: true }),
+      Customer.exists({ client: req.client.id }),
+      UsageLog.exists({ client: req.client.id }),
+    ]);
+    res.json({ client, onboarding: {
+      emailVerified: !!client.emailVerified,
+      hasApiKey:    !!hasApiKey,
+      hasCustomer:  !!hasCustomer,
+      hasRun:       !!hasRun,
+    }});
   } catch (err) {
     res.status(500).json({ error: 'Failed to load profile' });
   }

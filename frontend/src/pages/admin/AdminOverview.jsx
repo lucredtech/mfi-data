@@ -22,12 +22,34 @@ export default function AdminOverview() {
   const [stats, setStats] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [mrr, setMrr] = useState([]);
+  const [revenue, setRevenue] = useState(null);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo]   = useState('');
 
   useEffect(() => {
     adminApi.get('/api/admin/stats').then(({ data }) => setStats(data)).catch(() => {});
     adminApi.get('/api/admin/analytics').then(({ data }) => setAnalytics(data)).catch(() => {});
     adminApi.get('/api/admin/mrr').then(({ data }) => setMrr(data.mrr || [])).catch(() => {});
+    adminApi.get('/api/admin/revenue/totals').then(({ data }) => setRevenue(data)).catch(() => {});
   }, []);
+
+  const fetchRevenue = () => {
+    const params = new URLSearchParams();
+    if (dateFrom) params.set('from', dateFrom);
+    if (dateTo)   params.set('to', dateTo);
+    adminApi.get(`/api/admin/revenue/totals?${params}`).then(({ data }) => setRevenue(data)).catch(() => {});
+  };
+
+  const exportWalletTxs = async () => {
+    const params = new URLSearchParams();
+    if (dateFrom) params.set('from', dateFrom);
+    if (dateTo)   params.set('to', dateTo);
+    const { data } = await adminApi.get(`/api/admin/wallet-transactions/export?${params}`, { responseType: 'blob' });
+    const url = URL.createObjectURL(new Blob([data], { type: 'text/csv' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `wallet-transactions-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  };
 
   const dailyData = analytics?.dailyVolume?.map(d => ({
     date: d._id.slice(5), // MM-DD
@@ -92,6 +114,36 @@ export default function AdminOverview() {
             Export PDF
           </button>
         </div>
+      </div>
+
+      {/* Revenue totals + date filter */}
+      <div style={{ background: '#fff', borderRadius: 12, padding: '1.25rem 1.5rem', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+          <div style={s.sectionLabel}>Revenue Totals</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={si} />
+            <span style={{ fontSize: 12, color: '#94a3b8' }}>to</span>
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={si} />
+            <button onClick={fetchRevenue} style={{ padding: '6px 14px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>Filter</button>
+            <button onClick={exportWalletTxs} style={{ padding: '6px 14px', background: '#6d28d9', color: '#fff', border: 'none', borderRadius: 7, fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>↓ Export CSV</button>
+          </div>
+        </div>
+        {revenue && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
+            {[
+              { label: 'Grand Total', value: revenue.grandTotal, color: '#16a34a' },
+              { label: 'Subscription Revenue', value: revenue.subscriptions.total, sub: `${revenue.subscriptions.count} payments`, color: '#6d28d9' },
+              { label: 'Wallet Top-ups', value: revenue.walletTopups.total, sub: `${revenue.walletTopups.count} top-ups`, color: '#0ea5e9' },
+              { label: 'API Charges', value: revenue.walletCharges.total, sub: `${revenue.walletCharges.count} calls`, color: '#f59e0b' },
+            ].map(({ label, value, sub, color }) => (
+              <div key={label} style={{ background: '#f8fafc', borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color }}>₦{Number(value).toLocaleString()}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a', marginTop: 4 }}>{label}</div>
+                {sub && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{sub}</div>}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Revenue & plan breakdown */}
@@ -272,6 +324,8 @@ function StatCard({ label, value, sub, color, trend }) {
     </div>
   );
 }
+
+const si = { padding: '6px 10px', border: '1.5px solid #e2e8f0', borderRadius: 7, fontSize: 12, outline: 'none' };
 
 const s = {
   h1: { fontSize: 24, fontWeight: 700, color: '#0f172a', margin: 0 },

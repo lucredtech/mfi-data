@@ -90,7 +90,7 @@ export default function Overview() {
 
   return (
     <div>
-      <OnboardingBanner stats={stats} hasApiKey={hasApiKey} />
+      <OnboardingBanner />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
         <div>
           <h1 style={s.h1}>Welcome, {client?.organizationName || client?.name}</h1>

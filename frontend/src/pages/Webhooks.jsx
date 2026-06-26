@@ -30,6 +30,10 @@ export default function Webhooks() {
   const [deliveries, setDeliveries] = useState({});
   const [loadingDeliveries, setLoadingDeliveries] = useState({});
   const [expandedLog, setExpandedLog] = useState({});
+  const [tab, setTab] = useState('endpoints');
+  const [allDeliveries, setAllDeliveries] = useState([]);
+  const [loadingAll, setLoadingAll] = useState(false);
+  const [failedOnly, setFailedOnly] = useState(false);
 
   async function load() {
     try {
@@ -96,6 +100,29 @@ export default function Webhooks() {
     }
   }
 
+  async function loadAllDeliveries(failed = false) {
+    setLoadingAll(true);
+    try {
+      const { data } = await axios.get(`${API}/api/webhooks/deliveries`, {
+        params: { failed: failed ? 'true' : undefined, limit: 100 },
+        headers: authHeaders(),
+      });
+      setAllDeliveries(data.deliveries || []);
+    } catch { toast.error('Failed to load delivery log'); }
+    finally { setLoadingAll(false); }
+  }
+
+  function switchTab(t) {
+    setTab(t);
+    if (t === 'log' && allDeliveries.length === 0) loadAllDeliveries(failedOnly);
+  }
+
+  function toggleFailedOnly() {
+    const next = !failedOnly;
+    setFailedOnly(next);
+    loadAllDeliveries(next);
+  }
+
   async function retryDelivery(hookId, deliveryId) {
     try {
       const { data } = await axios.post(`${API}/api/webhooks/${hookId}/deliveries/${deliveryId}/retry`, {}, { headers: authHeaders() });
@@ -116,6 +143,64 @@ export default function Webhooks() {
         {!isViewer && <button style={s.btn} onClick={() => setShowForm(f => !f)}>{showForm ? 'Cancel' : '+ Add Endpoint'}</button>}
       </div>
 
+      {/* Tab switcher */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid #e2e8f0' }}>
+        {[['endpoints', 'Endpoints'], ['log', 'Delivery Log']].map(([k, label]) => (
+          <button key={k} onClick={() => switchTab(k)} style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: '8px 16px', fontSize: 14, fontWeight: 600,
+            color: tab === k ? '#6d28d9' : '#94a3b8',
+            borderBottom: tab === k ? '2px solid #6d28d9' : '2px solid transparent',
+            marginBottom: -2,
+          }}>{label}</button>
+        ))}
+      </div>
+
+      {tab === 'log' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 13, color: '#64748b' }}>All webhook deliveries across every endpoint — last 100.</div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', fontWeight: 600, color: failedOnly ? '#dc2626' : '#64748b' }}>
+              <input type="checkbox" checked={failedOnly} onChange={toggleFailedOnly} style={{ accentColor: '#dc2626' }} />
+              Failed only
+            </label>
+          </div>
+          {loadingAll ? (
+            <div style={s.empty}>Loading…</div>
+          ) : allDeliveries.length === 0 ? (
+            <div style={s.empty}>No deliveries{failedOnly ? ' failures' : ''} recorded yet.</div>
+          ) : (
+            <div style={{ background: '#fff', borderRadius: 12, boxShadow: '0 1px 6px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc' }}>
+                    {['Time', 'Endpoint', 'Event', 'Status', 'Duration', 'Attempt'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '10px 14px', color: '#94a3b8', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #e2e8f0' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {allDeliveries.map(d => (
+                    <tr key={d._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '9px 14px', color: '#64748b', whiteSpace: 'nowrap' }}>{new Date(d.createdAt).toLocaleString()}</td>
+                      <td style={{ padding: '9px 14px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <code style={{ fontSize: 11, color: '#334155' }}>{d.webhook?.url || '—'}</code>
+                      </td>
+                      <td style={{ padding: '9px 14px' }}><code style={{ fontSize: 11 }}>{d.event}</code></td>
+                      <td style={{ padding: '9px 14px', fontWeight: 700, color: d.ok ? '#16a34a' : d.status === 0 ? '#64748b' : '#dc2626' }}>
+                        {d.status === 0 ? 'ERR' : d.status}
+                      </td>
+                      <td style={{ padding: '9px 14px', color: '#64748b' }}>{d.duration != null ? `${d.duration}ms` : '—'}</td>
+                      <td style={{ padding: '9px 14px', color: '#64748b' }}>#{d.attempt}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'endpoints' && <>
       {showForm && (
         <div style={s.card}>
           <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 16 }}>New webhook endpoint</div>
@@ -260,6 +345,7 @@ const expected = 'sha256=' + crypto
   .digest('hex');
 const valid = crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));`}</pre>
       </div>
+      </>}
     </div>
   );
 }

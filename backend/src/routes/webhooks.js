@@ -55,6 +55,17 @@ router.post('/:id/test', async (req, res) => {
   res.json(result);
 });
 
+// All deliveries across all webhooks for this client
+router.get('/deliveries', async (req, res) => {
+  const { failed, limit = 50 } = req.query;
+  const filter = { client: req.client.id };
+  if (failed === 'true') filter.ok = false;
+  const deliveries = await WebhookDelivery.find(filter)
+    .populate('webhook', 'url')
+    .sort({ createdAt: -1 }).limit(Number(limit)).lean();
+  res.json({ deliveries });
+});
+
 // Delivery log for a webhook
 router.get('/:id/deliveries', async (req, res) => {
   const hook = await Webhook.findOne({ _id: req.params.id, client: req.client.id });
