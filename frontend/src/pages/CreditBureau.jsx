@@ -52,9 +52,6 @@ export default function CreditBureau() {
   async function handleSubmit(e) {
     e.preventDefault();
     if (form.bvn.length !== 11) return toast.error('BVN must be 11 digits');
-    const apiKey = localStorage.getItem('apiKey');
-    if (!apiKey) return toast.error('No API key found. Please re-login.');
-
     setWalletError(false);
     setLoading(true);
     setResult(null);
@@ -68,7 +65,7 @@ export default function CreditBureau() {
           dateOfBirth: form.dateOfBirth || undefined,
           customerId: customerId || undefined,
         },
-        { headers: { 'X-Api-Key': apiKey } },
+        { headers: authHeaders() },
       );
       setWalletError(false);
       setResult(data.data || data);

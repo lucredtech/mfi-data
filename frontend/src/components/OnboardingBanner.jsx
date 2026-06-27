@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import toast from 'react-hot-toast';
 
 const STEPS = [
   { key: 'emailVerified', label: 'Verify your email',       path: '/dashboard/settings', cta: 'Verify email',      resend: true },
@@ -34,8 +35,8 @@ export default function OnboardingBanner() {
     setResending(true);
     try {
       await api.post('/api/auth/resend-verification');
-      alert('Verification email sent — check your inbox.');
-    } catch { alert('Failed to resend. Try again later.'); }
+      toast.success('Verification email sent — check your inbox.');
+    } catch { toast.error('Failed to resend. Try again later.'); }
     finally { setResending(false); }
   }
 

@@ -17,7 +17,7 @@ const AuditLog = require('../models/AuditLog');
 const Customer = require('../models/Customer');
 const { deductCharge, refundCharge } = require('../utils/wallet');
 
-const limiter = rateLimit({ windowMs: 60 * 1000, max: 60, keyGenerator: (req) => req.apiKey?.key });
+const limiter = rateLimit({ windowMs: 60 * 1000, max: 60, keyGenerator: (req) => req.apiKey?.key ?? req.client?.id ?? req.ip });
 
 router.use(requireApiKeyOrJWT, limiter);
 
@@ -44,7 +44,7 @@ router.post('/credit-bureau/check', logUsage('/v1/credit-bureau/check'), async (
     const { bvn, firstName, lastName, dateOfBirth, phone, customerId } = req.body;
     if (!bvn && !phone) return res.status(400).json({ error: 'bvn or phone is required' });
 
-    const clientId = req.apiKey?.client?._id ?? req.apiKey?.client;
+    const clientId = req.client?._id ?? req.client?.id;
     const customer = customerId ? await Customer.findById(customerId).select('name').lean() : null;
     const charge = await deductCharge(clientId, 'BUREAU_CHECK', { customerName: customer?.name, customerId });
     if (!charge.ok) return res.status(402).json({ error: charge.error, required: charge.required, balance: charge.balance });
@@ -80,7 +80,7 @@ router.post('/credit-bureau/check', logUsage('/v1/credit-bureau/check'), async (
         data: errBody,
       });
       await BureauResult.create({
-        client: req.apiKey.client,
+        client: clientId,
         customer: customerId || undefined,
         bvn: bvn || '',
         result: errBody,
@@ -94,14 +94,14 @@ router.post('/credit-bureau/check', logUsage('/v1/credit-bureau/check'), async (
     }
 
     const saved = await BureauResult.create({
-      client: req.apiKey.client,
+      client: clientId,
       customer: customerId || undefined,
       bvn: bvn || '',
       result: upstreamData,
       status: 'success',
     });
 
-    AuditLog.create({ client: req.apiKey.client, action: 'BUREAU_CHECK', entityType: 'BureauResult', entityId: saved._id, label: `Credit bureau check: ****${(bvn || '').slice(-4)}`, meta: { bvnLast4: (bvn || '').slice(-4), customerId } }).catch(() => {});
+    AuditLog.create({ client: clientId, action: 'BUREAU_CHECK', entityType: 'BureauResult', entityId: saved._id, label: `Credit bureau check: ****${(bvn || '').slice(-4)}`, meta: { bvnLast4: (bvn || '').slice(-4), customerId } }).catch(() => {});
     res.json({ success: true, data: upstreamData, resultId: saved._id });
   } catch (err) {
     console.error("[credit] unhandled error:", err);
@@ -131,6 +131,7 @@ router.post('/identity/verify-bvn', logUsage('/v1/identity/verify-bvn'), async (
   try {
     const { bvn, customerId } = req.body;
     if (!bvn) return res.status(400).json({ error: 'bvn is required' });
+    const clientId = req.client?._id ?? req.client?.id;
 
     let normalized;
     try {
@@ -156,7 +157,7 @@ router.post('/identity/verify-bvn', logUsage('/v1/identity/verify-bvn'), async (
       };
     } catch (upstreamErr) {
       await BVNResult.create({
-        client: req.apiKey.client,
+        client: clientId,
         customer: customerId || undefined,
         bvn,
         result: upstreamErr.response?.data || {},
@@ -167,7 +168,7 @@ router.post('/identity/verify-bvn', logUsage('/v1/identity/verify-bvn'), async (
     }
 
     const saved = await BVNResult.create({
-      client: req.apiKey.client,
+      client: clientId,
       customer: customerId || undefined,
       bvn,
       result: normalized,
@@ -186,6 +187,7 @@ router.post('/identity/verify-nin', logUsage('/v1/identity/verify-nin'), async (
   try {
     const { nin, customerId } = req.body;
     if (!nin) return res.status(400).json({ error: 'nin is required' });
+    const clientId = req.client?._id ?? req.client?.id;
 
     let normalized;
     try {
@@ -212,7 +214,7 @@ router.post('/identity/verify-nin', logUsage('/v1/identity/verify-nin'), async (
       };
     } catch (upstreamErr) {
       await NINResult.create({
-        client: req.apiKey.client,
+        client: clientId,
         customer: customerId || undefined,
         nin,
         result: upstreamErr.response?.data || {},
@@ -223,7 +225,7 @@ router.post('/identity/verify-nin', logUsage('/v1/identity/verify-nin'), async (
     }
 
     const saved = await NINResult.create({
-      client: req.apiKey.client,
+      client: clientId,
       customer: customerId || undefined,
       nin,
       result: normalized,

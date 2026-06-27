@@ -23,8 +23,15 @@ export default function StatementDetail() {
   const [reanalyzing, setReanalyzing] = useState(false);
   const fileRef = useRef(null);
 
+  const [loadError, setLoadError] = useState(false);
+
   useEffect(() => {
-    api.get(`/api/statements/${id}`).then(({ data }) => setStatement(data)).catch(() => {});
+    api.get(`/api/statements/${id}`)
+      .then(({ data }) => setStatement(data))
+      .catch((err) => {
+        if (err?.response?.status === 401) navigate('/login');
+        else setLoadError(true);
+      });
   }, [id]);
 
   async function handleReanalyze(file) {
@@ -33,22 +40,17 @@ export default function StatementDetail() {
     try {
       const form = new FormData();
       form.append('statement', file);
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app'}/api/statements/${id}/reanalyze`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Re-analysis failed'); }
-      const { data } = await res.json();
+      const { data } = await api.post(`/api/statements/${id}/reanalyze`, form);
       setStatement(prev => ({ ...prev, result: data, status: 'success' }));
       toast.success('Statement re-analysed successfully');
     } catch (err) {
-      toast.error(err.message || 'Re-analysis failed');
+      toast.error(err.response?.data?.error || err.message || 'Re-analysis failed');
+    } finally {
+      setReanalyzing(false);
     }
-    setReanalyzing(false);
   }
 
+  if (loadError) return <p style={{ color: '#dc2626', padding: '2rem' }}>Failed to load statement. Please go back and try again.</p>;
   if (!statement) return <p style={{ color: '#94a3b8', padding: '2rem' }}>Loading…</p>;
 
   const d = statement.result;

@@ -20,7 +20,7 @@ const upload = multer({
   },
 });
 
-const limiter = rateLimit({ windowMs: 60 * 1000, max: 30, keyGenerator: (req) => req.apiKey?.key });
+const limiter = rateLimit({ windowMs: 60 * 1000, max: 30, keyGenerator: (req) => req.apiKey?.key ?? req.client?.id ?? req.ip });
 
 // Upload bank statement and run transaction analysis
 router.post(
@@ -56,7 +56,7 @@ router.post(
 
       // Persist result for history
       const saved = await StatementResult.create({
-        client: req.client._id,
+        client: clientId,
         customer: customerId || undefined,
         email,
         accountName,
@@ -68,19 +68,19 @@ router.post(
 
       // Upload file to S3 (fire-and-forget — don't block response)
       uploadStatement(req.file.buffer, {
-        clientId: req.client._id,
+        clientId,
         resultId: saved._id,
         filename: req.file.originalname,
         mimetype: req.file.mimetype,
       }).then(s3Key => StatementResult.findByIdAndUpdate(saved._id, { s3Key }).catch(() => {}))
         .catch(err => console.error('[s3] upload failed:', err.message));
 
-      AuditLog.create({ client: req.client._id, action: 'STATEMENT_ANALYSIS', entityType: 'StatementResult', entityId: saved._id, label: `Statement analysis: ${accountName || email || req.file.originalname}`, meta: { bankName, filename: req.file.originalname, customerId } }).catch(() => {});
+      AuditLog.create({ client: clientId, action: 'STATEMENT_ANALYSIS', entityType: 'StatementResult', entityId: saved._id, label: `Statement analysis: ${accountName || email || req.file.originalname}`, meta: { bankName, filename: req.file.originalname, customerId } }).catch(() => {});
       res.json({ success: true, data });
     } catch (err) {
       // Save failed attempt and upload file for debugging
       const failed = await StatementResult.create({
-        client: req.client._id,
+        client: clientId,
         customer: customerId || undefined,
         email,
         accountName,
@@ -90,7 +90,7 @@ router.post(
       }).catch(() => null);
       if (failed && req.file?.buffer) {
         uploadStatement(req.file.buffer, {
-          clientId: req.client._id,
+          clientId,
           resultId: failed._id,
           filename: req.file.originalname,
           mimetype: req.file.mimetype,

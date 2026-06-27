@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const BASE = 'https://mfi-data-production.up.railway.app';
+const BASE = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
 const SECTIONS = [
   {

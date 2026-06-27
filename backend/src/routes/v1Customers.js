@@ -25,7 +25,7 @@ const { matchConsumer, getXScoreConsumerReport } = require('../config/firstCentr
 const computeLoanReview = require('../utils/computeLoanReview');
 const computeScorecard = require('../utils/computeScorecard');
 
-const limiter = rateLimit({ windowMs: 60 * 1000, max: 60, keyGenerator: req => req.apiKey?.key });
+const limiter = rateLimit({ windowMs: 60 * 1000, max: 60, keyGenerator: req => req.apiKey?.key ?? req.client?.id ?? req.ip });
 router.use(requireApiKeyOrJWT, limiter);
 
 const upload = multer({
@@ -318,7 +318,10 @@ router.post('/:id/loan-review', sandboxMock('loan_review'), logUsage('/v1/custom
     // Notify borrower — fire-and-forget
     const { sendLoanDecision } = require('../utils/mailer');
     const { smsBorrowerDecision } = require('../utils/sms');
-    const orgName = req.client.organizationName || 'your lender';
+    const MFIClient = require('../models/MFIClient');
+    const orgName = req.client.organizationName
+      || (await MFIClient.findById(clientId).select('organizationName').lean())?.organizationName
+      || 'your lender';
     if (customer.email) {
       sendLoanDecision(customer.email, {
         borrowerName: customer.name,

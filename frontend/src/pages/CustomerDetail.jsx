@@ -10,7 +10,6 @@ import { useAuth } from '../context/AuthContext';
 const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
 function authHeaders() { return { Authorization: `Bearer ${localStorage.getItem('token')}` }; }
-function apiKeyHeaders() { return { 'X-Api-Key': localStorage.getItem('apiKey') }; }
 
 const TABS = ['Overview', 'Timeline', 'Statement Analysis', 'BVN Verification', 'NIN Verification', 'Credit Bureau', 'Scorecard', 'Loan Review'];
 
@@ -661,6 +660,7 @@ function StatementTab({ customer, statements, onRefresh }) {
   const [password, setPassword] = useState('');
   const [uploading, setUploading] = useState(false);
   const [redirectCountdown, setRedirectCountdown] = useState(null);
+  const countdownRef = useRef(null);
   const navigate = useNavigate();
 
   const BANKS = [
@@ -703,7 +703,7 @@ function StatementTab({ customer, statements, onRefresh }) {
           }
         }, 1000);
         // store interval id on component ref so cancel button can clear it
-        window.__lucredCountdownInterval = interval;
+        countdownRef.current = interval;
       }
     } catch (err) {
       if (isUnauthorized(err)) { toast.error('Your session has expired. Please sign in again.'); navigate('/login'); return; }
@@ -748,7 +748,7 @@ function StatementTab({ customer, statements, onRefresh }) {
             <div style={{ fontSize: 13, color: '#64748b', marginTop: 2 }}>Redirecting to the full statement analysis view in {redirectCountdown} second{redirectCountdown !== 1 ? 's' : ''}…</div>
           </div>
           <button
-            onClick={() => { clearInterval(window.__lucredCountdownInterval); setRedirectCountdown(null); }}
+            onClick={() => { clearInterval(countdownRef.current); setRedirectCountdown(null); }}
             style={{ fontSize: 12, fontWeight: 700, color: '#64748b', background: '#e2e8f0', border: 'none', borderRadius: 8, padding: '6px 14px', cursor: 'pointer' }}
           >
             Cancel

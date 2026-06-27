@@ -18,6 +18,7 @@ const { smsBorrowerDecision } = require('../utils/sms');
 const { notify } = require('../utils/notify');
 const { sendStaffLoanReviewAlert, sendStaffStatusChangeAlert } = require('../utils/mailer');
 const { deductCharge, refundCharge } = require('../utils/wallet');
+const mongoose = require('mongoose');
 const axios = require('axios');
 const { dispatchWebhook } = require('./webhooks');
 const TeamMember = require('../models/TeamMember');
@@ -129,7 +130,6 @@ router.post('/', requireWriteAccess, async (req, res) => {
 // GET /pipeline/stats
 router.get('/pipeline/stats', async (req, res) => {
   try {
-    const mongoose = require('mongoose');
     const stats = await Customer.aggregate([
       { $match: { client: new mongoose.Types.ObjectId(req.client.id) } },
       { $group: { _id: '$status', count: { $sum: 1 } } },
