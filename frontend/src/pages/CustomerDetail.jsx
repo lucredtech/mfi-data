@@ -379,8 +379,78 @@ function OverviewTab({ customer, statements, bvnResults, ninResults, bureauResul
 
   const hasHighDisc = discrepancies.some(d => d.severity === 'high');
 
+  // ── Risk verdict ──────────────────────────────────────────────────────────
+  const bureauScoreNum = creditScore ? parseInt(creditScore, 10) : null;
+  const bureauSummaryRaw = bureauSecOverview?.CreditAccountSummary?.[0];
+  const hasJudgement = parseInt(bureauSummaryRaw?.TotalNumberofJudgement || 0) > 0;
+  const activeArrears = parseInt(bureauSummaryRaw?.TotalAccountarrear || 0);
+  const riskGrade = risk.overallRiskScore;
+  const isWatchlisted = latestBVN?.result?.watchListed === true || latestNIN?.result?.watchListed === true;
+  const dti = parseFloat(latestStatement?.result?.debtServicing?.loanRepayments?.DebtToIncomeRatio) || null;
+  const monthlyIncome = latestStatement?.result?.incomeSourceAnalysis?.monthlyAverageIncome || null;
+  const hasAnyData = !!(latestBVN || latestNIN || latestBureau || latestStatement);
+
+  let verdict = null; // null = not enough data
+  if (hasAnyData) {
+    const isDecline = isWatchlisted || hasHighDisc || hasJudgement || (riskGrade === 'E') || (bureauScoreNum != null && bureauScoreNum < 300) || (activeArrears > 3);
+    const isCaution = !isDecline && (
+      discrepancies.length > 0 || (riskGrade && ['C', 'D'].includes(riskGrade)) ||
+      (bureauScoreNum != null && bureauScoreNum < 550) || (dti != null && dti > 60) ||
+      activeArrears > 0 || !latestBVN || !latestNIN
+    );
+    verdict = isDecline ? 'DECLINE' : isCaution ? 'CAUTION' : 'APPROVE';
+  }
+
+  const VERDICT_STYLE = {
+    APPROVE: { bg: '#f0fdf4', border: '#86efac', badge: '#16a34a', text: '#14532d', sub: 'All checks passed. Customer appears creditworthy.' },
+    CAUTION: { bg: '#fffbeb', border: '#fcd34d', badge: '#d97706', text: '#78350f', sub: 'Some checks need review before making a final decision.' },
+    DECLINE: { bg: '#fef2f2', border: '#fca5a5', badge: '#dc2626', text: '#7f1d1d', sub: 'One or more critical risk factors detected. Do not proceed without manual review.' },
+  };
+
+  const checks = [
+    { label: 'BVN Verified', done: !!latestBVN, tab: 'BVN Verification' },
+    { label: 'NIN Verified', done: !!latestNIN, tab: 'NIN Verification' },
+    { label: 'Bureau Check', done: !!latestBureau, tab: 'Credit Bureau' },
+    { label: 'Statement Analysis', done: !!latestStatement, tab: 'Statement Analysis' },
+  ];
+
   return (
     <div>
+      {/* ── Risk verdict banner ─────────────────────────────────────────────── */}
+      {hasAnyData && verdict && (() => {
+        const vs = VERDICT_STYLE[verdict];
+        return (
+          <div style={{ background: vs.bg, border: `1.5px solid ${vs.border}`, borderRadius: 14, padding: '1.25rem 1.5rem', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1, minWidth: 0 }}>
+              <div style={{ background: vs.badge, color: '#fff', fontWeight: 900, fontSize: 13, letterSpacing: 1, padding: '6px 16px', borderRadius: 8, flexShrink: 0 }}>{verdict}</div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: vs.text }}>{vs.sub}</div>
+                {/* Trigger flags */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                  {isWatchlisted && <Flag label="Watchlisted" color="#dc2626" />}
+                  {hasHighDisc && <Flag label="Identity discrepancy" color="#dc2626" />}
+                  {hasJudgement && <Flag label="Court judgement" color="#dc2626" />}
+                  {activeArrears > 0 && <Flag label={`${activeArrears} account${activeArrears > 1 ? 's' : ''} in arrears`} color={activeArrears > 3 ? '#dc2626' : '#d97706'} />}
+                  {riskGrade && <Flag label={`Risk grade ${riskGrade}`} color={['A','B'].includes(riskGrade) ? '#16a34a' : ['C'].includes(riskGrade) ? '#d97706' : '#dc2626'} />}
+                  {bureauScoreNum != null && <Flag label={`Bureau ${bureauScoreNum}`} color={bureauScoreNum >= 600 ? '#16a34a' : bureauScoreNum >= 500 ? '#d97706' : '#dc2626'} />}
+                  {dti != null && dti > 40 && <Flag label={`DTI ${dti.toFixed(0)}%`} color={dti > 60 ? '#dc2626' : '#d97706'} />}
+                  {monthlyIncome > 0 && <Flag label={`₦${Number(monthlyIncome).toLocaleString()}/mo income`} color="#16a34a" />}
+                </div>
+              </div>
+            </div>
+            {/* Check completion */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flexShrink: 0 }}>
+              {checks.map(c => (
+                <button key={c.label} onClick={() => !c.done && setTab(c.tab)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, border: `1.5px solid ${c.done ? '#bbf7d0' : '#e2e8f0'}`, background: c.done ? '#f0fdf4' : '#fff', color: c.done ? '#16a34a' : '#94a3b8', cursor: c.done ? 'default' : 'pointer' }}>
+                  <span style={{ fontSize: 14 }}>{c.done ? '✓' : '○'}</span> {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       <div style={s.summaryGrid}>
         <SummaryCard label="Risk Grade" value={risk.overallRiskScore || '—'} sub={risk.recommendation || 'No statement'} color="#0ea5e9" onClick={() => setTab('Statement Analysis')} />
         <SummaryCard label="BVN Status" value={latestBVN ? (latestBVN.result?.isValid !== false ? 'Verified' : 'Failed') : '—'} sub={latestBVN?.result?.firstName ? `${latestBVN.result.firstName} ${latestBVN.result.lastName}` : 'Not verified'} color={latestBVN ? '#16a34a' : '#94a3b8'} onClick={() => setTab('BVN Verification')} />
@@ -567,6 +637,12 @@ function IdentityPanel({ title, data, color, photoKey }) {
 
 const TYPE_COLOR = { statement: '#0ea5e9', bvn: '#16a34a', nin: '#6d28d9', bureau: '#f59e0b' };
 
+function Flag({ label, color }) {
+  return (
+    <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 10px', borderRadius: 20, background: color + '18', color, border: `1px solid ${color}40` }}>{label}</span>
+  );
+}
+
 function SummaryCard({ label, value, sub, color, onClick }) {
   return (
     <div style={{ ...s.summaryCard, cursor: 'pointer' }} onClick={onClick}>
@@ -601,8 +677,6 @@ function StatementTab({ customer, statements, onRefresh }) {
     e.preventDefault();
     if (!file) return toast.error('Select a file');
     if (!bank) return toast.error('Select a bank');
-    const apiKey = localStorage.getItem('apiKey');
-    if (!apiKey) return toast.error('No API key found');
     setUploading(true);
     try {
       const fd = new FormData();
@@ -612,7 +686,7 @@ function StatementTab({ customer, statements, onRefresh }) {
       fd.append('email', customer.email || '');
       fd.append('customerId', customer._id);
       if (password) fd.append('password', password);
-      const { data } = await axios.post(`${API}/v1/statement/upload-analyze`, fd, { headers: { 'X-Api-Key': apiKey } });
+      const { data } = await axios.post(`${API}/v1/statement/upload-analyze`, fd, { headers: authHeaders() });
       toast.success('Analysis complete — redirecting to results in 5 seconds…');
       setFile(null); setBank(''); setPassword('');
       const statementId = data?.statement?._id || data?._id;
@@ -714,11 +788,9 @@ function BVNTab({ customer, bvnResults, onRefresh }) {
   async function runVerify(overrideBvn) {
     const number = overrideBvn || bvn;
     if (number.length !== 11) return toast.error('BVN must be 11 digits');
-    const apiKey = localStorage.getItem('apiKey');
-    if (!apiKey) return toast.error('No API key found');
     setLoading(true);
     try {
-      await axios.post(`${API}/v1/identity/verify-bvn`, { bvn: number, customerId: customer._id }, { headers: { 'X-Api-Key': apiKey } });
+      await axios.post(`${API}/v1/identity/verify-bvn`, { bvn: number, customerId: customer._id }, { headers: authHeaders() });
       toast.success('BVN verified successfully');
       onRefresh();
     } catch (err) {
@@ -800,11 +872,9 @@ function NINTab({ customer, ninResults, onRefresh }) {
   async function runVerify(overrideNin) {
     const number = overrideNin || nin;
     if (number.length !== 11) return toast.error('NIN must be 11 digits');
-    const apiKey = localStorage.getItem('apiKey');
-    if (!apiKey) return toast.error('No API key found');
     setLoading(true);
     try {
-      await axios.post(`${API}/v1/identity/verify-nin`, { nin: number, customerId: customer._id }, { headers: { 'X-Api-Key': apiKey } });
+      await axios.post(`${API}/v1/identity/verify-nin`, { nin: number, customerId: customer._id }, { headers: authHeaders() });
       toast.success('NIN verified successfully');
       onRefresh();
     } catch (err) {
@@ -918,11 +988,9 @@ function BureauTab({ customer, bureauResults, onRefresh }) {
   async function runCheck(overrideForm) {
     const payload = overrideForm || form;
     if (payload.bvn.length !== 11) return toast.error('BVN must be 11 digits');
-    const apiKey = localStorage.getItem('apiKey');
-    if (!apiKey) return toast.error('No API key found');
     setLoading(true);
     try {
-      await axios.post(`${API}/v1/credit-bureau/check`, { ...payload, customerId: customer._id }, { headers: { 'X-Api-Key': apiKey } });
+      await axios.post(`${API}/v1/credit-bureau/check`, { ...payload, customerId: customer._id }, { headers: authHeaders() });
       toast.success('Bureau check complete');
       onRefresh();
     } catch (err) {

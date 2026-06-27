@@ -119,13 +119,8 @@ export default function StatementAnalysis() {
       if (meta.bankName) form.append('bankName', meta.bankName);
       if (customerId) form.append('customerId', customerId);
 
-      const apiKey = localStorage.getItem('apiKey');
-      if (!apiKey) return toast.error('No API key found. Please log out and log back in.');
-
       // Let axios set Content-Type automatically so multipart boundary is included
-      const { data } = await api.post('/v1/statement/upload-analyze', form, {
-        headers: { 'X-Api-Key': apiKey },
-      });
+      const { data } = await api.post('/v1/statement/upload-analyze', form);
       setResult(data.data);
       toast.success('Analysis complete');
     } catch (err) {
@@ -150,7 +145,7 @@ export default function StatementAnalysis() {
         <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <span style={{ fontWeight: 700, color: '#dc2626' }}>Insufficient wallet balance</span>
-            <span style={{ color: '#7f1d1d', fontSize: 13, marginLeft: 8 }}>Statement analysis costs ₦400. Top up your wallet to continue.</span>
+            <span style={{ color: '#7f1d1d', fontSize: 13, marginLeft: 8 }}>Statement analysis costs ₦500. Top up your wallet to continue.</span>
           </div>
           <Link to="/dashboard/billing" style={{ fontSize: 13, fontWeight: 700, color: '#dc2626', background: '#fee2e2', padding: '6px 14px', borderRadius: 8, textDecoration: 'none', whiteSpace: 'nowrap' }}>Top up →</Link>
         </div>

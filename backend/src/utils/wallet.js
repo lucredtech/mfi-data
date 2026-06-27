@@ -10,7 +10,7 @@ const RATES = {
   BVN_CHECK:          75,
   NIN_CHECK:          100,
   BUREAU_CHECK:       700,
-  STATEMENT_ANALYSIS: 400,
+  STATEMENT_ANALYSIS: 500,
 };
 
 const FREE_QUOTA_FIELD = {

@@ -206,7 +206,7 @@ export default function Docs() {
 
         {/* Statement Analysis */}
         <Section title="Statement Analysis" id="statement">
-          <p style={{ fontSize: 13, color: '#475569', marginBottom: 16 }}>Upload a PDF or image bank statement for AI-powered income, spend, and repayment capacity analysis. Costs <strong>₦400</strong> per analysis. First 3 per month are free.</p>
+          <p style={{ fontSize: 13, color: '#475569', marginBottom: 16 }}>Upload a PDF or image bank statement for AI-powered income, spend, and repayment capacity analysis. Costs <strong>₦500</strong> per analysis. First 3 per month are free.</p>
           <Endpoint
             method="POST" path="/v1/statement/upload-analyze"
             desc="Upload & analyse a bank statement"

@@ -22,7 +22,7 @@ export default function AdminClientDetail() {
   const [kybSaving, setKybSaving] = useState(false);
   const [approving, setApproving] = useState(false);
   const [sendingSla, setSendingSla] = useState(false);
-  const GLOBAL_RATES = { BVN_CHECK: 75, NIN_CHECK: 100, BUREAU_CHECK: 700, STATEMENT_ANALYSIS: 400 };
+  const GLOBAL_RATES = { BVN_CHECK: 75, NIN_CHECK: 100, BUREAU_CHECK: 700, STATEMENT_ANALYSIS: 500 };
   const RATE_LABELS  = { BVN_CHECK: 'BVN Check', NIN_CHECK: 'NIN Check', BUREAU_CHECK: 'Credit Bureau', STATEMENT_ANALYSIS: 'Statement Analysis' };
   const [rateForm, setRateForm] = useState({ BVN_CHECK: '', NIN_CHECK: '', BUREAU_CHECK: '', STATEMENT_ANALYSIS: '' });
   const [savingRates, setSavingRates] = useState(false);

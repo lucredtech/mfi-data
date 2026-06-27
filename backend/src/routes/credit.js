@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const rateLimit = require('express-rate-limit');
-const { requireApiKey, logUsage } = require('../middleware/auth');
+const { requireApiKeyOrJWT, logUsage } = require('../middleware/auth');
 
 function stripBiometrics(result) {
   if (!result || typeof result !== 'object') return result;
@@ -19,7 +19,7 @@ const { deductCharge, refundCharge } = require('../utils/wallet');
 
 const limiter = rateLimit({ windowMs: 60 * 1000, max: 60, keyGenerator: (req) => req.apiKey?.key });
 
-router.use(requireApiKey, limiter);
+router.use(requireApiKeyOrJWT, limiter);
 
 // Bank statement analysis (legacy mono endpoint)
 router.post('/statement/analyze', logUsage('/v1/statement/analyze'), async (req, res) => {

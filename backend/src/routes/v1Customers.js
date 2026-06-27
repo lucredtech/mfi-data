@@ -7,7 +7,7 @@ const router = require('express').Router();
 const multer = require('multer');
 const FormData = require('form-data');
 const rateLimit = require('express-rate-limit');
-const { requireApiKey, logUsage } = require('../middleware/auth');
+const { requireApiKeyOrJWT, logUsage } = require('../middleware/auth');
 const { sandboxMock } = require('../middleware/sandbox');
 
 const Customer = require('../models/Customer');
@@ -26,7 +26,7 @@ const computeLoanReview = require('../utils/computeLoanReview');
 const computeScorecard = require('../utils/computeScorecard');
 
 const limiter = rateLimit({ windowMs: 60 * 1000, max: 60, keyGenerator: req => req.apiKey?.key });
-router.use(requireApiKey, limiter);
+router.use(requireApiKeyOrJWT, limiter);
 
 const upload = multer({
   storage: multer.memoryStorage(),

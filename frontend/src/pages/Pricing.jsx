@@ -127,7 +127,7 @@ const RATES = [
   { service: 'BVN Verification', rate: '₦75', note: 'Per check' },
   { service: 'NIN Verification', rate: '₦100', note: 'Per check' },
   { service: 'Credit Bureau Check', rate: '₦700', note: 'Per check' },
-  { service: 'Statement Analysis', rate: '₦400', note: 'Per upload' },
+  { service: 'Statement Analysis', rate: '₦500', note: 'Per upload' },
 ];
 
 const MULTI_MONTH = [
