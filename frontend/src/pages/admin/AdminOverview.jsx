@@ -283,7 +283,7 @@ export default function AdminOverview() {
           <h3 style={s.chartTitle}>Recent Activity (All Clients)</h3>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr>{['MFI', 'Endpoint', 'Status', 'Response Time', 'Time'].map(h => (
+              <tr>{['MFI', 'Action', 'Detail', 'Time'].map(h => (
                 <th key={h} style={s.th}>{h}</th>
               ))}</tr>
             </thead>
@@ -291,12 +291,9 @@ export default function AdminOverview() {
               {stats.recentLogs.map((r) => (
                 <tr key={r._id}>
                   <td style={s.td}>{r.client?.organizationName || '—'}</td>
-                  <td style={s.td}><code style={{ fontSize: 12 }}>{r.endpoint}</code></td>
-                  <td style={s.td}>
-                    <span style={{ color: r.statusCode < 400 ? '#16a34a' : '#dc2626', fontWeight: 600 }}>{r.statusCode}</span>
-                  </td>
-                  <td style={s.td}>{r.responseTimeMs}ms</td>
-                  <td style={s.td}>{new Date(r.createdAt).toLocaleString()}</td>
+                  <td style={s.td}><span style={{ fontSize: 11, fontWeight: 700, background: '#ede9fe', color: '#6d28d9', padding: '2px 8px', borderRadius: 10 }}>{r.action?.replace(/_/g, ' ')}</span></td>
+                  <td style={{ ...s.td, color: '#64748b', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label || '—'}</td>
+                  <td style={{ ...s.td, whiteSpace: 'nowrap' }}>{new Date(r.createdAt).toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>

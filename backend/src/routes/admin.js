@@ -220,7 +220,7 @@ router.get('/stats', async (req, res) => {
         { $group: { _id: '$endpoint', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
       ]),
-      UsageLog.find().sort({ createdAt: -1 }).limit(30).populate('client', 'organizationName').lean(),
+      AuditLog.find().sort({ createdAt: -1 }).limit(30).populate('client', 'organizationName').lean(),
       Customer.countDocuments(),
       StatementResult.countDocuments(),
       StatementResult.countDocuments({ status: 'failed' }),
