@@ -90,10 +90,10 @@ const ENDPOINTS = [
     group: 'Bank Statement Analysis',
     method: 'POST', path: '/v1/customers/:id/statement',
     title: 'Analyse Bank Statement',
-    description: 'Upload a PDF bank statement for AI-powered analysis. Returns income, cash flow, spending behaviour, debt servicing ratio, and a risk grade (A–E).',
+    description: 'Upload a bank statement (PDF, CSV, XLSX, or DOCX) for AI-powered analysis. PDF is highly recommended for best accuracy. Returns income, cash flow, spending behaviour, debt servicing ratio, and a risk grade (A–E).',
     contentType: 'multipart/form-data',
     formFields: [
-      { key: 'statement', desc: 'PDF bank statement file (required)' },
+      { key: 'statement', desc: 'Bank statement file — PDF, CSV, XLSX, or DOCX, max 10MB. PDF is highly recommended (required)' },
       { key: 'bankName', desc: 'Bank identifier string (optional but recommended — improves parsing accuracy). Supported values: access, fcmb, fidelity, firstbank, gtb, kuda, moniepoint, nova, opay, optimus, parallex, sterling, uba, vbank' },
       { key: 'password', desc: 'PDF password if the file is encrypted (optional)' },
     ],

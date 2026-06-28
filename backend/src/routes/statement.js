@@ -14,9 +14,14 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_, file, cb) => {
-    const allowed = ['application/pdf', 'image/jpeg', 'image/png'];
+    const allowed = [
+      'application/pdf',
+      'text/csv', 'application/csv',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
     if (allowed.includes(file.mimetype)) return cb(null, true);
-    cb(new Error('Only PDF, JPEG, and PNG files are accepted'));
+    cb(new Error('Only PDF, CSV, XLSX, and DOCX files are accepted'));
   },
 });
 
@@ -145,9 +150,14 @@ const reanalyzeUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_, file, cb) => {
-    const allowed = ['application/pdf', 'image/jpeg', 'image/png'];
+    const allowed = [
+      'application/pdf',
+      'text/csv', 'application/csv',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
     if (allowed.includes(file.mimetype)) return cb(null, true);
-    cb(new Error('Only PDF, JPEG, and PNG files are accepted'));
+    cb(new Error('Only PDF, CSV, XLSX, and DOCX files are accepted'));
   },
 });
 

@@ -128,7 +128,7 @@ export default function StatementAnalysis() {
       toast.error(parseApiError(err, {
         400: 'The statement could not be processed. Please check the file and try again.',
         413: 'The file is too large. Please upload a file under 10MB.',
-        415: 'Unsupported file format. Please upload a PDF, Excel, or CSV statement.',
+        415: 'Unsupported file format. Please upload a PDF, CSV, XLSX, or DOCX statement.',
         default: 'Statement analysis failed. Please try again or contact support if the issue persists.',
       }));
     } finally {

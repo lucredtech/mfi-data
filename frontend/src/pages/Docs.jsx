@@ -206,13 +206,13 @@ export default function Docs() {
 
         {/* Statement Analysis */}
         <Section title="Statement Analysis" id="statement">
-          <p style={{ fontSize: 13, color: '#475569', marginBottom: 16 }}>Upload a PDF or image bank statement for AI-powered income, spend, and repayment capacity analysis. Costs <strong>₦500</strong> per analysis. First 3 per month are free.</p>
+          <p style={{ fontSize: 13, color: '#475569', marginBottom: 16 }}>Upload a bank statement for AI-powered income, spend, and repayment capacity analysis. Accepted formats: PDF, CSV, XLSX, DOCX. PDF is highly recommended for best accuracy. Costs <strong>₦500</strong> per analysis. First 3 per month are free.</p>
           <Endpoint
             method="POST" path="/v1/statement/upload-analyze"
             desc="Upload & analyse a bank statement"
             note="Send as multipart/form-data"
             body={[
-              { name: 'statement', type: 'file', required: true, desc: 'PDF, JPEG, or PNG — max 10MB' },
+              { name: 'statement', type: 'file', required: true, desc: 'PDF, CSV, XLSX, or DOCX — max 10MB. PDF is highly recommended for best accuracy.' },
               { name: 'bankName',  type: 'string', required: true, desc: 'Bank slug e.g. access, gtb, kuda, moniepoint' },
               { name: 'email',     type: 'string', required: false, desc: "Borrower's email address" },
               { name: 'password',  type: 'string', required: false, desc: 'PDF password if statement is encrypted' },
