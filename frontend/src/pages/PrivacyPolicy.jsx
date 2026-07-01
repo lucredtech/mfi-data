@@ -27,7 +27,7 @@ export default function PrivacyPolicy() {
       {/* Nav */}
       <nav style={s.nav}>
         <div style={s.navInner}>
-          <Link to="/" style={s.logo}>Lucred</Link>
+          <Link to="/" style={s.logo}>Lucred Credit Engine</Link>
           <div style={{ display: 'flex', gap: 24 }}>
             <Link to="/terms" style={s.navLink}>Terms of Service</Link>
             <Link to="/security" style={s.navLink}>Security</Link>
@@ -64,7 +64,7 @@ export default function PrivacyPolicy() {
             <h1 style={s.h1}>Privacy Policy</h1>
             <p style={s.meta}>Last updated: {LAST_UPDATED}</p>
             <p style={s.lead}>
-              Lucred Technology LLC ("Lucred", "we", "our", or "us") is committed to protecting the privacy of
+              Lucred Credit Engine is a product of Lucred Technology Limited ("Lucred Technology Limited", "we", "our", or "us"). We are committed to protecting the privacy of
               microfinance institutions (MFIs) and the borrowers whose data is processed through our platform.
               This Privacy Policy explains what data we collect, how we use it, how long we retain it, and
               your rights under the Nigeria Data Protection Regulation (NDPR) 2019.
@@ -73,13 +73,13 @@ export default function PrivacyPolicy() {
 
           <Section title="Overview" id="overview">
             <P>
-              Lucred provides a B2B API platform that enables licensed Nigerian MFIs and lenders ("Clients")
+              Lucred Credit Engine provides a B2B API platform that enables licensed Nigerian MFIs and lenders ("Clients")
               to verify borrower identities (BVN/NIN), check credit bureau records, and analyse bank statements.
               We act as a data processor on behalf of our Clients, who are the data controllers responsible for
               their borrowers' personal data.
             </P>
             <P>
-              By using the Lucred platform, you acknowledge that you have read and understood this Privacy
+              By using the Lucred Credit Engine platform, you acknowledge that you have read and understood this Privacy
               Policy. If you are an MFI Client, you are responsible for obtaining valid consent from your
               borrowers before submitting their data to our API.
             </P>
@@ -163,7 +163,7 @@ export default function PrivacyPolicy() {
               "Dojah (identity API provider) — BVN and NIN verification requests are forwarded to Dojah, which queries NIBSS and NIMC respectively. Dojah's own privacy policy governs their handling of this data.",
               "FirstCentral Credit Bureau — credit bureau check requests are forwarded to FirstCentral. Their data is subject to FirstCentral's terms and NDPC authorisation.",
               'MongoDB Atlas (cloud database) — all stored data is encrypted at rest on MongoDB Atlas (hosted within the applicable region).',
-              'Cloud file storage — uploaded bank statement files are stored in an encrypted, access-controlled cloud storage service. Files are never shared with third parties and are accessible only to authorised Lucred systems.',
+              'Cloud file storage — uploaded bank statement files are stored in an encrypted, access-controlled cloud storage service. Files are never shared with third parties and are accessible only to authorised Lucred Credit Engine systems.',
               'Railway (backend hosting) — application servers run on Railway infrastructure. No persistent data is stored on Railway beyond in-flight request processing.',
               'Vercel (frontend hosting) — the dashboard application is served via Vercel. No personal data is stored on Vercel.',
             ]} />
@@ -218,7 +218,7 @@ export default function PrivacyPolicy() {
 
           <Section title="Cookies" id="cookies">
             <P>
-              The Lucred dashboard uses only functional cookies and session tokens necessary for authentication.
+              The Lucred Credit Engine dashboard uses only functional cookies and session tokens necessary for authentication.
               We do not use advertising cookies, analytics cookies, or third-party tracking pixels.
             </P>
             <UL items={[
@@ -233,7 +233,7 @@ export default function PrivacyPolicy() {
 
           <Section title="Children's Privacy" id="children">
             <P>
-              The Lucred platform is intended exclusively for licensed financial institutions and their adult borrowers.
+              The Lucred Credit Engine platform is intended exclusively for licensed financial institutions and their adult borrowers.
               We do not knowingly collect or process data relating to individuals under the age of 18. If you believe
               a minor's data has been submitted to our platform, contact us immediately at{' '}
               <a href="mailto:privacy@lucred.co" style={s.a}>privacy@lucred.co</a> and we will delete it promptly.
@@ -253,7 +253,7 @@ export default function PrivacyPolicy() {
             <P>For privacy-related enquiries, please contact:</P>
             <div style={s.contactBox}>
               <div><strong>Data Protection Officer</strong></div>
-              <div>Lucred Technology LLC</div>
+              <div>Lucred Technology Limited</div>
               <div>Email: <a href="mailto:dpo@lucred.co" style={s.a}>dpo@lucred.co</a></div>
               <div>Privacy: <a href="mailto:privacy@lucred.co" style={s.a}>privacy@lucred.co</a></div>
               <div style={{ marginTop: 8, color: '#64748b', fontSize: 13 }}>

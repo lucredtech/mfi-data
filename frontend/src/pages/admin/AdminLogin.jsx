@@ -25,7 +25,7 @@ export default function AdminLogin() {
   return (
     <div style={s.page}>
       <div style={s.card}>
-        <div style={s.logo}>Lucred</div>
+        <div style={s.logo}>Lucred Credit Engine</div>
         <div style={s.badge}>Admin Panel</div>
         <p style={s.subtitle}>Sign in to manage MFI clients</p>
         <form onSubmit={submit}>

@@ -138,7 +138,7 @@ export default function Webhooks() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <h1 style={s.h1}>Webhooks</h1>
-          <p style={s.sub}>Get notified in real time when events happen in your Lucred account.</p>
+          <p style={s.sub}>Get notified in real time when events happen in your Lucred Credit Engine account.</p>
         </div>
         {!isViewer && <button style={s.btn} onClick={() => setShowForm(f => !f)}>{showForm ? 'Cancel' : '+ Add Endpoint'}</button>}
       </div>

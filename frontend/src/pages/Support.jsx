@@ -37,7 +37,7 @@ const FAQS = [
       },
       {
         q: 'What does "Watch Listed: true" mean?',
-        a: 'A watchlisted status means the individual appears on a government watch or restriction list via NIBSS or NIMC records. Lucred\'s Loan Review will automatically flag this as a disqualifier. You should not proceed with lending to watchlisted individuals without further due diligence.',
+        a: 'A watchlisted status means the individual appears on a government watch or restriction list via NIBSS or NIMC records. Lucred Credit Engine's Loan Review will automatically flag this as a disqualifier. You should not proceed with lending to watchlisted individuals without further due diligence.',
       },
       {
         q: 'How current is the BVN/NIN data?',
@@ -49,8 +49,8 @@ const FAQS = [
     category: 'Credit Bureau',
     items: [
       {
-        q: 'Which credit bureau does Lucred use?',
-        a: 'Lucred integrates with FirstCentral Credit Bureau, which provides the XScore and full credit history including credit account details, delinquency records, and account summaries.',
+        q: 'Which credit bureau does Lucred Credit Engine use?',
+        a: 'Lucred Credit Engine integrates with FirstCentral Credit Bureau, which provides the XScore and full credit history including credit account details, delinquency records, and account summaries.',
       },
       {
         q: 'What is the FirstCentral XScore?',
@@ -128,8 +128,8 @@ const FAQS = [
         a: 'Go to Dashboard → Privacy & Data → Export All Data. This downloads a JSON file containing all customers, verification results, bureau checks, and statement analyses associated with your account. This fulfils the NDPR data portability right.',
       },
       {
-        q: 'Is Lucred NDPR compliant?',
-        a: 'Yes. Lucred is designed to comply with the Nigeria Data Protection Regulation (NDPR) 2019 and the Nigeria Data Protection Act (NDPA) 2023. We implement data minimisation, TTL-based auto-deletion, right-to-erasure tooling, and maintain a Data Protection Officer. See our Privacy Policy for full details.',
+        q: 'Is Lucred Credit Engine NDPR compliant?',
+        a: 'Yes. Lucred Credit Engine is designed to comply with the Nigeria Data Protection Regulation (NDPR) 2019 and the Nigeria Data Protection Act (NDPA) 2023. We implement data minimisation, TTL-based auto-deletion, right-to-erasure tooling, and maintain a Data Protection Officer. See our Privacy Policy for full details.',
       },
     ],
   },
@@ -145,7 +145,7 @@ export default function Support() {
     <div style={s.page}>
       <nav style={s.nav}>
         <div style={s.navInner}>
-          <Link to="/" style={s.logo}>Lucred</Link>
+          <Link to="/" style={s.logo}>Lucred Credit Engine</Link>
           <div style={{ display: 'flex', gap: 24 }}>
             <Link to="/pricing" style={s.navLink}>Pricing</Link>
             <Link to="/privacy-policy" style={s.navLink}>Privacy</Link>
@@ -231,7 +231,7 @@ export default function Support() {
       <div style={s.statusSection} id="status">
         <div style={s.statusInner}>
           <h2 style={s.statusTitle}>Platform Status</h2>
-          <p style={s.statusSub}>Current operational status of Lucred services</p>
+          <p style={s.statusSub}>Current operational status of Lucred Credit Engine services</p>
           <div style={s.statusGrid}>
             {[
               ['API Gateway', 'Operational'],

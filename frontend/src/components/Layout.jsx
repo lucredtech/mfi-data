@@ -150,7 +150,7 @@ export default function Layout({ children }) {
         <div style={{ marginBottom: '1.75rem', display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'space-between' }}>
           {!collapsed && (
             <div>
-              <div style={{ fontSize: 19, fontWeight: 800, color: '#38bdf8', letterSpacing: -0.5 }}>Lucred</div>
+              <div style={{ fontSize: 19, fontWeight: 800, color: '#38bdf8', letterSpacing: -0.5 }}>Lucred Credit Engine</div>
               <div style={{ fontSize: 10, color: '#475569', marginTop: 1, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.8 }}>Credit Engine</div>
             </div>
           )}
@@ -332,7 +332,7 @@ export default function Layout({ children }) {
         {isMobile && (
           <div style={{ background: '#0f172a', padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
             <button onClick={() => setMobileOpen(o => !o)} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: 4 }}>☰</button>
-            <div style={{ fontSize: 17, fontWeight: 800, color: '#38bdf8' }}>Lucred</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: '#38bdf8' }}>Lucred Credit Engine</div>
             <NotificationBell />
           </div>
         )}

@@ -19,7 +19,7 @@ async function sendSMS(to, message) {
 
 async function smsBorrowerDecision(phone, { borrowerName, verdict, organizationName }) {
   const label = verdict === 'ELIGIBLE' ? 'approved' : verdict === 'CONDITIONAL' ? 'conditionally approved' : 'not approved';
-  const msg = `Hi ${borrowerName}, your loan application with ${organizationName} has been ${label}. Contact them for next steps. Powered by Lucred.`;
+  const msg = `Hi ${borrowerName}, your loan application with ${organizationName} has been ${label}. Contact them for next steps. Powered by Lucred Credit Engine.`;
   await sendSMS(phone, msg);
 }
 

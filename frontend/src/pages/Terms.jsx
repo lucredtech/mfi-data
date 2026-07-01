@@ -21,7 +21,7 @@ export default function Terms() {
     <div style={s.page}>
       <nav style={s.nav}>
         <div style={s.navInner}>
-          <Link to="/" style={s.logo}>Lucred</Link>
+          <Link to="/" style={s.logo}>Lucred Credit Engine</Link>
           <div style={{ display: 'flex', gap: 24 }}>
             <Link to="/privacy-policy" style={s.navLink}>Privacy Policy</Link>
             <Link to="/security" style={s.navLink}>Security</Link>
@@ -57,8 +57,8 @@ export default function Terms() {
             <h1 style={s.h1}>Terms of Service</h1>
             <p style={s.meta}>Last updated: {LAST_UPDATED}</p>
             <p style={s.lead}>
-              These Terms of Service ("Terms") govern your access to and use of the Lucred Credit Engine
-              and API ("Service") provided by Lucred Technology LLC ("Lucred", "we", "us"). By creating an account
+              These Terms of Service ("Terms") govern your access to and use of Lucred Credit Engine, a product of
+              Lucred Technology Limited ("Lucred Technology Limited", "we", "us"), and its API ("Service"). By creating an account
               or using the Service, you agree to be bound by these Terms in full. If you are using the Service on
               behalf of an organisation, you represent that you are authorised to bind that organisation to these Terms.
             </p>
@@ -90,23 +90,23 @@ export default function Terms() {
               'Accept responsibility for all activity that occurs under your account credentials',
             ]} />
             <P>
-              Lucred reserves the right to suspend or terminate accounts where registration information is found
+              Lucred Credit Engine reserves the right to suspend or terminate accounts where registration information is found
               to be false, misleading, or in violation of these Terms.
             </P>
           </Section>
 
           <Section title="3. API Usage & Rate Limits" id="api-usage">
             <P>
-              Access to the Lucred API is governed by your subscription plan. Each plan includes a defined monthly
+              Access to the Lucred Credit Engine API is governed by your subscription plan. Each plan includes a defined monthly
               call allocation across the following services: BVN verification, NIN verification, credit bureau checks,
               and bank statement analysis.
             </P>
             <UL items={[
               'API keys must be kept confidential and must not be embedded in public repositories, client-side code, or shared environments',
-              'You may not resell, sublicence, or redistribute API access to third parties without prior written consent from Lucred',
+              'You may not resell, sublicence, or redistribute API access to third parties without prior written consent from Lucred Credit Engine',
               'Automated abuse, scraping, or stress-testing of the API outside designated sandbox environments is prohibited',
               'Exceeding your plan quota will result in HTTP 429 responses; upgrade your plan to restore access',
-              'Lucred reserves the right to throttle or suspend API access if usage patterns indicate abuse or unusual activity',
+              'Lucred Credit Engine reserves the right to throttle or suspend API access if usage patterns indicate abuse or unusual activity',
             ]} />
           </Section>
 
@@ -130,56 +130,56 @@ export default function Terms() {
           <Section title="5. Data Responsibility" id="data-responsibility">
             <P>
               As an MFI Client, you are the data controller for borrower personal data submitted through our API.
-              Lucred acts as a data processor on your behalf. You represent and warrant that:
+              Lucred Credit Engine acts as a data processor on your behalf. You represent and warrant that:
             </P>
             <UL items={[
               'You have obtained valid, informed consent from each borrower before submitting their BVN, NIN, bank statements, or other personal data to our API',
               'Your use of borrower data complies with the Nigeria Data Protection Regulation (NDPR) 2019, the NDPA 2023, and any applicable CBN data governance circular',
-              'You will honour data subject rights requests (access, erasure, portability) from your borrowers and may use the dashboard tools provided by Lucred to fulfil such requests',
+              'You will honour data subject rights requests (access, erasure, portability) from your borrowers and may use the dashboard tools provided by Lucred Credit Engine to fulfil such requests',
               'You will not retain API response data longer than your own internal data retention policy allows',
-              'You will notify Lucred within 48 hours if you become aware of any data breach involving data obtained through our API',
+              'You will notify Lucred Credit Engine within 48 hours if you become aware of any data breach involving data obtained through our API',
             ]} />
           </Section>
 
           <Section title="6. Fees & Billing" id="fees">
             <P>
-              Lucred charges subscription fees based on the plan you select. All fees are payable in Nigerian Naira
+              Lucred Credit Engine charges subscription fees based on the plan you select. All fees are payable in Nigerian Naira
               (NGN) or as otherwise agreed in writing. Subscription plans are billed monthly in advance. You agree to:
             </P>
             <UL items={[
               'Pay all fees when due and maintain a valid payment method on file',
               'Accept that all fees are non-refundable except as expressly provided in our refund policy or required by law',
               'Understand that failure to pay within 14 days of the due date may result in suspension of API access',
-              'Accept that Lucred may modify pricing with 30 days\' written notice; continued use after the effective date constitutes acceptance',
+              'Accept that Lucred Credit Engine may modify pricing with 30 days\' written notice; continued use after the effective date constitutes acceptance',
             ]} />
           </Section>
 
           <Section title="7. Intellectual Property" id="ip">
             <P>
-              The Lucred platform, API, documentation, trademarks, and all associated intellectual property remain
-              the sole property of Lucred Technology LLC. Nothing in these Terms transfers any ownership rights to you.
+              The Lucred Credit Engine platform, API, documentation, trademarks, and all associated intellectual property remain
+              the sole property of Lucred Technology Limited. Nothing in these Terms transfers any ownership rights to you.
               You are granted a limited, non-exclusive, non-transferable licence to access and use the Service solely
               for your internal business purposes during the term of your subscription.
             </P>
             <P>
-              Analysis results and reports generated by the Lucred API using your borrowers' data are provided to
-              you under this licence. Lucred retains no ownership claim over those results.
+              Analysis results and reports generated by the Lucred Credit Engine API using your borrowers' data are provided to
+              you under this licence. Lucred Credit Engine retains no ownership claim over those results.
             </P>
           </Section>
 
           <Section title="8. Limitation of Liability" id="liability">
             <P>
               The Service is provided "as is" and "as available". To the fullest extent permitted by Nigerian law,
-              Lucred excludes all warranties, express or implied, including warranties of merchantability, fitness
+              Lucred Credit Engine excludes all warranties, express or implied, including warranties of merchantability, fitness
               for a particular purpose, and non-infringement.
             </P>
             <P>
-              Lucred's total liability arising out of or in connection with these Terms or the Service (whether in
+              Lucred Credit Engine's total liability arising out of or in connection with these Terms or the Service (whether in
               contract, tort, or otherwise) shall not exceed the total fees paid by you in the 3 months preceding
               the event giving rise to the claim.
             </P>
             <P>
-              Lucred is not liable for: (a) any lending decision made on the basis of API results; (b) the accuracy
+              Lucred Credit Engine is not liable for: (a) any lending decision made on the basis of API results; (b) the accuracy
               or completeness of data returned by upstream providers (NIBSS, NIMC, FirstCentral); (c) loss of revenue
               or profits; or (d) indirect or consequential damages of any kind.
             </P>
@@ -187,7 +187,7 @@ export default function Terms() {
 
           <Section title="9. Termination" id="termination">
             <P>
-              Either party may terminate these Terms at any time with 14 days' written notice. Lucred may
+              Either party may terminate these Terms at any time with 14 days' written notice. Lucred Credit Engine may
               terminate or suspend your account immediately and without notice if you:
             </P>
             <UL items={[
@@ -220,7 +220,7 @@ export default function Terms() {
 
           <Section title="12. Contact" id="contact">
             <div style={s.contactBox}>
-              <div><strong>Lucred Technology LLC</strong></div>
+              <div><strong>Lucred Technology Limited</strong></div>
               <div>Legal enquiries: <a href="mailto:legal@lucred.co" style={s.a}>legal@lucred.co</a></div>
               <div>General support: <a href="mailto:support@lucred.co" style={s.a}>support@lucred.co</a></div>
               <div style={{ marginTop: 8, fontSize: 13, color: '#64748b' }}>

@@ -602,4 +602,85 @@ router.get('/mrr', async (req, res) => {
   }
 });
 
+// One-time trigger: send monthly summary emails for a given month
+// POST /api/admin/send-monthly-summaries?month=2026-06
+router.post('/send-monthly-summaries', async (req, res) => {
+  try {
+    const MFIClient = require('../models/MFIClient');
+    const WalletTransaction = require('../models/WalletTransaction');
+    const { sendMonthlySummary } = require('../utils/mailer');
+
+    const SERVICE_LABEL = {
+      BVN_CHECK: 'BVN verification',
+      NIN_CHECK: 'NIN verification',
+      BUREAU_CHECK: 'Credit bureau check',
+      STATEMENT_ANALYSIS: 'Statement analysis',
+    };
+
+    // Default to last month, or accept ?month=YYYY-MM
+    let monthStart;
+    if (req.query.month) {
+      monthStart = new Date(`${req.query.month}-01T00:00:00.000Z`);
+    } else {
+      monthStart = new Date();
+      monthStart.setMonth(monthStart.getMonth() - 1);
+      monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+    }
+    const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1);
+    const monthLabel = monthStart.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+
+    const rows = await WalletTransaction.aggregate([
+      { $match: { type: 'charge', freeQuota: false, createdAt: { $gte: monthStart, $lt: monthEnd } } },
+      { $group: { _id: { client: '$client', service: '$service' }, count: { $sum: 1 }, spent: { $sum: '$amount' } } },
+    ]);
+    const freeRows = await WalletTransaction.aggregate([
+      { $match: { type: 'charge', freeQuota: true, createdAt: { $gte: monthStart, $lt: monthEnd } } },
+      { $group: { _id: { client: '$client', service: '$service' }, count: { $sum: 1 } } },
+    ]);
+
+    const byClient = {};
+    for (const row of rows) {
+      const cid = String(row._id.client);
+      if (!byClient[cid]) byClient[cid] = {};
+      byClient[cid][row._id.service] = { count: row.count, spent: row.spent };
+    }
+    for (const row of freeRows) {
+      const cid = String(row._id.client);
+      if (!byClient[cid]) byClient[cid] = {};
+      if (!byClient[cid][row._id.service]) byClient[cid][row._id.service] = { count: 0, spent: 0 };
+      byClient[cid][row._id.service].count += row.count;
+    }
+
+    const clientIds = Object.keys(byClient);
+    if (!clientIds.length) return res.json({ sent: 0, month: monthLabel, message: 'No activity found for this month.' });
+
+    const clients = await MFIClient.find({ _id: { $in: clientIds } }).select('email organizationName plan').lean();
+    const results = [];
+
+    for (const client of clients) {
+      const cid = String(client._id);
+      const services = byClient[cid] || {};
+      const totalSpent = Object.values(services).reduce((s, v) => s + (v.spent || 0), 0);
+      const PLAN_DISCOUNT = { starter: 0.30, growth: 0.40, scale: 0.50 };
+      const discount = PLAN_DISCOUNT[client.plan] || 0;
+      const savedVsPayg = Math.round(totalSpent * discount / (1 - discount));
+      const analyses = {};
+      for (const [service, label] of Object.entries(SERVICE_LABEL)) {
+        analyses[service] = { label, count: services[service]?.count || 0, spent: services[service]?.spent || 0 };
+      }
+      try {
+        await sendMonthlySummary(client.email, { organizationName: client.organizationName, month: monthLabel, analyses, totalSpent, savedVsPayg, plan: client.plan });
+        results.push({ email: client.email, status: 'sent' });
+      } catch (e) {
+        results.push({ email: client.email, status: 'failed', error: e.message });
+      }
+    }
+
+    res.json({ sent: results.filter(r => r.status === 'sent').length, failed: results.filter(r => r.status === 'failed').length, month: monthLabel, results });
+  } catch (err) {
+    console.error('[admin] send-monthly-summaries error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

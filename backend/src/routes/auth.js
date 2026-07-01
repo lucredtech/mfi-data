@@ -393,7 +393,7 @@ router.get('/billing/invoices/:id', requireJWT, async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="lucred-invoice-${payment._id}.pdf"`);
     doc.pipe(res);
 
-    doc.fontSize(22).fillColor('#6d28d9').text('Lucred', 60, 60);
+    doc.fontSize(22).fillColor('#6d28d9').text('Lucred Credit Engine', 60, 60);
     doc.fontSize(10).fillColor('#64748b').text('Credit Engine · mfi.lucred.co', 60, 88);
     doc.moveTo(60, 110).lineTo(535, 110).strokeColor('#e2e8f0').stroke();
 
@@ -412,7 +412,7 @@ router.get('/billing/invoices/:id', requireJWT, async (req, res) => {
     doc.moveTo(60, 316).lineTo(535, 316).strokeColor('#e2e8f0').stroke();
 
     const planLabel = payment.plan.charAt(0).toUpperCase() + payment.plan.slice(1);
-    doc.fontSize(11).fillColor('#0f172a').text(`Lucred ${planLabel} Plan — Monthly Subscription`, 60, 328);
+    doc.fontSize(11).fillColor('#0f172a').text(`Lucred Credit Engine ${planLabel} Plan — Monthly Subscription`, 60, 328);
     doc.text(`₦${Number(payment.amount).toLocaleString()}`, 440, 328, { align: 'right', width: 95 });
 
     doc.moveTo(60, 356).lineTo(535, 356).strokeColor('#e2e8f0').stroke();

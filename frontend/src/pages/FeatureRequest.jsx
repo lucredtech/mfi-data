@@ -47,7 +47,7 @@ export default function FeatureRequest() {
     <div>
       <div style={{ marginBottom: 28 }}>
         <h1 style={s.h1}>Request a Feature</h1>
-        <p style={s.sub}>Tell us what would make Lucred more useful for your team. We read every request.</p>
+        <p style={s.sub}>Tell us what would make Lucred Credit Engine more useful for your team. We read every request.</p>
       </div>
 
       {/* Submit form */}

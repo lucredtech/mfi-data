@@ -38,7 +38,7 @@ export default function Status() {
       <div style={{ background: '#0f172a', padding: '2rem 0' }}>
         <div style={{ maxWidth: 780, margin: '0 auto', padding: '0 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#38bdf8', marginBottom: 4 }}>Lucred</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#38bdf8', marginBottom: 4 }}>Lucred Credit Engine</div>
             <h1 style={{ fontSize: 26, fontWeight: 700, color: '#fff', margin: 0 }}>API Status</h1>
             <p style={{ color: '#94a3b8', marginTop: 6, marginBottom: 0, fontSize: 14 }}>
               Real-time availability and performance of the Lucred Credit Engine.

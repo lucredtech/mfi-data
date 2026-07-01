@@ -70,7 +70,7 @@ export default function Privacy() {
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '32px 24px', fontFamily: 'Inter, sans-serif' }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>Privacy & Data</h1>
       <p style={{ fontSize: 14, color: '#64748b', marginBottom: 32 }}>
-        How Lucred stores, protects, and handles your customers' data.
+        How Lucred Credit Engine stores, protects, and handles your customers' data.
       </p>
 
       {/* What we store */}
@@ -96,7 +96,7 @@ export default function Privacy() {
         <div style={HEADING}>What we never store</div>
         {[
           ['Biometric face images', 'BVN and NIN photo/image fields are returned to your application in real-time but are never written to our database.'],
-          ['Passwords', 'Customer passwords are not handled by Lucred. MFI account passwords are stored as bcrypt hashes (cost 10).'],
+          ['Passwords', 'Customer passwords are not handled by Lucred Credit Engine. MFI account passwords are stored as bcrypt hashes (cost 10).'],
           ['Card or bank account numbers', 'No financial account credentials are processed or stored.'],
           ['Raw statement transaction data', 'Only the analysis output (scores, categories, summary) is stored — not the raw transaction list.'],
         ].map(([label, value]) => (
@@ -129,7 +129,7 @@ export default function Privacy() {
       <div style={SECTION}>
         <div style={HEADING}>Your rights under NDPR</div>
         <p style={{ fontSize: 13, color: '#64748b', marginBottom: 16, lineHeight: 1.6 }}>
-          As an MFI operating in Nigeria, Lucred processes personal data on your behalf as a data processor under the Nigeria Data Protection Regulation (NDPR). You retain ownership of your customers' data and may exercise the following rights at any time.
+          As an MFI operating in Nigeria, Lucred Credit Engine processes personal data on your behalf as a data processor under the Nigeria Data Protection Regulation (NDPR). You retain ownership of your customers' data and may exercise the following rights at any time.
         </p>
         {[
           ['Right of access', 'Download all your data at any time using the export button below.'],

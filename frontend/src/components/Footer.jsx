@@ -27,7 +27,7 @@ export default function Footer() {
       <div style={s.inner}>
         {/* Brand column */}
         <div style={s.brand}>
-          <div style={s.logo}>Lucred</div>
+          <div style={s.logo}>Lucred Credit Engine</div>
           <p style={s.tagline}>
             Identity verification, credit bureau, and bank statement analysis — all in one API.
             Built for Nigerian MFIs and lenders.
@@ -52,7 +52,7 @@ export default function Footer() {
       {/* Bottom bar */}
       <div style={s.bottom}>
         <div style={s.bottomInner}>
-          <span style={s.copy}>© {new Date().getFullYear()} Lucred Technology LLC. All rights reserved.</span>
+          <span style={s.copy}>© {new Date().getFullYear()} Lucred Technology Limited. All rights reserved.</span>
           <div style={s.bottomLinks}>
             <Link to="/privacy-policy" style={s.bottomLink}>Privacy Policy</Link>
             <span style={s.sep}>·</span>

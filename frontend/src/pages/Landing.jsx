@@ -4,7 +4,7 @@ import Footer from '../components/Footer';
 const FEATURES = [
   {
     title: 'Bank Statement Analysis',
-    desc: 'Upload bank statements and get instant income, spending, and repayment capacity analysis powered by Lucred\'s AI engine.',
+    desc: 'Upload bank statements and get instant income, spending, and repayment capacity analysis powered by Lucred Credit Engine's AI engine.',
   },
   {
     title: 'Credit Bureau Access',
@@ -16,7 +16,7 @@ const FEATURES = [
   },
   {
     title: 'Credit Scoring',
-    desc: 'Get Lucred\'s proprietary credit score and lending decision with suggested loan amount and tenor.',
+    desc: 'Get Lucred Credit Engine's proprietary credit score and lending decision with suggested loan amount and tenor.',
   },
 ];
 
@@ -32,7 +32,7 @@ export default function Landing() {
       {/* Nav */}
       <nav style={s.nav}>
         <div style={s.navInner}>
-          <div style={s.logo}>Lucred <span style={s.logoBadge}>for MFIs</span></div>
+          <div style={s.logo}>Lucred Credit Engine</div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <Link to="/pricing" style={s.navLink}>Pricing</Link>
             <Link to="/login" style={s.navLink}>Sign in</Link>
@@ -50,7 +50,7 @@ export default function Landing() {
             <span style={s.heroAccent}>smarter MFI lending</span>
           </h1>
           <p style={s.heroSub}>
-            Give your microfinance institution access to Lucred's credit data infrastructure —
+            Give your microfinance institution access to Lucred Credit Engine's credit data infrastructure —
             bank statement analysis, credit bureau, identity verification and AI-powered credit scoring.
             All via a single dashboard.
           </p>
@@ -125,7 +125,7 @@ export default function Landing() {
       <section style={s.cta}>
         <div style={s.ctaInner}>
           <h2 style={s.ctaTitle}>Ready to upgrade your credit process?</h2>
-          <p style={s.ctaSub}>Join MFIs already using Lucred's credit engine to make faster, smarter lending decisions.</p>
+          <p style={s.ctaSub}>Join MFIs already using Lucred Credit Engine's credit engine to make faster, smarter lending decisions.</p>
           <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/register" style={s.heroBtnPrimary}>Start for free →</Link>
             <Link to="/pricing" style={{ ...s.heroBtnSecondary, background: 'rgba(255,255,255,0.1)' }}>See pricing</Link>

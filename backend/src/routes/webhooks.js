@@ -50,7 +50,7 @@ router.delete('/:id', async (req, res) => {
 router.post('/:id/test', async (req, res) => {
   const hook = await Webhook.findOne({ _id: req.params.id, client: req.client.id });
   if (!hook) return res.status(404).json({ error: 'Webhook not found' });
-  const payload = { event: 'ping', timestamp: new Date().toISOString(), data: { message: 'Test from Lucred' } };
+  const payload = { event: 'ping', timestamp: new Date().toISOString(), data: { message: 'Test from Lucred Credit Engine' } };
   const result = await fireWebhook(hook, payload);
   res.json(result);
 });

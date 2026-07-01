@@ -32,7 +32,7 @@ export default function AdminLayout({ children }) {
     <>
       <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#a5b4fc' }}>Lucred</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#a5b4fc' }}>Lucred Credit Engine</div>
           <div style={{ fontSize: 11, color: '#6366f1', marginTop: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>Admin Panel</div>
         </div>
         {/* Close button — mobile only */}
@@ -99,7 +99,7 @@ export default function AdminLayout({ children }) {
         {/* Mobile topbar */}
         <header className="admin-topbar" style={{ display: 'none', alignItems: 'center', gap: 12, background: '#1e1b4b', padding: '0.875rem 1rem', flexShrink: 0 }}>
           <button onClick={() => setOpen(true)} style={{ background: 'none', border: 'none', color: '#a5b4fc', fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0 }}>☰</button>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#a5b4fc' }}>Lucred</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#a5b4fc' }}>Lucred Credit Engine</div>
           <div style={{ fontSize: 10, color: '#6366f1', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>Admin</div>
         </header>
 

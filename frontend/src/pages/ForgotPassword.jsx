@@ -24,7 +24,7 @@ export default function ForgotPassword() {
   return (
     <div style={s.page}>
       <div style={s.card}>
-        <div style={s.logo}>Lucred</div>
+        <div style={s.logo}>Lucred Credit Engine</div>
         <h1 style={s.h1}>Reset your password</h1>
         <p style={s.sub}>Enter the email you used to register and we'll send a reset link.</p>
 

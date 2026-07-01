@@ -39,7 +39,7 @@ export default function AcceptInvite() {
   return (
     <div style={{ fontFamily: 'Inter,sans-serif', minHeight: '100vh', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ background: '#fff', borderRadius: 14, padding: '2.5rem 2rem', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', maxWidth: 420, width: '100%' }}>
-        <div style={{ fontSize: 22, fontWeight: 800, color: '#6d28d9', marginBottom: 20 }}>Lucred</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: '#6d28d9', marginBottom: 20 }}>Lucred Credit Engine</div>
 
         {status === 'loading' && <p style={{ color: '#64748b' }}>Validating invite…</p>}
 

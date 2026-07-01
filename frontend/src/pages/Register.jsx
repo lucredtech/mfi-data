@@ -35,7 +35,7 @@ export default function Register() {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <div style={styles.logo}>Lucred</div>
+        <div style={styles.logo}>Lucred Credit Engine</div>
         <p style={styles.subtitle}>Register your MFI for API access</p>
         <form onSubmit={submit}>
           {[

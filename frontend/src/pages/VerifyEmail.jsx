@@ -19,7 +19,7 @@ export default function VerifyEmail() {
   return (
     <div style={{ fontFamily: 'Inter,sans-serif', minHeight: '100vh', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ background: '#fff', borderRadius: 16, padding: '2.5rem 2rem', boxShadow: '0 4px 24px rgba(0,0,0,0.08)', maxWidth: 400, width: '100%', textAlign: 'center' }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: '#6d28d9', marginBottom: 20 }}>Lucred</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: '#6d28d9', marginBottom: 20 }}>Lucred Credit Engine</div>
         {status === 'loading' && <p style={{ color: '#64748b' }}>Verifying your email…</p>}
         {status === 'success' && (
           <>

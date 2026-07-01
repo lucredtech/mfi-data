@@ -83,9 +83,9 @@ export default function Changelog() {
       <div style={{ background: '#0f172a', padding: '2rem 0' }}>
         <div style={{ maxWidth: 740, margin: '0 auto', padding: '0 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: '#38bdf8', marginBottom: 4 }}>Lucred</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: '#38bdf8', marginBottom: 4 }}>Lucred Credit Engine</div>
             <h1 style={{ fontSize: 26, fontWeight: 700, color: '#fff', margin: 0 }}>API Changelog</h1>
-            <p style={{ color: '#94a3b8', marginTop: 6, marginBottom: 0, fontSize: 14 }}>What's new, fixed, and changed in the Lucred Credit API.</p>
+            <p style={{ color: '#94a3b8', marginTop: 6, marginBottom: 0, fontSize: 14 }}>What's new, fixed, and changed in the Lucred Credit Engine API.</p>
           </div>
           <a href="/login" style={{ fontSize: 13, fontWeight: 600, color: '#38bdf8', textDecoration: 'none', border: '1px solid #38bdf8', padding: '8px 16px', borderRadius: 8 }}>
             Dashboard →

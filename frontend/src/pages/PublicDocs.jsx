@@ -5,7 +5,7 @@ const BASE = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.rai
 const SECTIONS = [
   {
     id: 'overview', title: 'Overview',
-    content: `The Lucred Credit API lets you embed identity verification, credit bureau checks, bank statement analysis, and AI-powered loan eligibility scoring directly into your lending platform.
+    content: `The Lucred Credit Engine API lets you embed identity verification, credit bureau checks, bank statement analysis, and AI-powered loan eligibility scoring directly into your lending platform.
 
 All endpoints are REST-based and return JSON. Authentication uses your API key passed as an HTTP header.`,
   },
@@ -140,7 +140,7 @@ export default function PublicDocs() {
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: '#38bdf8', marginBottom: 4 }}>Lucred</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#38bdf8', marginBottom: 4 }}>Lucred Credit Engine</div>
               <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>API Reference</h1>
               <p style={{ color: '#94a3b8', marginTop: 8, marginBottom: 0 }}>
                 Base URL: <code style={s.inlineCode}>{BASE}</code> &nbsp;·&nbsp; Auth: <code style={s.inlineCode}>X-Api-Key</code> header
@@ -157,7 +157,7 @@ export default function PublicDocs() {
         {/* Overview */}
         <div style={s.card}>
           <h2 style={s.h2}>Overview</h2>
-          <p style={s.p}>The Lucred Credit API lets you embed identity verification, credit bureau checks, bank statement analysis, and AI-powered loan eligibility scoring directly into your lending platform.</p>
+          <p style={s.p}>The Lucred Credit Engine API lets you embed identity verification, credit bureau checks, bank statement analysis, and AI-powered loan eligibility scoring directly into your lending platform.</p>
           <p style={s.p}>All endpoints are REST-based and return JSON. A customer profile is the central object — create one first, then attach checks and analyses to it. Everything you do via API is visible in your dashboard.</p>
 
           <div style={{ background: '#0f172a', borderRadius: 10, padding: '1rem 1.25rem', marginTop: 16 }}>
@@ -304,7 +304,7 @@ X-RateLimit-Reset: 2026-02-01T00:00:00.000Z`}</pre>
         {/* Webhooks */}
         <div style={s.card}>
           <h2 style={s.h2}>Webhooks</h2>
-          <p style={s.p}>Lucred can push real-time event notifications to your server whenever a customer analysis completes. This lets you avoid polling — register a URL and receive the result the moment it's ready.</p>
+          <p style={s.p}>Lucred Credit Engine can push real-time event notifications to your server whenever a customer analysis completes. This lets you avoid polling — register a URL and receive the result the moment it's ready.</p>
 
           <div style={{ marginBottom: 20 }}>
             <div style={s.label}>Supported Events</div>

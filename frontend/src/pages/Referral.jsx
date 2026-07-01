@@ -26,7 +26,7 @@ export default function Referral() {
   return (
     <div style={{ maxWidth: 600 }}>
       <h1 style={s.h1}>Refer an MFI</h1>
-      <p style={s.sub}>Share your invite link with other microfinance institutions. Every referral helps grow the Lucred network.</p>
+      <p style={s.sub}>Share your invite link with other microfinance institutions. Every referral helps grow the Lucred Credit Engine network.</p>
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>

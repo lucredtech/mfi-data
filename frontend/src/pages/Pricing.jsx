@@ -153,7 +153,7 @@ export default function Pricing() {
       {/* Nav */}
       <nav style={s.nav}>
         <div style={s.navInner}>
-          <Link to="/" style={s.logo}>Lucred <span style={s.logoBadge}>MFI</span></Link>
+          <Link to="/" style={s.logo}>Lucred Credit Engine</Link>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <Link to="/login" style={s.navLink}>Sign in</Link>
             <Link to="/register" style={s.navBtn}>Get Started Free</Link>

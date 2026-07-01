@@ -51,7 +51,7 @@ export default function ApiKeys() {
   return (
     <div>
       <h1 style={styles.h1}>API Keys</h1>
-      <p style={styles.sub}>Use these keys in the <code>X-Api-Key</code> header when calling Lucred credit endpoints.</p>
+      <p style={styles.sub}>Use these keys in the <code>X-Api-Key</code> header when calling Lucred Credit Engine endpoints.</p>
 
       <div style={styles.createBox}>
         <form onSubmit={create} style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>

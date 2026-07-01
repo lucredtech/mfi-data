@@ -31,7 +31,7 @@ export default function ResetPassword() {
   if (!token) return (
     <div style={s.page}>
       <div style={s.card}>
-        <div style={s.logo}>Lucred</div>
+        <div style={s.logo}>Lucred Credit Engine</div>
         <div style={{ color: '#dc2626', fontWeight: 600 }}>Invalid reset link. Please request a new one.</div>
         <Link to="/forgot-password" style={{ display: 'block', marginTop: 16, color: '#0ea5e9', fontSize: 13, fontWeight: 600, textDecoration: 'none' }}>Request new link →</Link>
       </div>
@@ -41,7 +41,7 @@ export default function ResetPassword() {
   return (
     <div style={s.page}>
       <div style={s.card}>
-        <div style={s.logo}>Lucred</div>
+        <div style={s.logo}>Lucred Credit Engine</div>
         <h1 style={s.h1}>Set new password</h1>
         <p style={s.sub}>Choose a strong password for your account.</p>
 

@@ -27,7 +27,7 @@ export default function Security() {
     <div style={s.page}>
       <nav style={s.nav}>
         <div style={s.navInner}>
-          <Link to="/" style={s.logo}>Lucred</Link>
+          <Link to="/" style={s.logo}>Lucred Credit Engine</Link>
           <div style={{ display: 'flex', gap: 24 }}>
             <Link to="/privacy-policy" style={s.navLink}>Privacy Policy</Link>
             <Link to="/terms" style={s.navLink}>Terms</Link>
@@ -40,7 +40,7 @@ export default function Security() {
       <div style={s.hero}>
         <div style={s.heroInner}>
           <span style={s.tag}>Security</span>
-          <h1 style={s.h1}>Security at Lucred</h1>
+          <h1 style={s.h1}>Security at Lucred Credit Engine</h1>
           <p style={s.lead}>
             We handle identity data, credit records, and financial statements on behalf of Nigerian lenders.
             Security is not an afterthought — it is built into every layer of our infrastructure.
@@ -69,7 +69,7 @@ export default function Security() {
 
         <Section title="Data Encryption" id="encryption" accent="#0ea5e9">
           <div style={s.grid}>
-            <Control title="Encryption in Transit" description="All communication between clients, the Lucred dashboard, and our backend API is encrypted using TLS 1.2 or TLS 1.3. Unencrypted HTTP connections are rejected." />
+            <Control title="Encryption in Transit" description="All communication between clients, the Lucred Credit Engine dashboard, and our backend API is encrypted using TLS 1.2 or TLS 1.3. Unencrypted HTTP connections are rejected." />
             <Control title="Encryption at Rest" description="All data stored in MongoDB Atlas is encrypted at rest using AES-256. Encryption keys are managed by MongoDB Atlas using AWS KMS." />
             <Control title="API Key Storage" description="API keys are hashed using SHA-256 before storage. The plain-text key is displayed only once at creation — we cannot recover it. If lost, generate a new key." />
             <Control title="Password Hashing" description="User passwords are never stored in plain text. They are hashed using bcrypt with a work factor of 10 before being written to the database." />
@@ -114,7 +114,7 @@ export default function Security() {
 
         <Section title="Incident Response" id="incidents" accent="#64748b">
           <p style={s.p}>
-            In the event of a security incident affecting data processed through the Lucred platform:
+            In the event of a security incident affecting data processed through the Lucred Credit Engine platform:
           </p>
           <ul style={s.ul}>
             <li style={s.li}>Affected MFI Clients will be notified within <strong>24 hours</strong> of confirmed incident detection via the email address on their account</li>
