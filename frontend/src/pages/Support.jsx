@@ -37,7 +37,7 @@ const FAQS = [
       },
       {
         q: 'What does "Watch Listed: true" mean?',
-        a: 'A watchlisted status means the individual appears on a government watch or restriction list via NIBSS or NIMC records. Lucred Credit Engine's Loan Review will automatically flag this as a disqualifier. You should not proceed with lending to watchlisted individuals without further due diligence.',
+        a: 'A watchlisted status means the individual appears on a government watch or restriction list via NIBSS or NIMC records. The Lucred Credit Engine Loan Review will automatically flag this as a disqualifier. You should not proceed with lending to watchlisted individuals without further due diligence.',
       },
       {
         q: 'How current is the BVN/NIN data?',

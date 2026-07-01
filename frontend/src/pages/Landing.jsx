@@ -4,7 +4,7 @@ import Footer from '../components/Footer';
 const FEATURES = [
   {
     title: 'Bank Statement Analysis',
-    desc: 'Upload bank statements and get instant income, spending, and repayment capacity analysis powered by Lucred Credit Engine's AI engine.',
+    desc: 'Upload bank statements and get instant income, spending, and repayment capacity analysis powered by Lucred Credit Engine.',
   },
   {
     title: 'Credit Bureau Access',
@@ -16,7 +16,7 @@ const FEATURES = [
   },
   {
     title: 'Credit Scoring',
-    desc: 'Get Lucred Credit Engine's proprietary credit score and lending decision with suggested loan amount and tenor.',
+    desc: 'Get Lucred Credit Engine proprietary credit score and lending decision with suggested loan amount and tenor.',
   },
 ];
 
