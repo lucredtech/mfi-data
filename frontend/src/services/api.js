@@ -11,9 +11,20 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
+    // Expired or missing token — redirect to login with a clear message
+    if (err.response?.status === 401 || (!err.response && localStorage.getItem('token'))) {
+      const isAuthRoute = window.location.pathname === '/login' || window.location.pathname === '/';
+      if (!isAuthRoute) {
+        import('react-hot-toast').then(({ default: toast }) => {
+          toast.error('Your session has expired. Please sign in again.');
+        });
+        localStorage.removeItem('token');
+        setTimeout(() => { window.location.href = '/login'; }, 1200);
+      }
+      return Promise.reject(err);
+    }
     if (err.response?.status === 429 && err.response?.data?.upgradeUrl) {
       window.dispatchEvent(new CustomEvent('lucred:plan-limit'));
-      // Dynamically import toast to avoid circular deps
       import('react-hot-toast').then(({ default: toast }) => {
         toast.error(`Monthly API limit reached (${err.response.data.used}/${err.response.data.limit} calls). Upgrade to continue.`, { duration: 5000 });
       });
