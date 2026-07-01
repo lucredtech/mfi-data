@@ -7,6 +7,14 @@ import {
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
+function isStale(statement) {
+  if (!statement) return false;
+  const endDateStr = statement.result?.metaData?.endDate;
+  const ref = endDateStr ? new Date(endDateStr) : new Date(statement.createdAt);
+  if (isNaN(ref.getTime())) return false;
+  return (Date.now() - ref.getTime()) > 90 * 24 * 60 * 60 * 1000;
+}
+
 const GRADE_COLOR = { A: '#16a34a', B: '#0ea5e9', C: '#f59e0b', D: '#ef4444', E: '#7f1d1d' };
 const GRADE_BG   = { A: '#dcfce7', B: '#e0f2fe', C: '#fef3c7', D: '#fee2e2', E: '#fce7f3' };
 const COLORS = ['#0ea5e9', '#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4'];
@@ -157,6 +165,22 @@ export default function StatementDetail() {
           </>}
         </div>
       </div>
+
+      {/* ── Stale statement warning ──────────────────────────────────────── */}
+      {isStale(statement) && (() => {
+        const endDateStr = statement.result?.metaData?.endDate;
+        const ref = endDateStr ? new Date(endDateStr) : new Date(statement.createdAt);
+        const daysOld = Math.floor((Date.now() - ref.getTime()) / (24 * 60 * 60 * 1000));
+        return (
+          <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#92400e' }}>
+            <span style={{ fontSize: 18 }}>⚠️</span>
+            <div>
+              <strong>Stale bank statement ({daysOld} days old)</strong>
+              <span style={{ marginLeft: 8 }}>{endDateStr ? `Statement period ended ${ref.toLocaleDateString()}` : `Statement analysed ${ref.toLocaleDateString()}`} — this statement may not reflect the borrower's current financial position. Consider requesting a more recent statement.</span>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Score Breakdown ───────────────────────────────────────────────── */}
       {scoreData.length > 0 && (

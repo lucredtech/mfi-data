@@ -16,6 +16,8 @@ const BANKS = [
   { value: "opay", label: "Opay" },
   { value: "fidelity", label: "Fidelity" },
   { value: "sterling", label: "Sterling" },
+  { value: "providus", label: "Providus" },
+  { value: "smartcash", label: "Airtel Smartcash" },
   { value: "access", label: "Access" },
   { value: "fcmb", label: "FCMB" },
   { value: "firstbank", label: "First Bank" },
@@ -247,11 +249,30 @@ export default function StatementAnalysis() {
   );
 }
 
+function StaleWarning({ data }) {
+  const endDateStr = data?.metaData?.endDate;
+  if (!endDateStr) return null;
+  const ref = new Date(endDateStr);
+  if (isNaN(ref.getTime())) return null;
+  const daysOld = Math.floor((Date.now() - ref.getTime()) / (24 * 60 * 60 * 1000));
+  if (daysOld <= 90) return null;
+  return (
+    <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#92400e', marginBottom: 16 }}>
+      <span style={{ fontSize: 18 }}>⚠️</span>
+      <div>
+        <strong>Stale bank statement ({daysOld} days old)</strong>
+        <span style={{ marginLeft: 8 }}>Statement period ended {ref.toLocaleDateString()} — this statement may not reflect the borrower's current financial position.</span>
+      </div>
+    </div>
+  );
+}
+
 function ResultPanel({ data }) {
   const fmt = (v) => v !== undefined && v !== null ? v.toLocaleString() : '—';
 
   return (
     <div>
+      <StaleWarning data={data} />
       {/* Key metrics */}
       {(data.income !== undefined || data.averageMonthlyIncome !== undefined) && (
         <div style={s.metricsGrid}>

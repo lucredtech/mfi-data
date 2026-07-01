@@ -13,6 +13,32 @@ function authHeaders() { return { Authorization: `Bearer ${localStorage.getItem(
 
 const TABS = ['Overview', 'Timeline', 'Statement Analysis', 'BVN Verification', 'NIN Verification', 'Credit Bureau', 'Scorecard', 'Loan Review'];
 
+// Returns true if the statement's period end date (or analysis date) is older than 90 days
+function isStaleStatement(statement) {
+  if (!statement) return false;
+  const endDateStr = statement.result?.metaData?.endDate;
+  const refDate = endDateStr ? new Date(endDateStr) : new Date(statement.createdAt);
+  if (isNaN(refDate.getTime())) return false;
+  return (Date.now() - refDate.getTime()) > 90 * 24 * 60 * 60 * 1000;
+}
+
+function StaleStatementBanner({ statement }) {
+  if (!isStaleStatement(statement)) return null;
+  const endDateStr = statement.result?.metaData?.endDate;
+  const refDate = endDateStr ? new Date(endDateStr) : new Date(statement.createdAt);
+  const daysOld = Math.floor((Date.now() - refDate.getTime()) / (24 * 60 * 60 * 1000));
+  const label = endDateStr ? `Statement period ended ${refDate.toLocaleDateString()}` : `Statement analysed ${refDate.toLocaleDateString()}`;
+  return (
+    <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#92400e' }}>
+      <span style={{ fontSize: 18 }}>⚠️</span>
+      <div>
+        <strong>Stale bank statement ({daysOld} days old)</strong>
+        <span style={{ marginLeft: 8 }}>{label} — this statement may not reflect the borrower's current financial position. Consider requesting a more recent statement.</span>
+      </div>
+    </div>
+  );
+}
+
 // ── Discrepancy engine ───────────────────────────────────────────────────────
 function detectDiscrepancies(customer, bvnData, ninData) {
   const issues = [];
@@ -669,6 +695,7 @@ function StatementTab({ customer, statements, onRefresh }) {
     { value: 'optimus', label: 'Optimus' }, { value: 'parallex', label: 'Parallex' },
     { value: 'gtb', label: 'GTBank' }, { value: 'opay', label: 'Opay' },
     { value: 'fidelity', label: 'Fidelity' }, { value: 'sterling', label: 'Sterling' },
+    { value: 'providus', label: 'Providus' }, { value: 'smartcash', label: 'Airtel Smartcash' },
     { value: 'access', label: 'Access' }, { value: 'fcmb', label: 'FCMB' },
     { value: 'firstbank', label: 'First Bank' },
   ];
@@ -755,6 +782,7 @@ function StatementTab({ customer, statements, onRefresh }) {
           </button>
         </div>
       )}
+      {statements.length > 0 && <StaleStatementBanner statement={statements.find(s => s.status === 'success')} />}
       <div style={s.card}>
         <div style={s.cardTitle}>Statement History</div>
         {statements.length === 0 ? <div style={s.empty}>No statements yet.</div> : (
@@ -1538,6 +1566,7 @@ function ScorecardTab({ customer, statements, bvnResults, ninResults, bureauResu
       </div>
 
       {/* ── Header ───────────────────────────────────────────────────────────── */}
+      <StaleStatementBanner statement={latestStatement} />
       <div style={s.scorecardHeader}>
         <div style={{ display: 'flex', gap: 16, alignItems: 'center', flex: 1 }}>
           {(bvnPhoto || ninPhoto) && (
@@ -2336,6 +2365,8 @@ function LoanReviewTab({ customer, statements, bvnResults, ninResults, bureauRes
           </p>
         </div>
       </div>
+
+      <StaleStatementBanner statement={latestStatement} />
 
       {/* Data coverage warning if anything is missing */}
       {(!latestStatement || !latestBVN || !latestBureau) && (
