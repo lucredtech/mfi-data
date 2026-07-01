@@ -143,63 +143,79 @@ export default function Support() {
 
   return (
     <div style={s.page}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+        .q-card:hover { border-color: rgba(14,165,233,0.25) !important; }
+        .nav-lk:hover { color: #e2e8f0 !important; }
+        @media (max-width: 700px) {
+          .quick-cards { grid-template-columns: 1fr 1fr !important; }
+          .tabs-row { gap: 6px !important; }
+          .tab-btn { font-size: 11px !important; padding: 5px 10px !important; }
+        }
+        @media (max-width: 480px) {
+          .quick-cards { grid-template-columns: 1fr !important; }
+        }
+        @media (max-width: 600px) {
+          .lce-logo-txt { display: none !important; }
+          .lce-nav-links { display: none !important; }
+        }
+      `}</style>
+
       <nav style={s.nav}>
         <div style={s.navInner}>
-          <Link to="/" style={s.logo}>Lucred Credit Engine</Link>
-          <div style={{ display: 'flex', gap: 24 }}>
-            <Link to="/pricing" style={s.navLink}>Pricing</Link>
-            <Link to="/privacy-policy" style={s.navLink}>Privacy</Link>
-            <Link to="/login" style={s.navLink}>Sign In</Link>
+          <Link to="/" style={s.logo}>
+            <div style={s.logoMark}>L</div>
+            <span className="lce-logo-txt">Lucred Credit Engine</span>
+          </Link>
+          <div className="lce-nav-links" style={{ display: 'flex', gap: 24 }}>
+            <Link to="/pricing" className="nav-lk" style={s.navLink}>Pricing</Link>
+            <Link to="/privacy-policy" className="nav-lk" style={s.navLink}>Privacy</Link>
+            <Link to="/login" className="nav-lk" style={s.navLink}>Sign In</Link>
           </div>
         </div>
       </nav>
 
       {/* Hero */}
       <div style={s.hero}>
+        <div style={s.glowBlue} />
         <div style={s.heroInner}>
-          <h1 style={s.h1}>Help & Support</h1>
-          <p style={s.lead}>Find answers to common questions or reach our team directly.</p>
+          <div style={s.eyebrow}>Help & Support</div>
+          <h1 style={s.h1}>Find answers. Get help fast.</h1>
+          <p style={s.lead}>Browse our knowledge base or reach our team directly.</p>
         </div>
       </div>
 
       {/* Quick contact cards */}
-      <div style={s.quickCards}>
-        <a href="mailto:support@lucred.co" style={s.qCard}>
-          <div style={s.qCardIcon}>✉</div>
-          <div style={s.qCardTitle}>Email Support</div>
-          <div style={s.qCardSub}>support@lucred.co</div>
-          <div style={s.qCardNote}>Response within 24 hrs</div>
-        </a>
-        <a href="mailto:dpo@lucred.co" style={s.qCard}>
-          <div style={s.qCardIcon}>🔒</div>
-          <div style={s.qCardTitle}>Data Protection</div>
-          <div style={s.qCardSub}>dpo@lucred.co</div>
-          <div style={s.qCardNote}>NDPR & privacy requests</div>
-        </a>
-        <a href="mailto:security@lucred.co" style={s.qCard}>
-          <div style={s.qCardIcon}>🛡</div>
-          <div style={s.qCardTitle}>Security</div>
-          <div style={s.qCardSub}>security@lucred.co</div>
-          <div style={s.qCardNote}>Vulnerability reports</div>
-        </a>
-        <a href="mailto:legal@lucred.co" style={s.qCard}>
-          <div style={s.qCardIcon}>⚖</div>
-          <div style={s.qCardTitle}>Legal</div>
-          <div style={s.qCardSub}>legal@lucred.co</div>
-          <div style={s.qCardNote}>Contracts & compliance</div>
-        </a>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '2.5rem 2rem' }}>
+        <div className="quick-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
+          {[
+            { icon: '✉', title: 'Email Support', sub: 'support@lucred.co', note: 'Response within 24 hrs', href: 'mailto:support@lucred.co' },
+            { icon: '🔒', title: 'Data Protection', sub: 'dpo@lucred.co', note: 'NDPR & privacy requests', href: 'mailto:dpo@lucred.co' },
+            { icon: '🛡', title: 'Security', sub: 'security@lucred.co', note: 'Vulnerability reports', href: 'mailto:security@lucred.co' },
+            { icon: '⚖', title: 'Legal', sub: 'legal@lucred.co', note: 'Contracts & compliance', href: 'mailto:legal@lucred.co' },
+          ].map(({ icon, title, sub, note, href }) => (
+            <a key={title} href={href} className="q-card" style={s.qCard}>
+              <div style={s.qCardIcon}>{icon}</div>
+              <div style={s.qCardTitle}>{title}</div>
+              <div style={s.qCardSub}>{sub}</div>
+              <div style={s.qCardNote}>{note}</div>
+            </a>
+          ))}
+        </div>
       </div>
 
       {/* FAQ */}
       <div style={s.faqSection} id="faq">
         <div style={s.faqInner}>
+          <div style={s.eyebrow}>FAQ</div>
           <h2 style={s.faqTitle}>Frequently Asked Questions</h2>
 
           {/* Category tabs */}
-          <div style={s.tabs}>
+          <div className="tabs-row" style={s.tabs}>
             {FAQS.map(({ category }) => (
               <button
                 key={category}
+                className="tab-btn"
                 style={{ ...s.tab, ...(activeCategory === category ? s.tabActive : {}) }}
                 onClick={() => { setActiveCategory(category); setOpenItem(null); }}
               >
@@ -214,10 +230,10 @@ export default function Support() {
               const key = `${activeCategory}-${i}`;
               const isOpen = openItem === key;
               return (
-                <div key={key} style={s.faqItem}>
+                <div key={key} style={{ ...s.faqItem, ...(isOpen ? { borderColor: 'rgba(14,165,233,0.2)' } : {}) }}>
                   <button style={s.faqQ} onClick={() => setOpenItem(isOpen ? null : key)}>
-                    <span>{item.q}</span>
-                    <span style={{ fontSize: 18, color: '#94a3b8', flexShrink: 0 }}>{isOpen ? '−' : '+'}</span>
+                    <span style={{ color: isOpen ? '#38bdf8' : '#e2e8f0' }}>{item.q}</span>
+                    <span style={{ fontSize: 18, color: isOpen ? '#0ea5e9' : '#475569', flexShrink: 0 }}>{isOpen ? '−' : '+'}</span>
                   </button>
                   {isOpen && <div style={s.faqA}>{item.a}</div>}
                 </div>
@@ -230,7 +246,8 @@ export default function Support() {
       {/* Status section */}
       <div style={s.statusSection} id="status">
         <div style={s.statusInner}>
-          <h2 style={s.statusTitle}>Platform Status</h2>
+          <div style={s.eyebrow}>Platform Status</div>
+          <h2 style={s.statusTitle}>All Systems Operational</h2>
           <p style={s.statusSub}>Current operational status of Lucred Credit Engine services</p>
           <div style={s.statusGrid}>
             {[
@@ -243,21 +260,22 @@ export default function Support() {
             ].map(([service, status]) => (
               <div key={service} style={s.statusRow}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#34d399', flexShrink: 0, boxShadow: '0 0 6px rgba(52,211,153,0.5)' }} />
                   <span style={s.statusService}>{service}</span>
                 </div>
                 <span style={s.statusBadge}>{status}</span>
               </div>
             ))}
           </div>
-          <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 12, textAlign: 'center' }}>
+          <p style={{ fontSize: 12, color: '#475569', marginTop: 14, textAlign: 'center' }}>
             For real-time incident updates, email support@lucred.co
           </p>
         </div>
       </div>
 
-      {/* Contact form CTA */}
+      {/* Contact CTA */}
       <div style={s.contactSection} id="contact">
+        <div style={s.contactGlow} />
         <div style={s.contactInner}>
           <h2 style={s.contactTitle}>Still need help?</h2>
           <p style={s.contactSub}>
@@ -265,7 +283,7 @@ export default function Support() {
             enquiries within one business day.
           </p>
           <a href="mailto:support@lucred.co" style={s.contactBtn}>Email Us →</a>
-          <div style={{ marginTop: 16, fontSize: 13, color: '#94a3b8' }}>
+          <div style={{ marginTop: 18, fontSize: 13, color: '#475569' }}>
             Already have an account?{' '}
             <Link to="/login" style={{ color: '#38bdf8', textDecoration: 'none' }}>Sign in to your dashboard</Link>
             {' '}to access live chat support.
@@ -279,42 +297,45 @@ export default function Support() {
 }
 
 const s = {
-  page: { fontFamily: 'Inter, sans-serif', color: '#0f172a', background: '#f8fafc', minHeight: '100vh' },
-  nav: { background: '#fff', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 100 },
-  navInner: { maxWidth: 1100, margin: '0 auto', padding: '0 2rem', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  logo: { fontSize: 20, fontWeight: 800, color: '#0f172a', textDecoration: 'none' },
+  page: { fontFamily: "'Sora', -apple-system, sans-serif", color: '#e2e8f0', background: '#060d18', minHeight: '100vh' },
+  nav: { background: 'rgba(6,13,24,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'sticky', top: 0, zIndex: 100 },
+  navInner: { maxWidth: 1100, margin: '0 auto', padding: '0 2rem', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  logo: { fontSize: 17, fontWeight: 800, color: '#f1f5f9', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 },
+  logoMark: { width: 28, height: 28, borderRadius: 7, background: 'linear-gradient(135deg, #0ea5e9, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff' },
   navLink: { fontSize: 13, color: '#64748b', textDecoration: 'none', fontWeight: 500 },
-  hero: { background: 'linear-gradient(135deg, #0f172a, #1e3a5f)', padding: '4rem 2rem', textAlign: 'center' },
-  heroInner: { maxWidth: 600, margin: '0 auto' },
-  h1: { fontSize: 36, fontWeight: 800, color: '#fff', margin: '0 0 12px' },
-  lead: { fontSize: 16, color: '#94a3b8', margin: 0 },
-  quickCards: { maxWidth: 1100, margin: '0 auto', padding: '2.5rem 2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 },
-  qCard: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '1.5rem', textDecoration: 'none', color: 'inherit', textAlign: 'center', transition: 'box-shadow 0.15s' },
-  qCardIcon: { fontSize: 28, marginBottom: 10 },
-  qCardTitle: { fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 4 },
+  hero: { position: 'relative', overflow: 'hidden', background: '#060d18', padding: '5rem 2rem 4rem', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)' },
+  glowBlue: { position: 'absolute', top: -60, left: '50%', transform: 'translateX(-50%)', width: 600, height: 300, background: 'radial-gradient(circle, rgba(14,165,233,0.1) 0%, transparent 70%)', pointerEvents: 'none' },
+  heroInner: { maxWidth: 600, margin: '0 auto', position: 'relative', zIndex: 1 },
+  eyebrow: { fontSize: 10, fontWeight: 700, color: '#0ea5e9', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 14 },
+  h1: { fontSize: 38, fontWeight: 800, color: '#f8fafc', margin: '0 0 14px', letterSpacing: -0.8 },
+  lead: { fontSize: 16, color: '#64748b', margin: 0 },
+  qCard: { background: '#0b1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, padding: '1.5rem', textDecoration: 'none', color: 'inherit', textAlign: 'center', transition: 'border-color 0.15s' },
+  qCardIcon: { fontSize: 26, marginBottom: 10 },
+  qCardTitle: { fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 },
   qCardSub: { fontSize: 13, color: '#0ea5e9', fontWeight: 600, marginBottom: 4 },
-  qCardNote: { fontSize: 12, color: '#94a3b8' },
-  faqSection: { background: '#fff', padding: '3rem 2rem', borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' },
+  qCardNote: { fontSize: 11, color: '#475569' },
+  faqSection: { background: '#060d18', padding: '3rem 2rem', borderTop: '1px solid rgba(255,255,255,0.04)' },
   faqInner: { maxWidth: 860, margin: '0 auto' },
-  faqTitle: { fontSize: 26, fontWeight: 800, color: '#0f172a', marginBottom: 24, textAlign: 'center' },
+  faqTitle: { fontSize: 28, fontWeight: 800, color: '#f1f5f9', marginBottom: 28, textAlign: 'center', letterSpacing: -0.5 },
   tabs: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 28, justifyContent: 'center' },
-  tab: { fontSize: 13, fontWeight: 600, padding: '7px 16px', borderRadius: 20, border: '1.5px solid #e2e8f0', background: '#f8fafc', color: '#64748b', cursor: 'pointer' },
-  tabActive: { background: '#0ea5e9', color: '#fff', border: '1.5px solid #0ea5e9' },
+  tab: { fontSize: 12, fontWeight: 600, padding: '7px 16px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#64748b', cursor: 'pointer', fontFamily: "'Sora', sans-serif" },
+  tabActive: { background: '#0ea5e9', color: '#fff', border: '1px solid #0ea5e9' },
   faqList: { display: 'flex', flexDirection: 'column', gap: 8 },
-  faqItem: { border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', background: '#fff' },
-  faqQ: { width: '100%', background: 'none', border: 'none', padding: '16px 20px', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, fontSize: 14, fontWeight: 600, color: '#0f172a' },
-  faqA: { padding: '0 20px 16px', fontSize: 14, color: '#475569', lineHeight: 1.8, borderTop: '1px solid #f1f5f9' },
-  statusSection: { padding: '3rem 2rem', background: '#f8fafc' },
+  faqItem: { border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, overflow: 'hidden', background: '#0b1120', transition: 'border-color 0.15s' },
+  faqQ: { width: '100%', background: 'none', border: 'none', padding: '16px 20px', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, fontSize: 14, fontWeight: 600, color: '#e2e8f0', fontFamily: "'Sora', sans-serif" },
+  faqA: { padding: '0 20px 16px', fontSize: 14, color: '#64748b', lineHeight: 1.8, borderTop: '1px solid rgba(255,255,255,0.05)' },
+  statusSection: { padding: '3rem 2rem', background: '#060d18', borderTop: '1px solid rgba(255,255,255,0.04)' },
   statusInner: { maxWidth: 600, margin: '0 auto' },
-  statusTitle: { fontSize: 22, fontWeight: 800, color: '#0f172a', textAlign: 'center', marginBottom: 6 },
+  statusTitle: { fontSize: 22, fontWeight: 800, color: '#f1f5f9', textAlign: 'center', marginBottom: 6 },
   statusSub: { fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 24 },
-  statusGrid: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' },
-  statusRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 20px', borderBottom: '1px solid #f1f5f9' },
-  statusService: { fontSize: 14, color: '#334155', fontWeight: 500 },
-  statusBadge: { fontSize: 12, fontWeight: 700, color: '#16a34a', background: '#dcfce7', padding: '3px 10px', borderRadius: 20 },
-  contactSection: { background: 'linear-gradient(135deg, #0f172a, #1e3a5f)', padding: '4rem 2rem', textAlign: 'center' },
-  contactInner: { maxWidth: 520, margin: '0 auto' },
-  contactTitle: { fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: 12 },
-  contactSub: { fontSize: 14, color: '#94a3b8', lineHeight: 1.7, marginBottom: 24 },
+  statusGrid: { background: '#0b1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, overflow: 'hidden' },
+  statusRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)' },
+  statusService: { fontSize: 13, color: '#94a3b8', fontWeight: 500 },
+  statusBadge: { fontSize: 11, fontWeight: 700, color: '#34d399', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', padding: '3px 10px', borderRadius: 20 },
+  contactSection: { position: 'relative', overflow: 'hidden', background: '#0b1120', padding: '5rem 2rem', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.05)' },
+  contactGlow: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 500, height: 250, background: 'radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%)', pointerEvents: 'none' },
+  contactInner: { maxWidth: 520, margin: '0 auto', position: 'relative', zIndex: 1 },
+  contactTitle: { fontSize: 28, fontWeight: 800, color: '#f1f5f9', marginBottom: 12 },
+  contactSub: { fontSize: 14, color: '#64748b', lineHeight: 1.7, marginBottom: 28 },
   contactBtn: { display: 'inline-block', background: '#0ea5e9', color: '#fff', padding: '13px 28px', borderRadius: 10, textDecoration: 'none', fontWeight: 700, fontSize: 15 },
 };

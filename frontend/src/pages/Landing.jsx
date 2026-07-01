@@ -2,135 +2,367 @@ import { Link } from 'react-router-dom';
 import Footer from '../components/Footer';
 
 const FEATURES = [
-  {
-    title: 'Bank Statement Analysis',
-    desc: 'Upload bank statements and get instant income, spending, and repayment capacity analysis powered by Lucred Credit Engine.',
-  },
-  {
-    title: 'Credit Bureau Access',
-    desc: 'Pull comprehensive credit history and outstanding obligations for any borrower in seconds.',
-  },
-  {
-    title: 'BVN & NIN Verification',
-    desc: 'Verify borrower identity instantly with Nigeria\'s national identity infrastructure.',
-  },
-  {
-    title: 'Credit Scoring',
-    desc: 'Get Lucred Credit Engine proprietary credit score and lending decision with suggested loan amount and tenor.',
-  },
+  { icon: '⬡', color: '#38bdf8', title: 'Bank Statement Analysis', desc: 'Upload PDF or CSV. Get income, spending patterns, cash flow, and repayment capacity in seconds.' },
+  { icon: '⬡', color: '#a78bfa', title: 'Credit Bureau Access', desc: 'Full FirstCentral XScore, credit history, outstanding obligations, and delinquency records.' },
+  { icon: '⬡', color: '#34d399', title: 'BVN & NIN Verification', desc: 'Verify against NIBSS and NIMC records instantly. Watchlist detection before disbursement.' },
+  { icon: '⬡', color: '#fb923c', title: 'AI Credit Scoring', desc: 'Proprietary score with lending decision, suggested loan amount and repayment tenor.' },
+  { icon: '⬡', color: '#f472b6', title: 'Webhook Notifications', desc: 'Real-time event pushes when analysis completes. No polling. Instant alerts.' },
+  { icon: '⬡', color: '#fbbf24', title: 'Loan Eligibility Review', desc: 'All checks aggregated into a single AI verdict: ELIGIBLE / CONDITIONAL / NOT ELIGIBLE.' },
 ];
 
 const STEPS = [
-  { step: '01', title: 'Register your MFI', desc: 'Apply online — our team reviews and activates vetted organisations within 1–2 business days.' },
-  { step: '02', title: 'Integrate the API', desc: 'Use our simple REST API with your existing loan management system.' },
-  { step: '03', title: 'Make better lending decisions', desc: 'Access real-time credit data on every borrower.' },
+  { n: '01', title: 'Register', desc: 'Apply online. Vetted MFIs and lenders activated within 1–2 business days.' },
+  { n: '02', title: 'Integrate', desc: 'Get your API key. Connect to your existing loan management system via REST.' },
+  { n: '03', title: 'Lend smarter', desc: 'Verify identity, pull bureau data, analyse statements — before disbursing a naira.' },
 ];
 
 export default function Landing() {
   return (
     <div style={s.page}>
-      {/* Nav */}
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+
+        * { box-sizing: border-box; }
+
+        .lce-page { font-family: 'Sora', sans-serif !important; }
+
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(24px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes pulse-dot {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50%       { opacity: 0.4; transform: scale(0.8); }
+        }
+        @keyframes scan {
+          0%   { transform: translateY(-100%); }
+          100% { transform: translateY(400%); }
+        }
+        @keyframes tick {
+          from { transform: translateX(0); }
+          to   { transform: translateX(-50%); }
+        }
+        @keyframes countUp {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .hero-badge  { animation: fadeUp 0.6s ease both; }
+        .hero-title  { animation: fadeUp 0.7s 0.1s ease both; }
+        .hero-sub    { animation: fadeUp 0.7s 0.2s ease both; }
+        .hero-ctas   { animation: fadeUp 0.7s 0.3s ease both; }
+        .hero-trust  { animation: fadeUp 0.7s 0.4s ease both; }
+        .hero-card   { animation: fadeIn 0.9s 0.3s ease both; }
+
+        .stat-item:nth-child(1) { animation: countUp 0.5s 0.1s ease both; }
+        .stat-item:nth-child(2) { animation: countUp 0.5s 0.2s ease both; }
+        .stat-item:nth-child(3) { animation: countUp 0.5s 0.3s ease both; }
+        .stat-item:nth-child(4) { animation: countUp 0.5s 0.4s ease both; }
+
+        .feat-card:hover { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.4) !important; }
+        .feat-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+
+        .nav-link:hover { color: #fff !important; }
+        .cta-primary:hover { background: #0284c7 !important; }
+        .cta-ghost:hover { background: rgba(255,255,255,0.1) !important; border-color: rgba(255,255,255,0.3) !important; }
+
+        .ticker-track { display: flex; gap: 64px; animation: tick 30s linear infinite; white-space: nowrap; }
+
+        @media (max-width: 768px) {
+          .nav-links { display: none !important; }
+          .nav-mobile-btn { display: flex !important; }
+          .hero-grid { grid-template-columns: 1fr !important; padding: 3rem 1.25rem 2.5rem !important; }
+          .hero-card-wrap { display: none !important; }
+          .hero-title { font-size: 36px !important; }
+          .section-pad { padding: 3rem 1.25rem !important; }
+          .feat-grid { grid-template-columns: 1fr !important; }
+          .steps-grid { grid-template-columns: 1fr !important; }
+          .section-title { font-size: 28px !important; }
+          .cta-title { font-size: 30px !important; }
+          .stat-bar { flex-wrap: wrap !important; }
+          .stat-item { flex: 1 1 45% !important; border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.06) !important; }
+          .free-pills { flex-direction: column !important; align-items: center !important; }
+          .nav-inner { padding: 0 1.25rem !important; }
+        }
+        @media (min-width: 769px) {
+          .nav-mobile-btn { display: none !important; }
+        }
+      `}</style>
+
+      {/* ── Ticker ─────────────────────────────────────────────────────────── */}
+      <div style={s.ticker}>
+        <div className="ticker-track">
+          {[...Array(2)].map((_, i) => (
+            <span key={i} style={{ display: 'flex', gap: 64, alignItems: 'center' }}>
+              {['BVN Verified ✓', 'Statement Analysed ✓', 'Credit Score: 81.2', 'NIN Matched ✓', 'Risk Grade: A', 'Loan Approved ✓', 'Bureau Pulled ✓', 'Not Watchlisted ✓'].map(t => (
+                <span key={t} style={s.tickerItem}>{t}</span>
+              ))}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Nav ────────────────────────────────────────────────────────────── */}
       <nav style={s.nav}>
-        <div style={s.navInner}>
-          <div style={s.logo}>Lucred Credit Engine</div>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <Link to="/pricing" style={s.navLink}>Pricing</Link>
-            <Link to="/login" style={s.navLink}>Sign in</Link>
-            <Link to="/register" style={s.navBtn}>Get API Access</Link>
+        <div style={s.navInner} className="nav-inner">
+          <div style={s.logo}>
+            <div style={s.logoMark}>L</div>
+            <span style={s.logoText}>Lucred <span style={s.logoDim}>Credit Engine</span></span>
           </div>
+          <div style={s.navLinks} className="nav-links">
+            <Link to="/docs"     style={s.navLink} className="nav-link">Docs</Link>
+            <Link to="/pricing"  style={s.navLink} className="nav-link">Pricing</Link>
+            <Link to="/support"  style={s.navLink} className="nav-link">Support</Link>
+            <Link to="/login"    style={s.navLink} className="nav-link">Sign in</Link>
+            <Link to="/register" style={s.navBtn}  className="cta-primary">Get API Access →</Link>
+          </div>
+          <Link to="/register" style={{ ...s.navBtn, display: 'none' }} className="nav-mobile-btn cta-primary">Get Access →</Link>
         </div>
       </nav>
 
-      {/* Hero */}
-      <section style={s.hero}>
-        <div style={s.heroInner}>
-          <div style={s.heroBadge}>B2B Credit Infrastructure</div>
-          <h1 style={s.heroTitle}>
-            The credit engine powering<br />
-            <span style={s.heroAccent}>smarter MFI lending</span>
-          </h1>
-          <p style={s.heroSub}>
-            Give your microfinance institution access to Lucred Credit Engine's credit data infrastructure —
-            bank statement analysis, credit bureau, identity verification and AI-powered credit scoring.
-            All via a single dashboard.
-          </p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to="/register" style={s.heroBtnPrimary}>Start for free →</Link>
-            <Link to="/pricing" style={s.heroBtnSecondary}>See pricing</Link>
+      {/* ── Hero ───────────────────────────────────────────────────────────── */}
+      <section style={s.heroSection}>
+        {/* Background grid */}
+        <div style={s.heroBg} aria-hidden>
+          <div style={s.gridOverlay} />
+          <div style={s.glowBlue} />
+          <div style={s.glowPurple} />
+        </div>
+
+        <div style={s.heroGrid} className="hero-grid">
+          <div style={s.heroContent}>
+            <div style={s.badge} className="hero-badge">
+              <span style={s.badgeDot} />
+              Built for Nigerian MFIs · CBN-aligned
+            </div>
+
+            <h1 style={s.heroTitle} className="hero-title">
+              Credit intelligence<br />
+              for <span style={s.heroAccent}>smarter</span><br />
+              lending.
+            </h1>
+
+            <p style={s.heroSub} className="hero-sub">
+              Verify identity, pull bureau data, analyse bank statements, and score
+              creditworthiness — all before you disburse a naira.
+            </p>
+
+            <div style={s.heroCtas} className="hero-ctas">
+              <Link to="/register" style={s.ctaPrimary} className="cta-primary">Get API Access →</Link>
+              <Link to="/docs"     style={s.ctaGhost}   className="cta-ghost">Read the docs</Link>
+            </div>
+
+            <div style={s.trustRow} className="hero-trust">
+              {['No card required', 'Vetted institutions only', '3 free checks/month'].map((t, i) => (
+                <span key={t} style={s.trustChip}>
+                  <span style={{ color: '#34d399', marginRight: 5 }}>✓</span>{t}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Terminal card */}
+          <div style={s.terminalWrap} className="hero-card-wrap">
+            <div style={s.terminal} className="hero-card">
+              <div style={s.termHead}>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {['#ef4444','#f59e0b','#22c55e'].map(c => <div key={c} style={{ width: 11, height: 11, borderRadius: '50%', background: c }} />)}
+                </div>
+                <span style={s.termTitle}>lucred — credit analysis</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={s.liveDot} />
+                  <span style={{ fontSize: 10, color: '#34d399', fontFamily: 'DM Mono, monospace' }}>LIVE</span>
+                </div>
+              </div>
+              <div style={s.termBody}>
+                {[
+                  { label: 'BVN', value: '223****890', status: 'VERIFIED', c: '#34d399' },
+                  { label: 'NIN', value: '112****447', status: 'MATCHED',  c: '#34d399' },
+                  { label: 'WATCHLIST', value: '—', status: 'CLEAR', c: '#34d399' },
+                  { label: 'BUREAU', value: 'FirstCentral', status: 'PULLED', c: '#38bdf8' },
+                  { label: 'XSCORE', value: '81.2 / 100', status: 'GOOD', c: '#a78bfa' },
+                  { label: 'STATEMENT', value: 'Access · 6mo', status: 'ANALYSED', c: '#38bdf8' },
+                ].map((r, i) => (
+                  <div key={r.label} style={{ ...s.termRow, animationDelay: `${0.4 + i * 0.1}s` }}>
+                    <span style={s.termLabel}>{r.label}</span>
+                    <span style={s.termVal}>{r.value}</span>
+                    <span style={{ ...s.termStatus, color: r.c }}>{r.status}</span>
+                  </div>
+                ))}
+                <div style={s.termDivider} />
+                <div style={s.termResult}>
+                  <div>
+                    <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>RECOMMENDATION</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#34d399', fontFamily: 'DM Mono, monospace', letterSpacing: 1 }}>APPROVE</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>MAX LOAN</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: '#38bdf8', fontFamily: 'DM Mono, monospace' }}>₦800,000</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* Decorative ring */}
+            <div style={s.ring1} />
+            <div style={s.ring2} />
           </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section style={s.section}>
-        <div style={s.sectionInner}>
-          <div style={s.sectionLabel}>What you get</div>
-          <h2 style={s.sectionTitle}>Everything your MFI needs to lend confidently</h2>
-          <div style={s.featGrid}>
-            {FEATURES.map((f) => (
-              <div key={f.title} style={s.featCard}>
+      {/* ── Stat bar ───────────────────────────────────────────────────────── */}
+      <div style={s.statBar} className="stat-bar">
+        {[
+          { n: '< 3s',      l: 'Analysis time' },
+          { n: '4',         l: 'Checks in one call' },
+          { n: '99.9%',     l: 'API uptime SLA' },
+          { n: 'CBN',       l: 'Compliance aligned' },
+        ].map(({ n, l }) => (
+          <div key={l} style={s.statItem} className="stat-item">
+            <div style={s.statNum}>{n}</div>
+            <div style={s.statLabel}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Free tier ──────────────────────────────────────────────────────── */}
+      <section style={s.freeSection} className="section-pad">
+        <div style={s.inner}>
+          <div style={s.freeCard}>
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={s.greenBadge}>Free forever</div>
+              <h2 style={s.freeTitle} className="section-title">3 free analyses every month</h2>
+              <p style={s.freeSub}>No card required. No trial period. Real free tier — so you can evaluate before you commit.</p>
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center', margin: '28px 0' }} className="free-pills">
+                {[
+                  { icon: '🪪', t: '3 BVN checks / mo' },
+                  { icon: '📋', t: '3 NIN checks / mo' },
+                  { icon: '📊', t: '3 statement analyses / mo' },
+                ].map(({ icon, t }) => (
+                  <div key={t} style={s.freePill}>
+                    <span style={{ fontSize: 20 }}>{icon}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0' }}>{t}</span>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontSize: 13, color: '#64748b', marginBottom: 28 }}>Need more? Top up your wallet or subscribe for volume discounts.</p>
+              <Link to="/register" style={{ ...s.ctaPrimary, padding: '13px 36px', fontSize: 15 }} className="cta-primary">Start free →</Link>
+            </div>
+            <div style={s.freeGlow} />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Features ───────────────────────────────────────────────────────── */}
+      <section style={s.featSection} className="section-pad">
+        <div style={s.inner}>
+          <div style={s.eyebrow}>What you get</div>
+          <h2 style={s.sectionTitle} className="section-title">Everything in one API key</h2>
+          <p style={s.sectionSub}>Six credit checks. One dashboard. Zero extra tooling.</p>
+          <div style={s.featGrid} className="feat-grid">
+            {FEATURES.map((f, i) => (
+              <div key={f.title} style={{ ...s.featCard, animationDelay: `${i * 0.07}s` }} className="feat-card">
+                <div style={{ ...s.featHex, color: f.color }}>{f.icon}</div>
                 <h3 style={s.featTitle}>{f.title}</h3>
                 <p style={s.featDesc}>{f.desc}</p>
+                <div style={{ ...s.featAccent, background: f.color }} />
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* How it works */}
-      <section style={{ ...s.section, background: '#f8fafc' }}>
-        <div style={s.sectionInner}>
-          <div style={s.sectionLabel}>How it works</div>
-          <h2 style={s.sectionTitle}>Up and running in minutes</h2>
-          <div style={s.stepsGrid}>
-            {STEPS.map((step) => (
-              <div key={step.step} style={s.stepCard}>
-                <div style={s.stepNum}>{step.step}</div>
+      {/* ── How it works ───────────────────────────────────────────────────── */}
+      <section style={s.stepsSection} className="section-pad">
+        <div style={s.inner}>
+          <div style={s.eyebrow}>How it works</div>
+          <h2 style={s.sectionTitle} className="section-title">Up and running in minutes</h2>
+          <div style={s.stepsGrid} className="steps-grid">
+            {STEPS.map((step, i) => (
+              <div key={step.n} style={s.stepCard}>
+                <div style={s.stepNum}>{step.n}</div>
                 <h3 style={s.stepTitle}>{step.title}</h3>
                 <p style={s.stepDesc}>{step.desc}</p>
+                {i < STEPS.length - 1 && <div style={s.stepLine} />}
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Code snippet */}
-      <section style={s.section}>
-        <div style={s.sectionInner}>
-          <div style={s.sectionLabel}>Simple integration</div>
-          <h2 style={s.sectionTitle}>One API call to analyse a bank statement</h2>
-          <div style={s.codeBox}>
-            <pre style={s.code}>{`curl -X POST https://mfi-data-production.up.railway.app/v1/statement/upload-analyze \\
-  -H "X-Api-Key: lcrd_your_api_key" \\
-  -F "statement=@/path/to/statement.pdf" \\
-  -F "bankName=access" \\
-  -F "email=borrower@example.com"
+      {/* ── Code ───────────────────────────────────────────────────────────── */}
+      <section style={s.codeSection} className="section-pad">
+        <div style={s.inner}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56, alignItems: 'center' }} className="steps-grid">
+            <div>
+              <div style={s.eyebrow}>Simple integration</div>
+              <h2 style={{ ...s.sectionTitle, marginBottom: 16 }} className="section-title">One call.<br />Complete picture.</h2>
+              <p style={{ fontSize: 15, color: '#94a3b8', lineHeight: 1.8, marginBottom: 28 }}>
+                Send a statement PDF or run a credit check. Get structured JSON with everything your credit team needs.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
+                {['REST API · structured JSON responses', 'Same rates on dashboard and API', 'Webhook delivery on completion', 'Full audit log per request'].map(item => (
+                  <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 14, color: '#cbd5e1' }}>
+                    <span style={{ color: '#38bdf8', fontFamily: 'DM Mono, monospace', fontSize: 12 }}>→</span>
+                    {item}
+                  </div>
+                ))}
+              </div>
+              <Link to="/docs" style={{ ...s.ctaPrimary, display: 'inline-block' }} className="cta-primary">View API docs →</Link>
+            </div>
+            <div style={s.codeBox}>
+              <div style={s.codeHead}>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {['#ef4444','#f59e0b','#22c55e'].map(c => <div key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />)}
+                </div>
+                <span style={{ fontSize: 11, color: '#475569', fontFamily: 'DM Mono, monospace' }}>statement · upload-analyze</span>
+              </div>
+              <pre style={s.code}>{`POST /v1/statement/upload-analyze
+X-Api-Key: lcrd_••••••••••••••
 
-// Response
+body:
+  statement  = statement.pdf
+  bankName   = "access"
+  email      = "borrower@example.com"
+
+─────────────────────────────────
+200 OK
+
 {
-  "success": true,
-  "data": {
-    "income": 450000,
-    "expenses": 210000,
-    "creditScore": 720,
-    "recommendation": "approve",
-    "maxLoanAmount": 200000
-  }
+  "recommendation":  "APPROVE",
+  "creditScore":      78.4,
+  "monthlyIncome":   450000,
+  "maxLoanAmount":   800000,
+  "riskGrade":       "B"
 }`}</pre>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section style={s.cta}>
+      {/* ── CTA ────────────────────────────────────────────────────────────── */}
+      <section style={s.ctaSection} className="section-pad">
         <div style={s.ctaInner}>
-          <h2 style={s.ctaTitle}>Ready to upgrade your credit process?</h2>
-          <p style={s.ctaSub}>Join MFIs already using Lucred Credit Engine's credit engine to make faster, smarter lending decisions.</p>
-          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to="/register" style={s.heroBtnPrimary}>Start for free →</Link>
-            <Link to="/pricing" style={{ ...s.heroBtnSecondary, background: 'rgba(255,255,255,0.1)' }}>See pricing</Link>
+          <div style={s.ctaGlowBlue} />
+          <div style={s.ctaGlowPurple} />
+          <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
+            <div style={s.greenBadge}>Start today</div>
+            <h2 style={s.ctaTitle} className="cta-title">Ready to lend with confidence?</h2>
+            <p style={s.ctaSub}>
+              Join MFIs already using Lucred Credit Engine to make faster,
+              smarter lending decisions backed by data.
+            </p>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Link to="/register" style={{ ...s.ctaPrimary, padding: '14px 36px', fontSize: 15 }} className="cta-primary">Get API Access →</Link>
+              <Link to="/pricing"  style={s.ctaGhost} className="cta-ghost">See pricing</Link>
+            </div>
+            <p style={{ marginTop: 24, fontSize: 12, color: '#334155' }}>
+              No card required · 3 free analyses/month · Vetted institutions only
+            </p>
           </div>
-          <p style={{ marginTop: 20, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>No credit card required · Vetted organisations only</p>
         </div>
       </section>
 
@@ -140,41 +372,98 @@ export default function Landing() {
 }
 
 const s = {
-  page: { fontFamily: 'Inter, sans-serif', color: '#0f172a' },
-  nav: { position: 'sticky', top: 0, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)', borderBottom: '1px solid #e2e8f0', zIndex: 100 },
-  navInner: { maxWidth: 1100, margin: '0 auto', padding: '0 2rem', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  logo: { fontSize: 20, fontWeight: 800, color: '#0f172a' },
-  logoBadge: { fontSize: 11, fontWeight: 600, background: '#e0f2fe', color: '#0284c7', padding: '2px 8px', borderRadius: 20, marginLeft: 8 },
-  navLink: { fontSize: 14, color: '#64748b', textDecoration: 'none', fontWeight: 500 },
-  navBtn: { fontSize: 14, background: '#0ea5e9', color: '#fff', padding: '8px 18px', borderRadius: 8, textDecoration: 'none', fontWeight: 600 },
-  hero: { background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)', padding: '6rem 2rem' },
-  heroInner: { maxWidth: 800, margin: '0 auto', textAlign: 'center' },
-  heroBadge: { display: 'inline-block', fontSize: 12, fontWeight: 700, background: 'rgba(14,165,233,0.2)', color: '#38bdf8', padding: '4px 14px', borderRadius: 20, marginBottom: 24, letterSpacing: 1, textTransform: 'uppercase' },
-  heroTitle: { fontSize: 52, fontWeight: 800, color: '#fff', lineHeight: 1.15, margin: '0 0 20px' },
-  heroAccent: { color: '#38bdf8' },
-  heroSub: { fontSize: 18, color: '#94a3b8', lineHeight: 1.7, marginBottom: 36 },
-  heroBtnPrimary: { display: 'inline-block', background: '#0ea5e9', color: '#fff', padding: '14px 28px', borderRadius: 10, textDecoration: 'none', fontWeight: 700, fontSize: 15 },
-  heroBtnSecondary: { display: 'inline-block', background: 'rgba(255,255,255,0.1)', color: '#fff', padding: '14px 28px', borderRadius: 10, textDecoration: 'none', fontWeight: 600, fontSize: 15 },
-  section: { padding: '5rem 2rem' },
-  sectionInner: { maxWidth: 1100, margin: '0 auto' },
-  sectionLabel: { fontSize: 12, fontWeight: 700, color: '#0ea5e9', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 12 },
-  sectionTitle: { fontSize: 36, fontWeight: 800, color: '#0f172a', marginBottom: 48, maxWidth: 600 },
-  featGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 24 },
-  featCard: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '1.75rem' },
-  featIcon: { fontSize: 32, marginBottom: 16 },
-  featTitle: { fontSize: 17, fontWeight: 700, color: '#0f172a', marginBottom: 8 },
-  featDesc: { fontSize: 14, color: '#64748b', lineHeight: 1.7, margin: 0 },
-  stepsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24 },
-  stepCard: { padding: '1.5rem' },
-  stepNum: { fontSize: 40, fontWeight: 800, color: '#cbd5e1', marginBottom: 12 },
-  stepTitle: { fontSize: 17, fontWeight: 700, color: '#0f172a', marginBottom: 8 },
-  stepDesc: { fontSize: 14, color: '#64748b', lineHeight: 1.7, margin: 0 },
-  codeBox: { background: '#0f172a', borderRadius: 14, padding: '2rem', overflowX: 'auto' },
-  code: { color: '#e2e8f0', fontSize: 13, fontFamily: 'monospace', margin: 0, lineHeight: 1.7 },
-  cta: { background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)', padding: '5rem 2rem', textAlign: 'center' },
-  ctaInner: { maxWidth: 600, margin: '0 auto' },
-  ctaTitle: { fontSize: 36, fontWeight: 800, color: '#fff', marginBottom: 16 },
-  ctaSub: { fontSize: 16, color: 'rgba(255,255,255,0.85)', marginBottom: 32, lineHeight: 1.7 },
-  footer: { background: '#0f172a', padding: '2rem' },
-  footerInner: { maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  page: { fontFamily: "'Sora', -apple-system, sans-serif", color: '#e2e8f0', background: '#060d18', minHeight: '100vh' },
+
+  ticker: { background: '#0b1120', borderBottom: '1px solid rgba(56,189,248,0.1)', overflow: 'hidden', height: 32, display: 'flex', alignItems: 'center' },
+  tickerItem: { fontSize: 10, fontWeight: 600, color: '#334155', fontFamily: "'DM Mono', monospace", letterSpacing: 1, textTransform: 'uppercase' },
+
+  nav: { position: 'sticky', top: 0, background: 'rgba(6,13,24,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.05)', zIndex: 100 },
+  navInner: { maxWidth: 1160, margin: '0 auto', padding: '0 2rem', height: 68, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  logo: { display: 'flex', alignItems: 'center', gap: 10 },
+  logoMark: { width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg, #0ea5e9, #7c3aed)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800 },
+  logoText: { fontSize: 17, fontWeight: 700, color: '#f1f5f9', letterSpacing: -0.3 },
+  logoDim: { color: '#475569', fontWeight: 400 },
+  navLinks: { display: 'flex', gap: 4, alignItems: 'center' },
+  navLink: { fontSize: 13, color: '#64748b', textDecoration: 'none', fontWeight: 500, padding: '6px 14px', borderRadius: 7, transition: 'color 0.15s' },
+  navBtn: { fontSize: 13, background: '#0ea5e9', color: '#fff', padding: '8px 20px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, transition: 'background 0.15s' },
+
+  heroSection: { position: 'relative', overflow: 'hidden', background: '#060d18' },
+  heroBg: { position: 'absolute', inset: 0, pointerEvents: 'none' },
+  gridOverlay: { position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(56,189,248,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,0.03) 1px, transparent 1px)', backgroundSize: '48px 48px' },
+  glowBlue: { position: 'absolute', top: '-20%', right: '10%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle, rgba(14,165,233,0.12) 0%, transparent 70%)', filter: 'blur(40px)' },
+  glowPurple: { position: 'absolute', bottom: '-10%', left: '5%', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.1) 0%, transparent 70%)', filter: 'blur(40px)' },
+
+  heroGrid: { position: 'relative', zIndex: 1, maxWidth: 1160, margin: '0 auto', padding: '5.5rem 2rem 5rem', display: 'grid', gridTemplateColumns: '1fr 460px', gap: 64, alignItems: 'center' },
+  heroContent: {},
+  badge: { display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 600, color: '#38bdf8', background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.15)', padding: '6px 14px', borderRadius: 20, marginBottom: 28, letterSpacing: 0.5 },
+  badgeDot: { width: 6, height: 6, borderRadius: '50%', background: '#34d399', display: 'inline-block', animation: 'pulse-dot 2s ease-in-out infinite' },
+  heroTitle: { fontSize: 58, fontWeight: 800, color: '#f8fafc', lineHeight: 1.08, margin: '0 0 22px', letterSpacing: -1.5 },
+  heroAccent: { background: 'linear-gradient(90deg, #38bdf8, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' },
+  heroSub: { fontSize: 17, color: '#64748b', lineHeight: 1.8, marginBottom: 40, maxWidth: 480 },
+  heroCtas: { display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 28 },
+  ctaPrimary: { display: 'inline-block', background: '#0ea5e9', color: '#fff', padding: '12px 26px', borderRadius: 9, textDecoration: 'none', fontWeight: 700, fontSize: 14, transition: 'background 0.15s' },
+  ctaGhost: { display: 'inline-block', background: 'transparent', color: '#94a3b8', padding: '12px 26px', borderRadius: 9, textDecoration: 'none', fontWeight: 600, fontSize: 14, border: '1px solid rgba(255,255,255,0.1)', transition: 'background 0.15s, border-color 0.15s' },
+  trustRow: { display: 'flex', flexWrap: 'wrap', gap: 8 },
+  trustChip: { fontSize: 12, color: '#475569', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', padding: '5px 12px', borderRadius: 20 },
+
+  terminalWrap: { position: 'relative' },
+  terminal: { background: '#0b1120', border: '1px solid rgba(56,189,248,0.15)', borderRadius: 16, overflow: 'hidden', boxShadow: '0 32px 64px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)' },
+  termHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' },
+  termTitle: { fontSize: 11, color: '#334155', fontFamily: "'DM Mono', monospace" },
+  liveDot: { width: 7, height: 7, borderRadius: '50%', background: '#34d399', display: 'inline-block', animation: 'pulse-dot 1.5s ease-in-out infinite' },
+  termBody: { padding: '16px' },
+  termRow: { display: 'grid', gridTemplateColumns: '100px 1fr auto', gap: 8, alignItems: 'center', padding: '7px 0', borderBottom: '1px solid rgba(255,255,255,0.03)', animation: 'fadeUp 0.4s ease both' },
+  termLabel: { fontSize: 10, color: '#334155', fontFamily: "'DM Mono', monospace", letterSpacing: 1 },
+  termVal: { fontSize: 12, color: '#94a3b8', fontFamily: "'DM Mono', monospace" },
+  termStatus: { fontSize: 10, fontWeight: 700, fontFamily: "'DM Mono', monospace", letterSpacing: 1 },
+  termDivider: { height: 1, background: 'rgba(56,189,248,0.1)', margin: '14px 0' },
+  termResult: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' },
+  ring1: { position: 'absolute', top: -20, right: -20, width: 120, height: 120, borderRadius: '50%', border: '1px solid rgba(56,189,248,0.08)', pointerEvents: 'none' },
+  ring2: { position: 'absolute', top: -48, right: -48, width: 176, height: 176, borderRadius: '50%', border: '1px solid rgba(124,58,237,0.06)', pointerEvents: 'none' },
+
+  statBar: { background: '#0b1120', borderTop: '1px solid rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', justifyContent: 'center' },
+  statItem: { padding: '28px 52px', textAlign: 'center', borderRight: '1px solid rgba(255,255,255,0.04)' },
+  statNum: { fontSize: 26, fontWeight: 800, color: '#38bdf8', fontFamily: "'DM Mono', monospace", marginBottom: 4 },
+  statLabel: { fontSize: 11, color: '#334155', fontWeight: 500, letterSpacing: 0.5 },
+
+  inner: { maxWidth: 1160, margin: '0 auto' },
+  eyebrow: { fontSize: 10, fontWeight: 700, color: '#0ea5e9', textTransform: 'uppercase', letterSpacing: 3, marginBottom: 16 },
+  sectionTitle: { fontSize: 38, fontWeight: 800, color: '#f1f5f9', margin: '0 0 14px', lineHeight: 1.15, letterSpacing: -0.8 },
+  sectionSub: { fontSize: 16, color: '#475569', marginBottom: 52, lineHeight: 1.7 },
+
+  freeSection: { padding: '5rem 2rem', background: '#060d18' },
+  freeCard: { position: 'relative', maxWidth: 680, margin: '0 auto', textAlign: 'center', background: 'linear-gradient(135deg, rgba(11,17,32,0.9), rgba(15,25,50,0.9))', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 24, padding: '3.5rem 2.5rem', overflow: 'hidden' },
+  greenBadge: { display: 'inline-block', fontSize: 10, fontWeight: 700, color: '#34d399', background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)', padding: '4px 14px', borderRadius: 20, marginBottom: 20, letterSpacing: 2, textTransform: 'uppercase' },
+  freeTitle: { fontSize: 34, fontWeight: 800, color: '#f1f5f9', margin: '0 0 14px', letterSpacing: -0.5 },
+  freeSub: { fontSize: 15, color: '#475569', lineHeight: 1.75, maxWidth: 500, margin: '0 auto' },
+  freePill: { display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px 18px' },
+  freeGlow: { position: 'absolute', bottom: -60, left: '50%', transform: 'translateX(-50%)', width: 300, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(52,211,153,0.08) 0%, transparent 70%)', filter: 'blur(20px)', pointerEvents: 'none' },
+
+  featSection: { padding: '5rem 2rem', background: '#060d18' },
+  featGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 },
+  featCard: { position: 'relative', background: '#0b1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, padding: '1.75rem', overflow: 'hidden' },
+  featHex: { fontSize: 28, marginBottom: 16, display: 'block' },
+  featTitle: { fontSize: 15, fontWeight: 700, color: '#e2e8f0', marginBottom: 8, margin: '0 0 8px' },
+  featDesc: { fontSize: 13, color: '#475569', lineHeight: 1.7, margin: 0 },
+  featAccent: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, opacity: 0.4 },
+
+  stepsSection: { padding: '5rem 2rem', background: '#0b1120' },
+  stepsGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0 },
+  stepCard: { position: 'relative', padding: '2rem 2.5rem 2rem 0' },
+  stepNum: { fontSize: 52, fontWeight: 900, color: 'rgba(56,189,248,0.12)', fontFamily: "'DM Mono', monospace", lineHeight: 1, marginBottom: 20, letterSpacing: -2 },
+  stepTitle: { fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 10, margin: '0 0 10px' },
+  stepDesc: { fontSize: 14, color: '#475569', lineHeight: 1.75, margin: 0 },
+  stepLine: { position: 'absolute', top: 36, right: 0, width: 1, height: 80, background: 'linear-gradient(180deg, rgba(56,189,248,0.3), transparent)' },
+
+  codeSection: { padding: '5rem 2rem', background: '#060d18' },
+  codeBox: { background: '#0b1120', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.06)' },
+  codeHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' },
+  code: { color: '#94a3b8', fontSize: 12, fontFamily: "'DM Mono', monospace", margin: 0, lineHeight: 1.9, padding: '1.5rem 1.25rem', overflowX: 'auto', display: 'block' },
+
+  ctaSection: { position: 'relative', padding: '7rem 2rem', background: '#060d18', overflow: 'hidden' },
+  ctaInner: { maxWidth: 640, margin: '0 auto', position: 'relative' },
+  ctaGlowBlue: { position: 'absolute', top: '50%', left: '30%', transform: 'translate(-50%, -50%)', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(14,165,233,0.1) 0%, transparent 65%)', filter: 'blur(40px)', pointerEvents: 'none' },
+  ctaGlowPurple: { position: 'absolute', top: '50%', right: '-10%', transform: 'translateY(-50%)', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,58,237,0.08) 0%, transparent 65%)', filter: 'blur(40px)', pointerEvents: 'none' },
+  ctaTitle: { fontSize: 42, fontWeight: 800, color: '#f1f5f9', margin: '0 0 16px', letterSpacing: -0.8, lineHeight: 1.15 },
+  ctaSub: { fontSize: 16, color: '#475569', marginBottom: 36, lineHeight: 1.75 },
 };

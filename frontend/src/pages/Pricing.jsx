@@ -30,7 +30,7 @@ const PLANS = [
     price: '₦25,000',
     period: '/month',
     description: 'For small MFIs getting started with regular verifications.',
-    color: '#0284c7',
+    color: '#38bdf8',
     credits: '₦32,500',
     discount: '30%',
     features: [
@@ -54,7 +54,7 @@ const PLANS = [
     price: '₦50,000',
     period: '/month',
     description: 'For active lenders processing higher loan volumes.',
-    color: '#6d28d9',
+    color: '#a78bfa',
     credits: '₦70,000',
     discount: '40%',
     features: [
@@ -79,7 +79,7 @@ const PLANS = [
     price: '₦100,000',
     period: '/month',
     description: 'For large MFIs and institutions with high-volume operations.',
-    color: '#16a34a',
+    color: '#34d399',
     credits: '₦150,000',
     discount: '50%',
     features: [
@@ -105,7 +105,7 @@ const PLANS = [
     price: 'Custom',
     period: '',
     description: 'Tailored pricing, SLAs, and dedicated support for large institutions.',
-    color: '#d97706',
+    color: '#fbbf24',
     credits: null,
     features: [
       'Custom credit volume',
@@ -150,12 +150,34 @@ const FAQS = [
 export default function Pricing() {
   return (
     <div style={s.page}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+        .plan-card:hover { transform: translateY(-2px); transition: transform 0.2s; }
+        .nav-link-p:hover { color: #e2e8f0 !important; }
+        @media (max-width: 900px) {
+          .plans-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .rates-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        @media (max-width: 600px) {
+          .plans-grid { grid-template-columns: 1fr !important; }
+          .rates-grid { grid-template-columns: 1fr 1fr !important; }
+          .faq-grid { grid-template-columns: 1fr !important; }
+          .hero-ctas { flex-direction: column !important; align-items: stretch !important; }
+          .lce-logo-txt { display: none !important; }
+          .lce-signin { display: none !important; }
+          .pricing-compare-row { flex-direction: column !important; gap: 4px !important; padding: 12px 16px !important; }
+        }
+      `}</style>
+
       {/* Nav */}
       <nav style={s.nav}>
         <div style={s.navInner}>
-          <Link to="/" style={s.logo}>Lucred Credit Engine</Link>
+          <Link to="/" style={s.logo}>
+            <div style={s.logoMark}>L</div>
+            <span className="lce-logo-txt">Lucred Credit Engine</span>
+          </Link>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <Link to="/login" style={s.navLink}>Sign in</Link>
+            <Link to="/login" className="nav-link-p lce-signin" style={s.navLink}>Sign in</Link>
             <Link to="/register" style={s.navBtn}>Get Started Free</Link>
           </div>
         </div>
@@ -163,24 +185,34 @@ export default function Pricing() {
 
       {/* Hero */}
       <section style={s.hero}>
+        <div style={s.glowBlue} />
+        <div style={s.glowPurple} />
         <div style={s.heroInner}>
           <div style={s.heroBadge}>Pricing</div>
-          <h1 style={s.heroTitle}>Pay for what you use</h1>
-          <p style={s.heroSub}>Top up your wallet and deduct per analysis. Subscribe for discounted credits. Same rates on dashboard and API.</p>
+          <h1 style={s.heroTitle}>Start free. Pay as you grow.</h1>
+          <p style={s.heroSub}>
+            Every account gets <strong style={{ color: '#34d399' }}>3 free analyses every month</strong> — no card required.
+            Top up your wallet when you need more, or subscribe for discounted credits.
+          </p>
+          <div className="hero-ctas" style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 32, flexWrap: 'wrap' }}>
+            <Link to="/register" style={s.ctaBtnPrimary}>Create free account →</Link>
+            <a href="#plans" style={s.ctaBtnGhost}>See all plans</a>
+          </div>
         </div>
       </section>
 
-      {/* Analysis rates */}
-      <section style={{ padding: '3rem 2rem', background: '#f8fafc' }}>
-        <div style={s.plansInner}>
-          <h2 style={{ ...s.sectionTitle, textAlign: 'center', marginBottom: 8 }}>Per-analysis rates</h2>
-          <p style={{ textAlign: 'center', color: '#64748b', fontSize: 14, marginBottom: 28 }}>Same price whether you use the dashboard or the API.</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, maxWidth: 800, margin: '0 auto' }}>
+      {/* Per-analysis rates */}
+      <section style={{ padding: '3rem 2rem', background: '#060d18', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+        <div style={s.inner}>
+          <div style={s.eyebrow}>Per-Analysis Rates</div>
+          <h2 style={{ ...s.sectionTitle, textAlign: 'center', marginBottom: 8 }}>One price list. Everywhere.</h2>
+          <p style={{ textAlign: 'center', color: '#64748b', fontSize: 14, marginBottom: 32 }}>Same rate whether you call from the dashboard or the API.</p>
+          <div className="rates-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, maxWidth: 820, margin: '0 auto' }}>
             {RATES.map(({ service, rate, note }) => (
-              <div key={service} style={{ background: '#fff', borderRadius: 12, padding: '1.25rem', textAlign: 'center', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>{service}</div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: '#0f172a' }}>{rate}</div>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{note}</div>
+              <div key={service} className="plan-card" style={s.rateCard}>
+                <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>{service}</div>
+                <div style={{ fontSize: 30, fontWeight: 800, color: '#f1f5f9', fontFamily: "'DM Mono', monospace" }}>{rate}</div>
+                <div style={{ fontSize: 11, color: '#475569', marginTop: 6 }}>{note}</div>
               </div>
             ))}
           </div>
@@ -188,20 +220,21 @@ export default function Pricing() {
       </section>
 
       {/* Plans */}
-      <section style={s.plansSection}>
-        <div style={s.plansInner}>
-          <h2 style={{ ...s.sectionTitle, textAlign: 'center', marginBottom: 8 }}>Subscription plans</h2>
-          <p style={{ textAlign: 'center', color: '#64748b', fontSize: 14, marginBottom: 32 }}>Subscribe to get a monthly credit bonus. Overage is charged at full PAYG rate.</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16 }}>
+      <section style={s.plansSection} id="plans">
+        <div style={s.inner}>
+          <div style={s.eyebrow}>Subscription Plans</div>
+          <h2 style={{ ...s.sectionTitle, textAlign: 'center', marginBottom: 8 }}>Subscribe for bigger credit bonuses</h2>
+          <p style={{ textAlign: 'center', color: '#64748b', fontSize: 14, marginBottom: 40 }}>Overage is charged at the full PAYG rate above.</p>
+          <div className="plans-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14 }}>
             {PLANS.map(plan => (
-              <div key={plan.name} style={{ ...s.planCard, ...(plan.highlight ? s.planCardHighlight : {}) }}>
+              <div key={plan.name} className="plan-card" style={{ ...s.planCard, ...(plan.highlight ? s.planCardHighlight : {}) }}>
                 {plan.highlight && <div style={s.popularBadge}>Most Popular</div>}
                 <div style={{ ...s.planName, color: plan.color }}>{plan.name}</div>
                 <div style={s.planPrice}>
                   {plan.price}<span style={s.planPeriod}>{plan.period}</span>
                 </div>
                 {plan.credits && (
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#16a34a', background: '#f0fdf4', padding: '4px 10px', borderRadius: 8, marginBottom: 8, display: 'inline-block' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#34d399', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', padding: '3px 10px', borderRadius: 8, marginBottom: 10, display: 'inline-block' }}>
                     {plan.credits} credits/mo
                   </div>
                 )}
@@ -209,13 +242,13 @@ export default function Pricing() {
                 <div style={s.divider} />
                 <div style={s.featureList}>
                   {plan.features.map(f => (
-                    <div key={f} style={s.feature}><span style={s.check}>✓</span><span style={{ fontSize: 13 }}>{f}</span></div>
+                    <div key={f} style={s.feature}><span style={s.check}>✓</span><span style={{ fontSize: 12 }}>{f}</span></div>
                   ))}
                   {plan.notIncluded.map(f => (
-                    <div key={f} style={{ ...s.feature, opacity: 0.35 }}><span style={s.cross}>✕</span><span style={{ fontSize: 13 }}>{f}</span></div>
+                    <div key={f} style={{ ...s.feature, opacity: 0.3 }}><span style={s.cross}>✕</span><span style={{ fontSize: 12 }}>{f}</span></div>
                   ))}
                 </div>
-                <a href={plan.href} style={{ ...s.planBtn, background: plan.highlight ? plan.color : '#f1f5f9', color: plan.highlight ? '#fff' : '#0f172a' }}>
+                <a href={plan.href} style={{ ...s.planBtn, ...(plan.highlight ? { background: '#7c3aed', color: '#fff' } : { background: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: '1px solid rgba(255,255,255,0.08)' }) }}>
                   {plan.cta} →
                 </a>
               </div>
@@ -225,10 +258,11 @@ export default function Pricing() {
       </section>
 
       {/* Multi-month loyalty */}
-      <section style={{ ...s.compareSection, background: '#f8fafc' }}>
-        <div style={s.plansInner}>
+      <section style={{ padding: '4rem 2rem', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+        <div style={s.inner}>
+          <div style={s.eyebrow}>Loyalty Bonus</div>
           <h2 style={s.sectionTitle}>Pay upfront, earn more credits</h2>
-          <p style={{ color: '#64748b', fontSize: 14, marginBottom: 24 }}>Pay multiple months upfront on any subscription plan and get a loyalty bonus on top of your plan discount.</p>
+          <p style={{ color: '#64748b', fontSize: 14, marginBottom: 28 }}>Pay multiple months upfront on any subscription plan and get a loyalty bonus on top of your plan discount.</p>
           <div style={s.compareTable}>
             <div style={s.compareHeader}>
               <div style={{ flex: 1 }}>Commitment</div>
@@ -236,22 +270,25 @@ export default function Pricing() {
               <div style={{ flex: 2 }}>What it means</div>
             </div>
             {MULTI_MONTH.map(({ months, bonus, extra }) => (
-              <div key={months} style={s.compareRow}>
-                <div style={{ flex: 1, fontWeight: 600, fontSize: 14 }}>{months}</div>
-                <div style={{ flex: 1, textAlign: 'center', fontWeight: 700, color: bonus === '0%' ? '#94a3b8' : '#16a34a', fontSize: 14 }}>{bonus}</div>
+              <div key={months} className="pricing-compare-row" style={s.compareRow}>
+                <div style={{ flex: 1, fontWeight: 600, fontSize: 14, color: '#e2e8f0' }}>{months}</div>
+                <div style={{ flex: 1, textAlign: 'center', fontWeight: 700, color: bonus === '0%' ? '#475569' : '#34d399', fontSize: 14, fontFamily: "'DM Mono', monospace" }}>{bonus}</div>
                 <div style={{ flex: 2, color: '#64748b', fontSize: 13 }}>{extra}</div>
               </div>
             ))}
           </div>
-          <p style={{ fontSize: 13, color: '#94a3b8', marginTop: 12 }}>Example: Growth plan (₦50,000/mo × 12 months = ₦600,000) loads ₦70,000 × 12 × 1.20 = <strong style={{ color: '#0f172a' }}>₦1,008,000 in credits</strong></p>
+          <p style={{ fontSize: 13, color: '#475569', marginTop: 14 }}>
+            Example: Growth plan (₦50,000/mo × 12 months = ₦600,000) loads ₦70,000 × 12 × 1.20 = <strong style={{ color: '#34d399' }}>₦1,008,000 in credits</strong>
+          </p>
         </div>
       </section>
 
       {/* FAQ */}
-      <section style={s.compareSection}>
-        <div style={s.plansInner}>
+      <section style={{ padding: '4rem 2rem', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+        <div style={s.inner}>
+          <div style={s.eyebrow}>FAQ</div>
           <h2 style={s.sectionTitle}>Frequently asked questions</h2>
-          <div style={s.faqGrid}>
+          <div className="faq-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             {FAQS.map(({ q, a }) => (
               <div key={q} style={s.faqCard}>
                 <div style={s.faqQ}>{q}</div>
@@ -263,10 +300,11 @@ export default function Pricing() {
       </section>
 
       {/* CTA */}
-      <section style={s.cta}>
+      <section style={s.ctaSection}>
+        <div style={s.ctaGlow} />
         <h2 style={s.ctaTitle}>Start with 3 free analyses every month</h2>
         <p style={s.ctaSub}>No card required. Top up your wallet when you need more.</p>
-        <Link to="/register" style={s.ctaBtn}>Create free account →</Link>
+        <Link to="/register" style={s.ctaBtnPrimary}>Create free account →</Link>
       </section>
 
       <Footer />
@@ -275,44 +313,48 @@ export default function Pricing() {
 }
 
 const s = {
-  page: { fontFamily: 'Inter, sans-serif', color: '#0f172a', background: '#fff' },
-  nav: { position: 'sticky', top: 0, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)', borderBottom: '1px solid #e2e8f0', zIndex: 100 },
+  page: { fontFamily: "'Sora', -apple-system, sans-serif", color: '#e2e8f0', background: '#060d18', minHeight: '100vh' },
+  nav: { position: 'sticky', top: 0, background: 'rgba(6,13,24,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.05)', zIndex: 100 },
   navInner: { maxWidth: 1200, margin: '0 auto', padding: '0 2rem', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  logo: { fontSize: 20, fontWeight: 800, color: '#0f172a', textDecoration: 'none' },
-  logoBadge: { fontSize: 11, fontWeight: 600, background: '#e0f2fe', color: '#0284c7', padding: '2px 8px', borderRadius: 20, marginLeft: 6 },
+  logo: { fontSize: 17, fontWeight: 800, color: '#f1f5f9', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 },
+  logoMark: { width: 28, height: 28, borderRadius: 7, background: 'linear-gradient(135deg, #0ea5e9, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff' },
   navLink: { fontSize: 14, color: '#64748b', textDecoration: 'none', fontWeight: 500 },
-  navBtn: { fontSize: 14, background: '#0ea5e9', color: '#fff', padding: '8px 18px', borderRadius: 8, textDecoration: 'none', fontWeight: 600 },
-  hero: { background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)', padding: '5rem 2rem 4rem', textAlign: 'center' },
-  heroInner: { maxWidth: 640, margin: '0 auto' },
-  heroBadge: { display: 'inline-block', fontSize: 12, fontWeight: 700, background: 'rgba(14,165,233,0.2)', color: '#38bdf8', padding: '4px 14px', borderRadius: 20, marginBottom: 16, letterSpacing: 1, textTransform: 'uppercase' },
-  heroTitle: { fontSize: 44, fontWeight: 800, color: '#fff', margin: '0 0 16px' },
-  heroSub: { fontSize: 16, color: '#94a3b8', margin: 0, lineHeight: 1.7 },
-  plansSection: { padding: '4rem 2rem' },
-  plansInner: { maxWidth: 1200, margin: '0 auto' },
-  planCard: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 16, padding: '1.5rem', position: 'relative', display: 'flex', flexDirection: 'column' },
-  planCardHighlight: { border: '2px solid #6d28d9', boxShadow: '0 8px 32px rgba(109,40,217,0.15)' },
-  popularBadge: { position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: '#6d28d9', color: '#fff', fontSize: 11, fontWeight: 700, padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap' },
-  planName: { fontSize: 16, fontWeight: 800, marginBottom: 6 },
-  planPrice: { fontSize: 28, fontWeight: 800, color: '#0f172a', marginBottom: 4 },
-  planPeriod: { fontSize: 14, fontWeight: 500, color: '#64748b' },
-  planDesc: { fontSize: 13, color: '#64748b', marginBottom: 12, lineHeight: 1.6 },
-  divider: { height: 1, background: '#f1f5f9', margin: '12px 0' },
-  featureList: { flex: 1, display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 },
-  feature: { display: 'flex', alignItems: 'flex-start', gap: 8, color: '#334155' },
-  check: { color: '#16a34a', fontWeight: 700, fontSize: 13, minWidth: 14, marginTop: 1 },
-  cross: { color: '#cbd5e1', fontWeight: 700, fontSize: 13, minWidth: 14, marginTop: 1 },
-  planBtn: { display: 'block', textAlign: 'center', padding: '10px', borderRadius: 10, fontWeight: 700, fontSize: 14, textDecoration: 'none', marginTop: 'auto' },
-  compareSection: { padding: '4rem 2rem' },
-  sectionTitle: { fontSize: 26, fontWeight: 800, color: '#0f172a', marginBottom: 24 },
-  compareTable: { border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' },
-  compareHeader: { display: 'flex', padding: '12px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', fontSize: 12, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.5 },
-  compareRow: { display: 'flex', padding: '12px 20px', borderBottom: '1px solid #f1f5f9', alignItems: 'center' },
-  faqGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
-  faqCard: { background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: '1.25rem 1.5rem' },
-  faqQ: { fontSize: 14, fontWeight: 700, color: '#0f172a', marginBottom: 8 },
-  faqA: { fontSize: 13, color: '#64748b', lineHeight: 1.7 },
-  cta: { background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)', padding: '4rem 2rem', textAlign: 'center' },
-  ctaTitle: { fontSize: 30, fontWeight: 800, color: '#fff', marginBottom: 12 },
-  ctaSub: { fontSize: 15, color: 'rgba(255,255,255,0.85)', marginBottom: 28 },
-  ctaBtn: { display: 'inline-block', background: '#fff', color: '#0284c7', padding: '14px 28px', borderRadius: 10, textDecoration: 'none', fontWeight: 700, fontSize: 15 },
+  navBtn: { fontSize: 13, background: '#0ea5e9', color: '#fff', padding: '8px 18px', borderRadius: 8, textDecoration: 'none', fontWeight: 700 },
+  hero: { position: 'relative', overflow: 'hidden', padding: '6rem 2rem 5rem', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)' },
+  glowBlue: { position: 'absolute', top: -80, left: '30%', width: 500, height: 400, background: 'radial-gradient(circle, rgba(14,165,233,0.12) 0%, transparent 70%)', pointerEvents: 'none' },
+  glowPurple: { position: 'absolute', top: -60, right: '20%', width: 400, height: 350, background: 'radial-gradient(circle, rgba(124,58,237,0.1) 0%, transparent 70%)', pointerEvents: 'none' },
+  heroInner: { maxWidth: 640, margin: '0 auto', position: 'relative', zIndex: 1 },
+  heroBadge: { display: 'inline-block', fontSize: 10, fontWeight: 700, color: '#0ea5e9', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 18 },
+  heroTitle: { fontSize: 46, fontWeight: 800, color: '#f8fafc', margin: '0 0 18px', letterSpacing: -1 },
+  heroSub: { fontSize: 16, color: '#94a3b8', lineHeight: 1.75, margin: 0 },
+  ctaBtnPrimary: { display: 'inline-block', background: '#0ea5e9', color: '#fff', padding: '13px 28px', borderRadius: 9, textDecoration: 'none', fontWeight: 700, fontSize: 15 },
+  ctaBtnGhost: { display: 'inline-block', background: 'rgba(255,255,255,0.05)', color: '#94a3b8', padding: '13px 28px', borderRadius: 9, textDecoration: 'none', fontWeight: 600, fontSize: 15, border: '1px solid rgba(255,255,255,0.1)' },
+  inner: { maxWidth: 1200, margin: '0 auto' },
+  eyebrow: { fontSize: 10, fontWeight: 700, color: '#0ea5e9', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 12, textAlign: 'center' },
+  sectionTitle: { fontSize: 30, fontWeight: 800, color: '#f1f5f9', marginBottom: 24, letterSpacing: -0.5 },
+  rateCard: { background: '#0b1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, padding: '1.5rem', textAlign: 'center' },
+  plansSection: { padding: '4rem 2rem', background: '#060d18', borderTop: '1px solid rgba(255,255,255,0.04)' },
+  planCard: { background: '#0b1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, padding: '1.25rem', position: 'relative', display: 'flex', flexDirection: 'column', transition: 'transform 0.2s' },
+  planCardHighlight: { border: '2px solid rgba(124,58,237,0.6)', boxShadow: '0 0 30px rgba(124,58,237,0.12)' },
+  popularBadge: { position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)', background: '#7c3aed', color: '#fff', fontSize: 10, fontWeight: 700, padding: '4px 14px', borderRadius: 20, whiteSpace: 'nowrap', letterSpacing: 0.5 },
+  planName: { fontSize: 14, fontWeight: 800, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 },
+  planPrice: { fontSize: 26, fontWeight: 800, color: '#f1f5f9', marginBottom: 6, fontFamily: "'DM Mono', monospace" },
+  planPeriod: { fontSize: 13, fontWeight: 500, color: '#475569', fontFamily: "'Sora', sans-serif" },
+  planDesc: { fontSize: 12, color: '#64748b', marginBottom: 12, lineHeight: 1.6 },
+  divider: { height: 1, background: 'rgba(255,255,255,0.05)', margin: '12px 0' },
+  featureList: { flex: 1, display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 18 },
+  feature: { display: 'flex', alignItems: 'flex-start', gap: 7, color: '#94a3b8' },
+  check: { color: '#34d399', fontWeight: 700, fontSize: 12, minWidth: 12, marginTop: 1 },
+  cross: { color: '#334155', fontWeight: 700, fontSize: 12, minWidth: 12, marginTop: 1 },
+  planBtn: { display: 'block', textAlign: 'center', padding: '10px', borderRadius: 8, fontWeight: 700, fontSize: 13, textDecoration: 'none', marginTop: 'auto' },
+  compareTable: { border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, overflow: 'hidden' },
+  compareHeader: { display: 'flex', padding: '12px 20px', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 0.5 },
+  compareRow: { display: 'flex', padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)', alignItems: 'center' },
+  faqCard: { background: '#0b1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, padding: '1.25rem 1.5rem' },
+  faqQ: { fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 8 },
+  faqA: { fontSize: 13, color: '#64748b', lineHeight: 1.75 },
+  ctaSection: { position: 'relative', overflow: 'hidden', background: '#0b1120', padding: '5rem 2rem', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.05)' },
+  ctaGlow: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 600, height: 300, background: 'radial-gradient(circle, rgba(14,165,233,0.1) 0%, transparent 70%)', pointerEvents: 'none' },
+  ctaTitle: { fontSize: 32, fontWeight: 800, color: '#f1f5f9', marginBottom: 12, position: 'relative', zIndex: 1 },
+  ctaSub: { fontSize: 15, color: '#64748b', marginBottom: 32, position: 'relative', zIndex: 1 },
 };

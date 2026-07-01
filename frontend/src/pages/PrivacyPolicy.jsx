@@ -24,21 +24,39 @@ function UL({ items }) {
 export default function PrivacyPolicy() {
   return (
     <div style={s.page}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+        .toc-link:hover { color: #38bdf8 !important; border-left-color: #38bdf8 !important; }
+        .nav-lk:hover { color: #e2e8f0 !important; }
+        @media (max-width: 800px) {
+          .pp-layout { grid-template-columns: 1fr !important; }
+          .pp-sidebar { display: none !important; }
+        }
+        @media (max-width: 600px) {
+          .lce-logo-txt { display: none !important; }
+          .lce-nav-links { display: none !important; }
+          .pp-content { padding: 1.5rem !important; }
+        }
+      `}</style>
+
       {/* Nav */}
       <nav style={s.nav}>
         <div style={s.navInner}>
-          <Link to="/" style={s.logo}>Lucred Credit Engine</Link>
-          <div style={{ display: 'flex', gap: 24 }}>
-            <Link to="/terms" style={s.navLink}>Terms of Service</Link>
-            <Link to="/security" style={s.navLink}>Security</Link>
-            <Link to="/support" style={s.navLink}>Support</Link>
+          <Link to="/" style={s.logo}>
+            <div style={s.logoMark}>L</div>
+            <span className="lce-logo-txt">Lucred Credit Engine</span>
+          </Link>
+          <div className="lce-nav-links" style={{ display: 'flex', gap: 24 }}>
+            <Link to="/terms" className="nav-lk" style={s.navLink}>Terms of Service</Link>
+            <Link to="/security" className="nav-lk" style={s.navLink}>Security</Link>
+            <Link to="/support" className="nav-lk" style={s.navLink}>Support</Link>
           </div>
         </div>
       </nav>
 
-      <div style={s.layout}>
+      <div className="pp-layout" style={s.layout}>
         {/* Sidebar TOC */}
-        <aside style={s.sidebar}>
+        <aside className="pp-sidebar" style={s.sidebar}>
           <div style={s.sidebarTitle}>Contents</div>
           {[
             ['#overview', 'Overview'],
@@ -53,12 +71,12 @@ export default function PrivacyPolicy() {
             ['#changes', 'Policy Changes'],
             ['#contact', 'Contact Us'],
           ].map(([href, label]) => (
-            <a key={href} href={href} style={s.tocLink}>{label}</a>
+            <a key={href} href={href} className="toc-link" style={s.tocLink}>{label}</a>
           ))}
         </aside>
 
         {/* Content */}
-        <main style={s.content}>
+        <main className="pp-content" style={s.content}>
           <div style={s.header}>
             <span style={s.tag}>Legal</span>
             <h1 style={s.h1}>Privacy Policy</h1>
@@ -144,8 +162,8 @@ export default function PrivacyPolicy() {
                 ['Biometric images / photos', 'Same as parent record (BVN/NIN retention period)', 'Identity verification only'],
               ].map(([type, period, basis]) => (
                 <div key={type} style={s.tableRow}>
-                  <span style={{ fontWeight: 600 }}>{type}</span>
-                  <span style={{ color: '#0ea5e9' }}>{period}</span>
+                  <span style={{ fontWeight: 600, color: '#e2e8f0' }}>{type}</span>
+                  <span style={{ color: '#0ea5e9', fontFamily: "'DM Mono', monospace", fontSize: 12 }}>{period}</span>
                   <span style={{ color: '#64748b' }}>{basis}</span>
                 </div>
               ))}
@@ -206,7 +224,7 @@ export default function PrivacyPolicy() {
             ]} />
             <P>
               MFI Clients can exercise data portability and account deletion rights directly from the
-              <strong> Dashboard → Privacy & Data</strong> page. Borrower data deletion requests submitted by Clients
+              <strong style={{ color: '#e2e8f0' }}> Dashboard → Privacy & Data</strong> page. Borrower data deletion requests submitted by Clients
               are processed immediately.
             </P>
             <P>
@@ -252,11 +270,11 @@ export default function PrivacyPolicy() {
           <Section title="Contact Us" id="contact">
             <P>For privacy-related enquiries, please contact:</P>
             <div style={s.contactBox}>
-              <div><strong>Data Protection Officer</strong></div>
-              <div>Lucred Technology Limited</div>
-              <div>Email: <a href="mailto:dpo@lucred.co" style={s.a}>dpo@lucred.co</a></div>
+              <div style={{ fontWeight: 700, color: '#e2e8f0', marginBottom: 6 }}>Data Protection Officer</div>
+              <div style={{ marginBottom: 4 }}>Lucred Technology Limited</div>
+              <div style={{ marginBottom: 4 }}>Email: <a href="mailto:dpo@lucred.co" style={s.a}>dpo@lucred.co</a></div>
               <div>Privacy: <a href="mailto:privacy@lucred.co" style={s.a}>privacy@lucred.co</a></div>
-              <div style={{ marginTop: 8, color: '#64748b', fontSize: 13 }}>
+              <div style={{ marginTop: 12, color: '#475569', fontSize: 13 }}>
                 We aim to respond to all privacy enquiries within 72 hours on business days.
               </div>
             </div>
@@ -270,30 +288,31 @@ export default function PrivacyPolicy() {
 }
 
 const s = {
-  page: { fontFamily: 'Inter, sans-serif', color: '#0f172a', background: '#f8fafc', minHeight: '100vh' },
-  nav: { background: '#fff', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 100 },
-  navInner: { maxWidth: 1100, margin: '0 auto', padding: '0 2rem', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  logo: { fontSize: 20, fontWeight: 800, color: '#0f172a', textDecoration: 'none' },
+  page: { fontFamily: "'Sora', -apple-system, sans-serif", color: '#e2e8f0', background: '#060d18', minHeight: '100vh' },
+  nav: { background: 'rgba(6,13,24,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'sticky', top: 0, zIndex: 100 },
+  navInner: { maxWidth: 1100, margin: '0 auto', padding: '0 2rem', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  logo: { fontSize: 17, fontWeight: 800, color: '#f1f5f9', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 },
+  logoMark: { width: 28, height: 28, borderRadius: 7, background: 'linear-gradient(135deg, #0ea5e9, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff' },
   navLink: { fontSize: 13, color: '#64748b', textDecoration: 'none', fontWeight: 500 },
-  layout: { maxWidth: 1100, margin: '0 auto', padding: '3rem 2rem', display: 'grid', gridTemplateColumns: '220px 1fr', gap: 48, alignItems: 'start' },
-  sidebar: { position: 'sticky', top: 80, display: 'flex', flexDirection: 'column', gap: 4 },
-  sidebarTitle: { fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
-  tocLink: { fontSize: 13, color: '#64748b', textDecoration: 'none', padding: '4px 0', borderLeft: '2px solid #e2e8f0', paddingLeft: 10 },
-  content: { background: '#fff', borderRadius: 16, padding: '2.5rem', boxShadow: '0 1px 8px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0' },
-  header: { marginBottom: 32, paddingBottom: 24, borderBottom: '1px solid #f1f5f9' },
-  tag: { fontSize: 11, fontWeight: 700, color: '#0ea5e9', background: '#e0f2fe', padding: '3px 10px', borderRadius: 20, textTransform: 'uppercase', letterSpacing: 1 },
-  h1: { fontSize: 32, fontWeight: 800, color: '#0f172a', margin: '12px 0 4px' },
-  h2: { fontSize: 20, fontWeight: 700, color: '#0f172a', margin: '0 0 14px', paddingTop: 8 },
-  h3: { fontSize: 15, fontWeight: 700, color: '#334155', margin: '20px 0 10px' },
-  meta: { fontSize: 13, color: '#94a3b8', margin: '0 0 16px' },
-  lead: { fontSize: 15, color: '#475569', lineHeight: 1.8, margin: 0 },
-  section: { marginBottom: 36, paddingBottom: 36, borderBottom: '1px solid #f1f5f9' },
-  p: { fontSize: 14, color: '#475569', lineHeight: 1.8, margin: '0 0 14px' },
+  layout: { maxWidth: 1100, margin: '0 auto', padding: '3rem 2rem', display: 'grid', gridTemplateColumns: '200px 1fr', gap: 48, alignItems: 'start' },
+  sidebar: { position: 'sticky', top: 80, display: 'flex', flexDirection: 'column', gap: 2 },
+  sidebarTitle: { fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 12 },
+  tocLink: { fontSize: 12, color: '#475569', textDecoration: 'none', padding: '5px 0 5px 12px', borderLeft: '2px solid rgba(255,255,255,0.08)', transition: 'color 0.15s, border-left-color 0.15s' },
+  content: { background: '#0d1625', borderRadius: 16, padding: '2.5rem', border: '1px solid rgba(255,255,255,0.06)' },
+  header: { marginBottom: 36, paddingBottom: 28, borderBottom: '1px solid rgba(255,255,255,0.06)' },
+  tag: { fontSize: 10, fontWeight: 700, color: '#0ea5e9', background: 'rgba(14,165,233,0.1)', padding: '3px 10px', borderRadius: 20, textTransform: 'uppercase', letterSpacing: 2 },
+  h1: { fontSize: 30, fontWeight: 800, color: '#f1f5f9', margin: '14px 0 6px', letterSpacing: -0.5 },
+  h2: { fontSize: 18, fontWeight: 700, color: '#e2e8f0', margin: '0 0 14px', paddingTop: 4 },
+  h3: { fontSize: 14, fontWeight: 700, color: '#94a3b8', margin: '20px 0 10px', textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 11 },
+  meta: { fontSize: 12, color: '#475569', margin: '0 0 18px', fontFamily: "'DM Mono', monospace" },
+  lead: { fontSize: 14, color: '#64748b', lineHeight: 1.8, margin: 0 },
+  section: { marginBottom: 36, paddingBottom: 36, borderBottom: '1px solid rgba(255,255,255,0.05)' },
+  p: { fontSize: 14, color: '#64748b', lineHeight: 1.8, margin: '0 0 14px' },
   ul: { margin: '0 0 14px', paddingLeft: 20 },
-  li: { fontSize: 14, color: '#475569', lineHeight: 1.8, marginBottom: 6 },
-  a: { color: '#0ea5e9', textDecoration: 'none' },
-  table: { border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', marginBottom: 14 },
-  tableHead: { display: 'grid', gridTemplateColumns: '2fr 1fr 1.5fr', background: '#0f172a', padding: '10px 16px', fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, gap: 16 },
-  tableRow: { display: 'grid', gridTemplateColumns: '2fr 1fr 1.5fr', padding: '10px 16px', fontSize: 13, borderTop: '1px solid #f1f5f9', gap: 16, background: '#fff' },
-  contactBox: { background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '1.25rem 1.5rem', fontSize: 14, color: '#334155', lineHeight: 1.9 },
+  li: { fontSize: 14, color: '#64748b', lineHeight: 1.8, marginBottom: 6 },
+  a: { color: '#38bdf8', textDecoration: 'none' },
+  table: { border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, overflow: 'hidden', marginBottom: 14 },
+  tableHead: { display: 'grid', gridTemplateColumns: '2fr 1fr 1.5fr', background: '#0b1120', padding: '10px 16px', fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 1, gap: 16 },
+  tableRow: { display: 'grid', gridTemplateColumns: '2fr 1fr 1.5fr', padding: '10px 16px', fontSize: 13, borderTop: '1px solid rgba(255,255,255,0.04)', gap: 16 },
+  contactBox: { background: '#0b1120', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '1.25rem 1.5rem', fontSize: 14, color: '#94a3b8', lineHeight: 1.9 },
 };
