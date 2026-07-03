@@ -6,6 +6,7 @@ import { exportCustomersCSV } from '../services/exportCSV';
 import { parseApiError, isUnauthorized } from '../utils/apiError';
 import CsvImportModal from '../components/CsvImportModal';
 import { useAuth } from '../context/AuthContext';
+import api, { API_BASE as API } from '../services/api';
 
 
 function authHeaders() {
