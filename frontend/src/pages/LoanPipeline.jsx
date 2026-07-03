@@ -1,10 +1,10 @@
+import { API_BASE as API } from '../services/api';
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 
-const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 function authHeaders() { return { Authorization: `Bearer ${localStorage.getItem('token')}` }; }
 
 const STATUSES = ['applied', 'under_review', 'approved', 'rejected', 'disbursed'];

@@ -7,7 +7,7 @@ const bvnResultSchema = new mongoose.Schema(
     client: { type: mongoose.Schema.Types.ObjectId, ref: 'MFIClient', required: true },
     customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
     bvn: { type: String },
-    result: { type: Object }, // biometric image field stripped before save — never persisted
+    result: { type: Object }, // includes image (base64) for analyst review; TTL expires after 90 days
     status: { type: String, enum: ['success', 'failed'], default: 'success' },
     expireAt: { type: Date, default: () => new Date(Date.now() + BVN_TTL_DAYS * 24 * 60 * 60 * 1000) },
   },

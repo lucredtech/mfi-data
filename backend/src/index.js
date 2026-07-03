@@ -29,7 +29,7 @@ app.set('trust proxy', 1); // Railway sits behind a reverse proxy
 app.use(helmet());
 app.use(cors({
   origin: [
-    'https://mfi-data.vercel.app',
+    'https://engine.lucred.co',
     /\.vercel\.app$/,
     'http://localhost:5173',
   ],

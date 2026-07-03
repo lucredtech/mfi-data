@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import api from '../services/api';
+import api, { API_BASE as API } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { exportStatementsCSV } from '../services/exportCSV';
 import OnboardingBanner from '../components/OnboardingBanner';
@@ -10,7 +10,6 @@ import {
   ResponsiveContainer, Cell, PieChart, Pie, Legend,
 } from 'recharts';
 
-const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 function authHeaders() { return { Authorization: `Bearer ${localStorage.getItem('token')}` }; }
 
 const FUNNEL_COLORS = {

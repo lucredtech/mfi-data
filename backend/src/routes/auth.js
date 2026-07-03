@@ -127,14 +127,14 @@ router.post('/register', async (req, res) => {
       emailVerifyToken: hashedVerify,
       emailVerifyExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     }).catch(() => {});
-    const verifyUrl = `${process.env.FRONTEND_URL || 'https://mfi-data.vercel.app'}/verify-email?token=${verifyToken}`;
+    const verifyUrl = `${process.env.FRONTEND_URL || 'https://engine.lucred.co'}/verify-email?token=${verifyToken}`;
     sendVerificationEmail(email, { organizationName, verifyUrl }).catch(err =>
       console.error('[mailer] verify email failed:', err.message)
     );
     sendWelcome(email, { organizationName }).catch(err =>
       console.error('[mailer] welcome email failed:', err.message)
     );
-    const adminUrl = `${process.env.FRONTEND_URL || 'https://mfi-data.vercel.app'}/admin/clients/${client._id}`;
+    const adminUrl = `${process.env.FRONTEND_URL || 'https://engine.lucred.co'}/admin/clients/${client._id}`;
     sendNewSignupAlert({ organizationName, email, contactPerson, phone, adminUrl }).catch(err =>
       console.error('[mailer] admin signup alert failed:', err.message)
     );
@@ -181,7 +181,7 @@ router.post('/forgot-password', async (req, res) => {
     client.resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await client.save();
 
-    const resetUrl = `${process.env.FRONTEND_URL || 'https://mfi-data.vercel.app'}/reset-password?token=${token}`;
+    const resetUrl = `${process.env.FRONTEND_URL || 'https://engine.lucred.co'}/reset-password?token=${token}`;
     await sendPasswordReset(client.email, resetUrl);
 
     res.json({ message: 'If that email is registered, a reset link has been sent.' });
@@ -293,7 +293,7 @@ router.post('/resend-verification', requireJWT, async (req, res) => {
     client.emailVerifyToken = hashedVerify;
     client.emailVerifyExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await client.save();
-    const verifyUrl = `${process.env.FRONTEND_URL || 'https://mfi-data.vercel.app'}/verify-email?token=${verifyToken}`;
+    const verifyUrl = `${process.env.FRONTEND_URL || 'https://engine.lucred.co'}/verify-email?token=${verifyToken}`;
     await sendVerificationEmail(client.email, { organizationName: client.organizationName, verifyUrl });
     res.json({ message: 'Verification email sent.' });
   } catch (err) {

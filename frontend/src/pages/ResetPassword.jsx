@@ -1,8 +1,8 @@
+import { API_BASE as API } from '../services/api';
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 
-const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
 export default function ResetPassword() {
   const [params] = useSearchParams();

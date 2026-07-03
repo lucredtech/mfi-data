@@ -58,7 +58,7 @@ router.post('/invite', requireAdmin, async (req, res) => {
       invitedBy: inviterName,
     });
 
-    const inviteUrl = `${process.env.FRONTEND_URL || 'https://mfi-data.vercel.app'}/accept-invite?token=${rawToken}`;
+    const inviteUrl = `${process.env.FRONTEND_URL || 'https://engine.lucred.co'}/accept-invite?token=${rawToken}`;
     sendTeamInvite(email, {
       inviterName,
       orgName: org?.organizationName || 'your organisation',
@@ -119,7 +119,7 @@ router.post('/:id/resend', requireAdmin, async (req, res) => {
     await member.save();
 
     const org = await MFIClient.findById(req.client.id).select('organizationName').lean();
-    const inviteUrl = `${process.env.FRONTEND_URL || 'https://mfi-data.vercel.app'}/accept-invite?token=${rawToken}`;
+    const inviteUrl = `${process.env.FRONTEND_URL || 'https://engine.lucred.co'}/accept-invite?token=${rawToken}`;
     sendTeamInvite(member.email, {
       inviterName: member.invitedBy || org?.organizationName,
       orgName: org?.organizationName || 'your organisation',

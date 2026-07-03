@@ -143,7 +143,7 @@ router.post('/:id/verify-bvn', sandboxMock('bvn'), logUsage('/v1/identity/verify
     }
 
     await Customer.findByIdAndUpdate(customer._id, { bvn });
-    const saved = await BVNResult.create({ client: req.client.id, customer: customer._id, bvn, result: stripBiometrics(normalized), status: 'success' });
+    const saved = await BVNResult.create({ client: req.client.id, customer: customer._id, bvn, result: normalized, status: 'success' });
     const dup = await Customer.findOne({ bvn, client: req.client.id, _id: { $ne: customer._id } }).lean();
     AuditLog.create({ client: req.client.id, action: 'BVN_CHECK', entityType: 'BVNResult', entityId: saved._id, label: `BVN verified for ${customer.name}`, meta: { bvnLast4: bvn.slice(-4), source: 'api' } }).catch(() => {});
     res.json({ success: true, data: normalized, resultId: saved._id, duplicate: dup ? { id: dup._id, name: dup.name } : null });
@@ -179,7 +179,7 @@ router.post('/:id/verify-nin', sandboxMock('nin'), logUsage('/v1/identity/verify
     }
 
     await Customer.findByIdAndUpdate(customer._id, { nin });
-    const saved = await NINResult.create({ client: req.client.id, customer: customer._id, nin, result: stripBiometrics(normalized), status: 'success' });
+    const saved = await NINResult.create({ client: req.client.id, customer: customer._id, nin, result: normalized, status: 'success' });
     const dup = await Customer.findOne({ nin, client: req.client.id, _id: { $ne: customer._id } }).lean();
     AuditLog.create({ client: req.client.id, action: 'NIN_CHECK', entityType: 'NINResult', entityId: saved._id, label: `NIN verified for ${customer.name}`, meta: { ninLast4: nin.slice(-4), source: 'api' } }).catch(() => {});
     res.json({ success: true, data: normalized, resultId: saved._id, duplicate: dup ? { id: dup._id, name: dup.name } : null });

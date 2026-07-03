@@ -62,7 +62,7 @@ async function sendWelcome(to, { organizationName }) {
         <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 24px">
           You'll receive a separate email once your account is approved and you can start using the platform. In the meantime, you can explore the dashboard and read our documentation.
         </p>
-        <a href="https://mfi-data.vercel.app/dashboard" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
+        <a href="https://engine.lucred.co/dashboard" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
           View Dashboard →
         </a>
         <p style="color:#94a3b8;font-size:12px;margin-top:28px">
@@ -93,11 +93,11 @@ async function sendApprovalNotification(to, { organizationName }) {
           2. Add your first borrower via the dashboard or API<br>
           3. Run a BVN/NIN verification or upload a bank statement
         </p>
-        <a href="https://mfi-data.vercel.app/dashboard/api-keys" style="display:inline-block;background:#16a34a;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
+        <a href="https://engine.lucred.co/dashboard/api-keys" style="display:inline-block;background:#16a34a;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
           Create Your API Key →
         </a>
         <p style="color:#94a3b8;font-size:12px;margin-top:28px">
-          Need help? Visit <a href="https://mfi-data.vercel.app/docs" style="color:#0ea5e9">our docs</a> or contact <a href="mailto:support@lucred.co" style="color:#0ea5e9">support@lucred.co</a>
+          Need help? Visit <a href="https://engine.lucred.co/docs" style="color:#0ea5e9">our docs</a> or contact <a href="mailto:support@lucred.co" style="color:#0ea5e9">support@lucred.co</a>
         </p>
       </div>
     `,
@@ -306,7 +306,7 @@ async function sendLowBalanceAlert(to, { organizationName, balance, threshold })
           <div style="font-size:12px;color:#64748b;margin-top:4px">remaining in your wallet</div>
         </div>
         <p style="font-size:14px;color:#334155;line-height:1.6">Your wallet balance has dropped below ₦${threshold.toLocaleString()}. Top up now to avoid interruptions when running BVN, NIN, bureau or statement analyses.</p>
-        <a href="https://mfi-data.vercel.app/dashboard/billing" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
+        <a href="https://engine.lucred.co/dashboard/billing" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
           Top Up Wallet →
         </a>
         <p style="color:#94a3b8;font-size:12px;margin-top:28px">You're receiving this because you are the account owner on Lucred Credit Engine.</p>
@@ -345,7 +345,7 @@ async function sendMonthlySummary(to, { organizationName, month, analyses, total
           <div><div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Total spent</div><div style="font-size:22px;font-weight:800;color:#0f172a">₦${totalSpent.toLocaleString()}</div></div>
           ${savedVsPayg > 0 ? `<div style="text-align:right"><div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Saved vs PAYG</div><div style="font-size:22px;font-weight:800;color:#16a34a">₦${savedVsPayg.toLocaleString()}</div></div>` : ''}
         </div>
-        <a href="https://mfi-data.vercel.app/dashboard/billing" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
+        <a href="https://engine.lucred.co/dashboard/billing" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">
           View Full Transaction Log →
         </a>
         <p style="color:#94a3b8;font-size:12px;margin-top:28px">You're receiving this monthly summary as the account owner on Lucred Credit Engine.</p>
@@ -377,7 +377,7 @@ async function sendTopupConfirmation(to, { organizationName, amount, balance, de
             <span style="font-size:18px;font-weight:800;color:#0f172a">₦${Number(balance).toLocaleString()}</span>
           </div>
         </div>
-        <a href="https://mfi-data.vercel.app/dashboard/billing" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">View Wallet →</a>
+        <a href="https://engine.lucred.co/dashboard/billing" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">View Wallet →</a>
         <p style="color:#94a3b8;font-size:12px;margin-top:28px">If you didn't request this top-up, please contact <a href="mailto:support@lucred.co" style="color:#0ea5e9">support@lucred.co</a> immediately.</p>
       </div>
     `,

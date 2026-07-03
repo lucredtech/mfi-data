@@ -1,6 +1,6 @@
+import { API_BASE as BASE } from '../services/api';
 import { useState } from 'react';
 
-const BASE = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
 const SECTIONS = [
   { id: 'auth',       label: 'Authentication' },

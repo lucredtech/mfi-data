@@ -53,7 +53,7 @@ const requireApiKey = async (req, res, next) => {
         plan,
         limit,
         used: usedThisMonth,
-        upgradeUrl: 'https://mfi-data.vercel.app/pricing',
+        upgradeUrl: 'https://engine.lucred.co/pricing',
       });
     }
 

@@ -1,7 +1,7 @@
+import { API_BASE as API } from '../services/api';
 import { useEffect, useState } from 'react';
 import Footer from '../components/Footer';
 
-const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
 function Bar({ value, max, color }) {
   const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;

@@ -1,8 +1,8 @@
+import { API_BASE as API } from '../../services/api';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 function adminHeaders() { return { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }; }
 
 const STATUSES = ['pending', 'reviewed', 'planned', 'shipped'];

@@ -584,7 +584,7 @@ router.post('/verify/bvn', requireWriteAccess, async (req, res) => {
       client: req.client.id,
       customer: customerId || undefined,
       bvn,
-      result: stripBiometrics(normalized),
+      result: normalized,
       status: 'success',
     });
 
@@ -653,7 +653,7 @@ router.post('/verify/nin', requireWriteAccess, async (req, res) => {
       client: req.client.id,
       customer: customerId || undefined,
       nin,
-      result: stripBiometrics(normalized),
+      result: normalized,
       status: 'success',
     });
 
@@ -830,7 +830,7 @@ router.patch('/:id/status', requireWriteAccess, async (req, res) => {
     // Email admins on meaningful stage transitions
     if (['approved', 'disbursed', 'rejected'].includes(status)) {
       getAdminEmails(req.client.id).then(emails => {
-        const dashboardUrl = `https://mfi-data.vercel.app/dashboard/customers/${customer._id}`;
+        const dashboardUrl = `https://engine.lucred.co/dashboard/customers/${customer._id}`;
         emails.forEach(email => sendStaffStatusChangeAlert(email, {
           customerName: customer.name,
           newStatus: status,
@@ -885,7 +885,7 @@ router.post('/:id/loan-reviews', requireWriteAccess, async (req, res) => {
 
     // Email all admins
     getAdminEmails(req.client.id).then(emails => {
-      const dashboardUrl = `https://mfi-data.vercel.app/dashboard/customers/${customer._id}`;
+      const dashboardUrl = `https://engine.lucred.co/dashboard/customers/${customer._id}`;
       emails.forEach(email => sendStaffLoanReviewAlert(email, {
         customerName: customer.name,
         verdict: review.verdict,

@@ -34,3 +34,5 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+export const API_BASE = import.meta.env.VITE_API_URL || 'https://lucred-credit-engine.up.railway.app';

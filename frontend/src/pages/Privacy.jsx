@@ -1,10 +1,10 @@
+import { API_BASE as API } from '../services/api';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
-const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
 const SECTION = {
   background: '#f8fafc',

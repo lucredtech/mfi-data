@@ -1,3 +1,4 @@
+import { API_BASE as API } from '../services/api';
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
@@ -6,7 +7,6 @@ import UpgradeModal from './UpgradeModal';
 import NotificationBell from './NotificationBell';
 import { useNotifications } from '../context/NotificationContext';
 
-const API = import.meta.env.VITE_API_URL || 'https://mfi-data-production.up.railway.app';
 
 // Groups: each item is either a direct link or a collapsible group with children
 const NAV_GROUPS = [
