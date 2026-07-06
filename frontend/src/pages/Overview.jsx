@@ -5,6 +5,7 @@ import api, { API_BASE as API } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { exportStatementsCSV } from '../services/exportCSV';
 import OnboardingBanner from '../components/OnboardingBanner';
+import AddCustomerModal from '../components/AddCustomerModal';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip,
   ResponsiveContainer, Cell, PieChart, Pie, Legend,
@@ -304,78 +305,6 @@ export default function Overview() {
             </tbody>
           </table>
         )}
-      </div>
-    </div>
-  );
-}
-
-function AddCustomerModal({ onClose, onCreated }) {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', bvn: '', customerType: 'individual' });
-  const [saving, setSaving] = useState(false);
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    if (!form.name.trim()) return;
-    setSaving(true);
-    try {
-      const { default: toast } = await import('react-hot-toast');
-      const { data } = await api.post('/api/customers', form);
-      toast.success('Customer created');
-      onCreated(data.customer);
-    } catch (err) {
-      const { default: toast } = await import('react-hot-toast');
-      toast.error(err?.response?.data?.error || 'Failed to create customer');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const inp = { width: '100%', padding: '9px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' };
-  const lbl = { fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' };
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#fff', borderRadius: 14, padding: '1.75rem', width: '100%', maxWidth: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 17, fontWeight: 800, color: '#0f172a' }}>Add Customer</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#94a3b8' }}>✕</button>
-        </div>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div>
-            <label style={lbl}>Full Name *</label>
-            <input style={inp} placeholder="e.g. Amaka Okafor" value={form.name} onChange={set('name')} required />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={lbl}>Email</label>
-              <input style={inp} type="email" placeholder="email@example.com" value={form.email} onChange={set('email')} />
-            </div>
-            <div>
-              <label style={lbl}>Phone</label>
-              <input style={inp} placeholder="080xxxxxxxx" value={form.phone} onChange={set('phone')} />
-            </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={lbl}>BVN</label>
-              <input style={inp} placeholder="11-digit BVN" value={form.bvn} onChange={set('bvn')} maxLength={11} />
-            </div>
-            <div>
-              <label style={lbl}>Customer Type</label>
-              <select style={inp} value={form.customerType} onChange={set('customerType')}>
-                <option value="individual">Individual</option>
-                <option value="business">Business</option>
-              </select>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-            <button type="button" onClick={onClose} style={{ flex: 1, padding: '10px', border: '1.5px solid #e2e8f0', borderRadius: 8, background: '#fff', fontWeight: 600, fontSize: 14, cursor: 'pointer', color: '#374151' }}>Cancel</button>
-            <button type="submit" disabled={saving || !form.name.trim()} style={{ flex: 2, padding: '10px', border: 'none', borderRadius: 8, background: saving ? '#7dd3fc' : '#0ea5e9', color: '#fff', fontWeight: 700, fontSize: 14, cursor: saving ? 'not-allowed' : 'pointer' }}>
-              {saving ? 'Creating…' : 'Create & Open Profile →'}
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   );

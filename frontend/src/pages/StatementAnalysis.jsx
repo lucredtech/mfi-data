@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import CustomerSelect from '../components/CustomerSelect';
@@ -83,6 +83,7 @@ function BankSelect({ value, onChange }) {
 }
 
 export default function StatementAnalysis() {
+  const navigate = useNavigate();
   const [file, setFile] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [meta, setMeta] = useState({ email: '', accountName: '', bankName: '', password: '' });
@@ -90,6 +91,7 @@ export default function StatementAnalysis() {
   const [loading, setLoading] = useState(false);
   const [walletError, setWalletError] = useState(false);
   const [result, setResult] = useState(null);
+  const [resultId, setResultId] = useState(null);
   const inputRef = useRef();
 
   const onDrop = (e) => {
@@ -124,6 +126,7 @@ export default function StatementAnalysis() {
       // Let axios set Content-Type automatically so multipart boundary is included
       const { data } = await api.post('/v1/statement/upload-analyze', form);
       setResult(data.data);
+      setResultId(data.resultId || null);
       toast.success('Analysis complete');
     } catch (err) {
       if (err?.response?.status === 402) { setWalletError(true); return; }
@@ -242,7 +245,7 @@ export default function StatementAnalysis() {
             </div>
           )}
 
-          {result && <ResultPanel data={result} />}
+          {result && <ResultPanel data={result} resultId={resultId} onViewDetail={() => navigate(`/dashboard/statements/${resultId}`)} />}
         </div>
       </div>
     </div>
@@ -267,7 +270,7 @@ function StaleWarning({ data }) {
   );
 }
 
-function ResultPanel({ data }) {
+function ResultPanel({ data, resultId, onViewDetail }) {
   const fmt = (v) => v !== undefined && v !== null ? v.toLocaleString() : '—';
 
   return (
@@ -295,6 +298,13 @@ function ResultPanel({ data }) {
         <div style={s.sectionLabel}>Full Analysis Response</div>
         <pre style={s.pre}>{JSON.stringify(data, null, 2)}</pre>
       </div>
+
+      {/* View full visualized result */}
+      {resultId && (
+        <button onClick={onViewDetail} style={s.viewDetailBtn}>
+          View Full Analysis Dashboard →
+        </button>
+      )}
     </div>
   );
 }
@@ -326,4 +336,5 @@ const s = {
   metricLabel: { fontSize: 12, color: '#64748b', marginTop: 4 },
   rawCard: { background: '#fff', borderRadius: 12, padding: '1.25rem', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' },
   pre: { background: '#0f172a', color: '#e2e8f0', padding: '12px', borderRadius: 8, fontSize: 11, fontFamily: 'monospace', overflowX: 'auto', marginTop: 8, maxHeight: 400 },
+  viewDetailBtn: { display: 'block', width: '100%', marginTop: 14, padding: '12px', background: '#0f172a', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', textAlign: 'center', letterSpacing: 0.2 },
 };

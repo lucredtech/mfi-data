@@ -142,6 +142,10 @@ export default function StatementDetail() {
             {meta.accountNumber && <Chip>Acct: {meta.accountNumber}</Chip>}
             {meta.startDate && <Chip>{meta.startDate} → {meta.endDate}</Chip>}
             {income.monthPeriod && <Chip>{income.monthPeriod}-month period</Chip>}
+            {isStale(statement)
+              ? <Chip style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', fontWeight: 700 }}>⚠ Stale Statement</Chip>
+              : <Chip style={{ background: '#dcfce7', color: '#15803d', border: '1px solid #86efac', fontWeight: 700 }}>✓ Current</Chip>
+            }
           </div>
           <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', marginBottom: 4 }}>{risk.recommendation || 'Analysis Complete'}</div>
           <div style={{ fontSize: 13, color: '#94a3b8' }}>Analysed {new Date(statement.createdAt).toLocaleString()}</div>
