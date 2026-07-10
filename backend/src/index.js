@@ -16,9 +16,11 @@ const statementRoutes = require('./routes/statement');
 const usageRoutes = require('./routes/usage');
 const customerRoutes = require('./routes/customers');
 const v1CustomerRoutes = require('./routes/v1Customers');
+const v1OnboardingRoutes = require('./routes/v1Onboarding');
 const { requireJWT } = require('./middleware/auth');
 const FeatureRequest = require('./models/FeatureRequest');
 const webhookRoutes = require('./routes/webhooks');
+const onboardingRoutes = require('./routes/onboarding');
 const notificationRoutes = require('./routes/notifications');
 const walletRoutes = require('./routes/wallet');
 const UsageLog = require('./models/UsageLog');
@@ -54,6 +56,7 @@ const authLimiter = rateLimit({
 });
 
 // Public routes
+app.use('/api/onboard', onboardingRoutes);
 app.use('/api/status', statusRoutes);
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/admin', adminRoutes);
@@ -107,6 +110,7 @@ app.use('/v1', (req, res, next) => {
 
 // B2B credit engine routes (API key protected)
 app.use('/v1/customers', v1CustomerRoutes);
+app.use('/v1/onboarding', v1OnboardingRoutes);
 app.use('/v1', creditRoutes);
 app.use(statementRoutes);
 

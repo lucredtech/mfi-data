@@ -81,7 +81,7 @@ router.post(
         .catch(err => console.error('[s3] upload failed:', err.message));
 
       AuditLog.create({ client: clientId, action: 'STATEMENT_ANALYSIS', entityType: 'StatementResult', entityId: saved._id, label: `Statement analysis: ${accountName || email || req.file.originalname}`, meta: { bankName, filename: req.file.originalname, customerId } }).catch(() => {});
-      res.json({ success: true, data });
+      res.json({ success: true, data, resultId: saved._id });
     } catch (err) {
       // Save failed attempt and upload file for debugging
       const failed = await StatementResult.create({

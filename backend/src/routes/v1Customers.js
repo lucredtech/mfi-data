@@ -344,4 +344,155 @@ router.post('/:id/loan-review', sandboxMock('loan_review'), logUsage('/v1/custom
   }
 });
 
+// ── POST /v1/customers/bvn/rerun/:resultId ────────────────────────────────────
+router.post('/bvn/rerun/:resultId', async (req, res) => {
+  try {
+    const result = await BVNResult.findOne({ _id: req.params.resultId, client: req.client.id });
+    if (!result) return res.status(404).json({ error: 'BVN result not found' });
+    const bvn = result.bvn;
+    if (!bvn) return res.status(400).json({ error: 'No BVN stored on this result' });
+
+    let normalized;
+    try {
+      const { data } = await dojahApi.get('/api/v1/kyc/bvn/advance', { params: { bvn } });
+      const e = data.entity || {};
+      normalized = {
+        isValid: true, bvn,
+        firstName: e.first_name, lastName: e.last_name, middleName: e.middle_name,
+        dateOfBirth: e.date_of_birth, gender: e.gender,
+        phoneNumber: e.phone_number1 || e.phone_number, email: e.email,
+        enrollmentBank: e.enrollment_bank, nin: e.nin,
+      };
+    } catch (upstreamErr) {
+      result.result = upstreamErr.response?.data || {};
+      result.status = 'failed';
+      await result.save();
+      return res.status(502).json({ error: 'BVN re-check failed' });
+    }
+
+    result.result = normalized;
+    result.status = 'success';
+    await result.save();
+    res.json({ success: true, data: normalized, resultId: result._id });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── POST /v1/customers/nin/rerun/:resultId ────────────────────────────────────
+router.post('/nin/rerun/:resultId', async (req, res) => {
+  try {
+    const result = await NINResult.findOne({ _id: req.params.resultId, client: req.client.id });
+    if (!result) return res.status(404).json({ error: 'NIN result not found' });
+    const nin = result.nin;
+    if (!nin) return res.status(400).json({ error: 'No NIN stored on this result' });
+
+    let data;
+    try {
+      const resp = await dojahApi.get('/api/v1/kyc/nin', { params: { nin } });
+      data = resp.data.entity || resp.data;
+    } catch (upstreamErr) {
+      result.result = upstreamErr.response?.data || {};
+      result.status = 'failed';
+      await result.save();
+      return res.status(502).json({ error: 'NIN re-check failed' });
+    }
+
+    result.result = data;
+    result.status = 'success';
+    await result.save();
+    res.json({ success: true, data, resultId: result._id });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── POST /v1/customers/bureau/rerun/:resultId ─────────────────────────────────
+router.post('/bureau/rerun/:resultId', async (req, res) => {
+  try {
+    const bureauResult = await BureauResult.findOne({ _id: req.params.resultId, client: req.client.id });
+    if (!bureauResult) return res.status(404).json({ error: 'Bureau result not found' });
+    const bvn = bureauResult.bvn;
+    if (!bvn) return res.status(400).json({ error: 'No BVN/identifier stored on this result' });
+
+    let upstreamData;
+    try {
+      const matchResult = await matchConsumer({ bvn });
+      const matched = matchResult?.MatchedConsumer?.[0] ?? matchResult;
+      const consumerID = matched?.ConsumerID ?? '0';
+      const consumerMergeList = matched?.ConsumerMergeList ?? '';
+      const subscriberEnquiryEngineID = matched?.MatchingEngineID ?? '';
+      const enquiryID = matched?.EnquiryID ?? '';
+      const matchingRate = parseFloat(matched?.MatchingRate ?? 0);
+
+      if (parseInt(consumerID, 10) === 0 && matchingRate === 0) {
+        upstreamData = { noRecord: true, message: 'No credit record found.' };
+      } else {
+        upstreamData = await getXScoreConsumerReport({ consumerID, consumerMergeList, subscriberEnquiryEngineID, enquiryID });
+      }
+    } catch (upstreamErr) {
+      bureauResult.result = upstreamErr.response?.data || {};
+      bureauResult.status = 'failed';
+      await bureauResult.save();
+      return res.status(502).json({ error: 'Bureau re-check failed' });
+    }
+
+    bureauResult.result = upstreamData;
+    bureauResult.status = 'success';
+    await bureauResult.save();
+    res.json({ success: true, resultId: bureauResult._id, noRecord: upstreamData?.noRecord });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── POST /v1/customers/statement/rerun/:resultId ──────────────────────────────
+router.post('/statement/rerun/:resultId', async (req, res) => {
+  try {
+    const { GetObjectCommand } = require('@aws-sdk/client-s3');
+    const { S3Client } = require('@aws-sdk/client-s3');
+    const statResult = await StatementResult.findOne({ _id: req.params.resultId, client: req.client.id });
+    if (!statResult) return res.status(404).json({ error: 'Statement result not found' });
+    if (!statResult.s3Key) return res.status(400).json({ error: 'No S3 file stored for this result — cannot re-run' });
+
+    // Fetch file from S3
+    const s3 = new S3Client({
+      region: process.env.AWS_REGION || 'us-east-1',
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      },
+    });
+    const s3Obj = await s3.send(new GetObjectCommand({ Bucket: process.env.AWS_BUCKET_NAME, Key: statResult.s3Key }));
+    const chunks = [];
+    for await (const chunk of s3Obj.Body) chunks.push(chunk);
+    const buffer = Buffer.concat(chunks);
+
+    const form = new FormData();
+    form.append('file', buffer, { filename: statResult.filename || 'statement.pdf', contentType: 'application/pdf' });
+    if (statResult.bankName) form.append('bank', statResult.bankName);
+
+    let analysisData;
+    try {
+      const { data } = await lucredApi.post(
+        process.env.LUCRED_STATEMENT_ANALYZE_PATH || '/metrics/file_transactions',
+        form, { headers: form.getHeaders() }
+      );
+      analysisData = data;
+    } catch (err) {
+      statResult.status = 'failed';
+      await statResult.save();
+      return res.status(502).json({ error: 'Statement re-analysis failed' });
+    }
+
+    statResult.result = analysisData;
+    statResult.status = 'success';
+    await statResult.save();
+    res.json({ success: true, data: analysisData, resultId: statResult._id });
+  } catch (err) {
+    console.error('[rerun] statement error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

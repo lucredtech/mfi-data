@@ -30,6 +30,7 @@ const mfiClientSchema = new mongoose.Schema(
     emailVerified: { type: Boolean, default: false },
     emailVerifyToken: { type: String },
     emailVerifyExpires: { type: Date },
+    onboardingSlug: { type: String, unique: true, sparse: true },
   },
   { timestamps: true }
 );

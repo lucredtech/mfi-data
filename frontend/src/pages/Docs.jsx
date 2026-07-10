@@ -3,13 +3,18 @@ import { useState } from 'react';
 
 
 const SECTIONS = [
-  { id: 'auth',       label: 'Authentication' },
-  { id: 'bvn',        label: 'BVN Verification' },
-  { id: 'nin',        label: 'NIN Verification' },
-  { id: 'bureau',     label: 'Credit Bureau' },
-  { id: 'statement',  label: 'Statement Analysis' },
-  { id: 'customers',  label: 'Customers' },
-  { id: 'errors',     label: 'Error Codes' },
+  { id: 'auth',             label: 'Authentication' },
+  { id: 'bvn',             label: 'BVN Verification' },
+  { id: 'nin',             label: 'NIN Verification' },
+  { id: 'bureau',          label: 'Credit Bureau' },
+  { id: 'statement',       label: 'Statement Analysis' },
+  { id: 'customers',       label: 'Customers' },
+  { id: 'scorecard',       label: 'Scorecard & Loan Review' },
+  { id: 'rerun',           label: 'Re-run Checks' },
+  { id: 'business-kyc',    label: 'Business KYC' },
+  { id: 'onboarding',      label: 'Customer Onboarding' },
+  { id: 'webhooks',        label: 'Webhooks' },
+  { id: 'errors',          label: 'Error Codes' },
 ];
 
 const BADGE = {
@@ -277,6 +282,474 @@ export default function Docs() {
               { name: 'phone',  type: 'string', required: false, desc: "Phone" },
               { name: 'status', type: 'string', required: false, desc: "active | watchlist | blacklisted" },
             ]} />
+        </Section>
+
+        {/* Scorecard & Loan Review */}
+        <Section title="Scorecard & Loan Review" id="scorecard">
+          <p style={{ fontSize: 13, color: '#475569', marginBottom: 16 }}>
+            Generate a consolidated credit scorecard or run a full loan eligibility assessment for a customer.
+            Both endpoints pull the customer's latest BVN, NIN, bureau, and statement results automatically —
+            no need to pass them in again.
+          </p>
+
+          <Endpoint
+            method="POST" path="/v1/customers/:id/scorecard"
+            desc="Generate credit scorecard from all available checks"
+            response={`{
+  "success": true,
+  "recordId": "6643ab...",
+  "scorecard": {
+    "overallScore": 72,
+    "grade": "B",
+    "identityScore": 100,
+    "creditScore": 68,
+    "incomeScore": 74,
+    "riskFlags": ["thin_file"],
+    "recommendation": "conditional",
+    "summary": "Identity verified. Credit history is thin. Income is stable."
+  }
+}`} />
+
+          <Endpoint
+            method="POST" path="/v1/customers/:id/loan-review"
+            desc="Full loan eligibility assessment with repayment schedule"
+            note="Sends a loan decision email and SMS to the borrower automatically."
+            body={[
+              { name: 'loanAmount',  type: 'number', required: true,  desc: 'Proposed loan amount in Naira' },
+              { name: 'loanTenor',   type: 'number', required: true,  desc: 'Loan duration in months' },
+              { name: 'annualRate',  type: 'number', required: true,  desc: 'Annual interest rate as a percentage e.g. 24 for 24%' },
+            ]}
+            response={`{
+  "success": true,
+  "recordId": "6643cd...",
+  "review": {
+    "verdict": "ELIGIBLE",
+    "confidence": "HIGH",
+    "avgScore": 74,
+    "effectiveDTI": 0.28,
+    "summary": "Borrower meets all eligibility criteria.",
+    "suggestedMinAmount": 50000,
+    "suggestedMaxAmount": 320000,
+    "affordableMonthly": 28500,
+    "proposedMonthlyPayment": 23400,
+    "proposedTotalRepayment": 280800,
+    "proposedTotalInterest": 30800,
+    "flags": [],
+    "conditions": [],
+    "categories": { "identity": 100, "creditHistory": 68, "income": 74, "cashFlow": 71, "debtBurden": 80, "fraud": 100 }
+  }
+}`} />
+
+          <CodeBlock code={`# Generate scorecard
+curl -X POST ${BASE}/v1/customers/CUSTOMER_ID/scorecard \\
+  -H "X-Api-Key: lcrd_your_api_key"
+
+# Run loan review
+curl -X POST ${BASE}/v1/customers/CUSTOMER_ID/loan-review \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "loanAmount": 200000, "loanTenor": 12, "annualRate": 24 }'`} />
+        </Section>
+
+        {/* Re-run Checks */}
+        <Section title="Re-run Checks" id="rerun">
+          <p style={{ fontSize: 13, color: '#475569', marginBottom: 16 }}>
+            Re-execute a previously run check using its stored result ID. The original BVN, NIN, or statement file
+            is fetched from storage and re-submitted to the upstream provider — no need to resupply the input.
+            Useful when a check failed due to a provider outage, or when refreshing stale data.
+          </p>
+          <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#92400e', marginBottom: 16 }}>
+            ⚠ Re-runs are billed at the same rate as the original check. Statement re-runs require the original file to have been stored in S3 (happens automatically on successful analyses).
+          </div>
+
+          <Endpoint
+            method="POST" path="/v1/customers/bvn/rerun/:resultId"
+            desc="Re-run a BVN check using the stored BVN"
+            response={`{ "success": true, "resultId": "...", "data": { "bvn": "223...", "firstName": "Amaka", ... } }`} />
+
+          <Endpoint
+            method="POST" path="/v1/customers/nin/rerun/:resultId"
+            desc="Re-run a NIN check using the stored NIN"
+            response={`{ "success": true, "resultId": "...", "data": { "nin": "123...", "firstname": "Amaka", ... } }`} />
+
+          <Endpoint
+            method="POST" path="/v1/customers/bureau/rerun/:resultId"
+            desc="Re-run a credit bureau check using the stored BVN or RC number"
+            response={`{ "success": true, "resultId": "...", "noRecord": false }`} />
+
+          <Endpoint
+            method="POST" path="/v1/customers/statement/rerun/:resultId"
+            desc="Re-analyse a bank statement fetched from S3"
+            note="Only works for statements that were successfully uploaded (have an S3 key stored)."
+            response={`{ "success": true, "resultId": "...", "data": { "totalCredits": 850000, ... } }`} />
+
+          <CodeBlock code={`# Re-run a failed BVN check
+curl -X POST ${BASE}/v1/customers/bvn/rerun/RESULT_ID \\
+  -H "X-Api-Key: lcrd_your_api_key"
+
+# Re-analyse a bank statement
+curl -X POST ${BASE}/v1/customers/statement/rerun/RESULT_ID \\
+  -H "X-Api-Key: lcrd_your_api_key"`} />
+        </Section>
+
+        {/* Business KYC */}
+        <Section title="Business KYC" id="business-kyc">
+          <p style={{ fontSize: 13, color: '#475569', marginBottom: 16 }}>
+            Verify a business entity via CAC registration lookup and pull a business credit report from FirstCentral.
+            Use these endpoints when lending to SMEs or companies rather than individuals.
+          </p>
+
+          <Endpoint
+            method="POST" path="/v1/onboarding/sessions/:id/step/business"
+            desc="Submit business info & verify CAC"
+            note="Send as multipart/form-data. Requires an SME onboarding session (see Customer Onboarding section)."
+            body={[
+              { name: 'businessName', type: 'string', required: true,  desc: 'Registered business name' },
+              { name: 'cacNumber',    type: 'string', required: true,  desc: 'CAC RC number e.g. RC1234567' },
+              { name: 'email',        type: 'string', required: false, desc: 'Business email address' },
+              { name: 'phone',        type: 'string', required: false, desc: 'Business phone number' },
+              { name: 'cacDocument',  type: 'file',   required: false, desc: 'CAC certificate or registration document (PDF or image)' },
+            ]}
+            response={`{
+  "success": true,
+  "customerId": "6643ab...",
+  "currentStep": 1,
+  "cacResult": {
+    "company_name": "Okeke Ventures Limited",
+    "rc_number": "RC1234567",
+    "registration_date": "2019-03-15",
+    "company_type": "Private Limited Company",
+    "status": "Active"
+  }
+}`} />
+
+          <Endpoint
+            method="POST" path="/v1/onboarding/sessions/:id/step/business-bureau"
+            desc="Pull business credit bureau report (FirstCentral)"
+            note="Run after the business step. Uses the CAC/RC number to query FirstCentral. Costs ₦700."
+            response={`{
+  "success": true,
+  "resultId": "6643cd...",
+  "noRecord": false,
+  "currentStep": 3
+}`} />
+
+          <Endpoint
+            method="POST" path="/v1/onboarding/sessions/:id/step/directors"
+            desc="Submit directors — BVN verification + bureau per director"
+            note="Send as multipart/form-data. directors field is a JSON array. Costs ₦75 BVN + ₦700 bureau per director."
+            body={[
+              { name: 'directors',  type: 'JSON array', required: true,  desc: 'Array of objects: [{ name, bvn }]. Minimum 1 director.' },
+              { name: 'idCards',    type: 'file[]',     required: false, desc: 'Optional ID card files, one per director in same order as the directors array.' },
+            ]}
+            response={`{
+  "success": true,
+  "currentStep": 4,
+  "results": [
+    {
+      "name": "Chukwuemeka Okafor",
+      "bvnStatus": "success",
+      "bureauStatus": "success",
+      "idCardKey": "onboarding/director-ids/director-0-id.pdf"
+    }
+  ]
+}`} />
+
+          <CodeBlock code={`# 1. Verify CAC and submit business info
+curl -X POST ${BASE}/v1/onboarding/sessions/SESSION_ID/step/business \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -F "businessName=Okeke Ventures Ltd" \\
+  -F "cacNumber=RC1234567" \\
+  -F "email=info@okeke.com" \\
+  -F "cacDocument=@/path/to/cert.pdf"
+
+# 2. Pull business bureau
+curl -X POST ${BASE}/v1/onboarding/sessions/SESSION_ID/step/business-bureau \\
+  -H "X-Api-Key: lcrd_your_api_key"
+
+# 3. Submit directors (JSON array + optional ID card files)
+curl -X POST ${BASE}/v1/onboarding/sessions/SESSION_ID/step/directors \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -F 'directors=[{"name":"Chukwuemeka Okafor","bvn":"22312345678"}]' \\
+  -F "idCards=@/path/to/director-id.pdf"`} />
+        </Section>
+
+        {/* Customer Onboarding */}
+        <Section title="Customer Onboarding" id="onboarding">
+          <p style={{ fontSize: 13, color: '#475569', marginBottom: 16 }}>
+            Run a full onboarding flow for a customer — individual or SME — programmatically via API.
+            Each session is resumable and tracks verification state across steps.
+            All verifications are billed at standard rates and logged in the audit trail.
+          </p>
+
+          <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 10, padding: '14px 16px', fontSize: 13, color: '#0369a1', marginBottom: 20 }}>
+            <strong>Tip — shareable link alternative:</strong> If you want customers to self-complete the form in a browser without any integration work, generate a shareable link from <strong>Settings → Customer Onboarding Link</strong>. This API is for server-to-server use where your system already holds the customer data.
+          </div>
+
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: '24px 0 12px' }}>Session lifecycle</h3>
+          <div style={{ fontSize: 13, color: '#475569', marginBottom: 20, lineHeight: 1.8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {[
+                ['Individual', 'Create session → personal → bureau → statement → complete'],
+                ['SME',        'Create session → business → statement → business-bureau → directors → financials* → guarantor* → complete'],
+              ].map(([type, flow]) => (
+                <div key={type} style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 14px', fontFamily: 'monospace', fontSize: 12 }}>
+                  <span style={{ fontWeight: 700, color: '#6d28d9', marginRight: 10 }}>{type}</span>{flow}
+                  {type === 'SME' && <span style={{ color: '#94a3b8', fontSize: 11 }}> (* optional)</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <Endpoint
+            method="POST" path="/v1/onboarding/sessions"
+            desc="Create a new onboarding session"
+            body={[
+              { name: 'type',       type: 'string', required: true,  desc: '"individual" or "sme"' },
+              { name: 'customerId', type: 'string', required: false, desc: 'Link session to an existing customer record' },
+            ]}
+            response={`{
+  "sessionId": "6643ab...",
+  "type": "individual",
+  "status": "in_progress",
+  "currentStep": 0,
+  "completedSteps": []
+}`} />
+
+          <Endpoint
+            method="GET" path="/v1/onboarding/sessions"
+            desc="List all onboarding sessions"
+            body={[
+              { name: 'type',   type: 'query', required: false, desc: '"individual" or "sme"' },
+              { name: 'status', type: 'query', required: false, desc: '"in_progress" or "complete"' },
+              { name: 'limit',  type: 'query', required: false, desc: 'Max results (default 50)' },
+              { name: 'skip',   type: 'query', required: false, desc: 'Pagination offset' },
+            ]}
+            response={`{ "total": 28, "sessions": [ { "sessionId": "...", "type": "sme", "status": "complete", ... } ] }`} />
+
+          <Endpoint
+            method="GET" path="/v1/onboarding/sessions/:id"
+            desc="Get full session data including all verification results"
+            response={`{
+  "sessionId": "6643ab...",
+  "type": "individual",
+  "status": "in_progress",
+  "currentStep": 2,
+  "completedSteps": [0, 1],
+  "customer": "6643cd...",
+  "data": { "personal": { "name": "Amaka Okafor", "bvn": "223...", ... } },
+  "verifications": {
+    "bvn":    { "status": "success", "resultId": "..." },
+    "nin":    { "status": "success", "resultId": "..." },
+    "bureau": { "status": "success", "resultId": "..." }
+  }
+}`} />
+
+          <Endpoint
+            method="GET" path="/v1/onboarding/sessions/:id/status"
+            desc="Poll verification statuses (BVN/NIN run in background)"
+            response={`{
+  "status": "in_progress",
+  "verifications": {
+    "bvn": { "status": "success", "resultId": "..." },
+    "nin": { "status": "running" }
+  }
+}`} />
+
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: '24px 0 8px' }}>Individual steps</h3>
+
+          <Endpoint
+            method="POST" path="/v1/onboarding/sessions/:id/step/personal"
+            desc="Submit personal info — triggers background BVN + NIN checks"
+            body={[
+              { name: 'name',    type: 'string', required: true,  desc: 'Full name' },
+              { name: 'phone',   type: 'string', required: true,  desc: 'Phone number' },
+              { name: 'email',   type: 'string', required: false, desc: 'Email address' },
+              { name: 'bvn',     type: 'string', required: false, desc: '11-digit BVN — triggers background BVN check (₦75)' },
+              { name: 'nin',     type: 'string', required: false, desc: '11-digit NIN — triggers background NIN check (₦100)' },
+              { name: 'address', type: 'string', required: false, desc: 'Home address' },
+            ]}
+            response={`{ "success": true, "customerId": "6643ab...", "sessionId": "...", "currentStep": 1 }`} />
+
+          <Endpoint
+            method="POST" path="/v1/onboarding/sessions/:id/step/bureau"
+            desc="Pull individual credit bureau from FirstCentral — costs ₦700"
+            note="Requires BVN to have been submitted in the personal step."
+            response={`{
+  "success": true,
+  "resultId": "6643cd...",
+  "currentStep": 2,
+  "summary": {
+    "name": "AMAKA OKAFOR",
+    "score": 680,
+    "totalAccounts": 3,
+    "delinquentAccounts": 0
+  }
+}`} />
+
+          <Endpoint
+            method="POST" path="/v1/onboarding/sessions/:id/step/statement"
+            desc="Upload & analyse bank statement — costs ₦500"
+            note="Send as multipart/form-data. Works for both individual and SME sessions."
+            body={[
+              { name: 'statement', type: 'file',   required: true,  desc: 'PDF, XLSX, CSV, or DOCX — max 10MB' },
+              { name: 'bankName',  type: 'string', required: false, desc: 'Bank name e.g. access, gtb, kuda' },
+              { name: 'password',  type: 'string', required: false, desc: 'PDF password if statement is encrypted' },
+            ]}
+            response={`{ "success": true, "resultId": "6643ef...", "currentStep": 3 }`} />
+
+          <Endpoint
+            method="POST" path="/v1/onboarding/sessions/:id/step/financials"
+            desc="Upload additional financial documents — SME only, optional"
+            note="Send as multipart/form-data. Up to 10 files."
+            body={[
+              { name: 'documents', type: 'file[]', required: false, desc: 'Management accounts, audited reports, etc. PDF, XLSX, DOCX.' },
+            ]}
+            response={`{ "success": true, "uploaded": 2, "currentStep": 5 }`} />
+
+          <Endpoint
+            method="POST" path="/v1/onboarding/sessions/:id/step/guarantor"
+            desc="Submit guarantor details — SME only, optional"
+            body={[
+              { name: 'name',         type: 'string', required: false, desc: 'Guarantor full name' },
+              { name: 'phone',        type: 'string', required: false, desc: 'Phone number' },
+              { name: 'email',        type: 'string', required: false, desc: 'Email address' },
+              { name: 'address',      type: 'string', required: false, desc: 'Address' },
+              { name: 'relationship', type: 'string', required: false, desc: 'e.g. "Business partner", "Director"' },
+            ]}
+            response={`{ "success": true, "currentStep": 6 }`} />
+
+          <Endpoint
+            method="POST" path="/v1/onboarding/sessions/:id/complete"
+            desc="Mark session complete — returns all verification result IDs"
+            response={`{
+  "success": true,
+  "sessionId": "6643ab...",
+  "customerId": "6643cd...",
+  "type": "individual",
+  "verifications": {
+    "bvn":    { "status": "success", "resultId": "..." },
+    "nin":    { "status": "success", "resultId": "..." },
+    "bureau": { "status": "success", "resultId": "..." },
+    "statement": { "status": "success", "resultId": "..." }
+  }
+}`} />
+
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: '24px 0 8px' }}>Full SME example</h3>
+          <CodeBlock code={`# Step 1 — create SME session
+curl -X POST ${BASE}/v1/onboarding/sessions \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -H "Content-Type: application/json" \\
+  -d '{"type":"sme"}'
+# → { "sessionId": "SESSION_ID", ... }
+
+# Step 2 — business info + CAC
+curl -X POST ${BASE}/v1/onboarding/sessions/SESSION_ID/step/business \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -F "businessName=Okeke Ventures Ltd" \\
+  -F "cacNumber=RC1234567"
+
+# Step 3 — bank statement
+curl -X POST ${BASE}/v1/onboarding/sessions/SESSION_ID/step/statement \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -F "statement=@statement.pdf" \\
+  -F "bankName=access"
+
+# Step 4 — business bureau
+curl -X POST ${BASE}/v1/onboarding/sessions/SESSION_ID/step/business-bureau \\
+  -H "X-Api-Key: lcrd_your_api_key"
+
+# Step 5 — directors
+curl -X POST ${BASE}/v1/onboarding/sessions/SESSION_ID/step/directors \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -F 'directors=[{"name":"Chukwuemeka Okafor","bvn":"22312345678"}]'
+
+# Step 6 — complete
+curl -X POST ${BASE}/v1/onboarding/sessions/SESSION_ID/complete \\
+  -H "X-Api-Key: lcrd_your_api_key"`} />
+        </Section>
+
+        {/* Webhooks */}
+        <Section title="Webhooks" id="webhooks">
+          <p style={{ fontSize: 13, color: '#475569', marginBottom: 16 }}>
+            Register a URL to receive real-time event notifications whenever a check completes, a customer is created,
+            or an onboarding session finishes. Lucred sends a <code>POST</code> request to your endpoint with a JSON payload.
+            Each delivery is logged and retryable from the dashboard.
+          </p>
+
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: '0 0 12px' }}>Managing webhooks</h3>
+
+          <Endpoint method="GET"    path="/api/webhooks"          desc="List all registered webhooks" />
+          <Endpoint method="POST"   path="/api/webhooks"          desc="Register a new webhook endpoint"
+            body={[
+              { name: 'url',    type: 'string',   required: true,  desc: 'HTTPS URL to receive events' },
+              { name: 'events', type: 'string[]', required: true,  desc: 'Event types to subscribe to (see list below)' },
+              { name: 'secret', type: 'string',   required: false, desc: 'Optional signing secret — included in X-Lucred-Signature header for verification' },
+            ]}
+            response={`{ "_id": "6643ab...", "url": "https://yourapp.com/hooks/lucred", "events": ["bvn.success"], "active": true }`} />
+          <Endpoint method="PATCH"  path="/api/webhooks/:id"      desc="Update URL, events, or active status"
+            body={[
+              { name: 'url',    type: 'string',   required: false, desc: 'New endpoint URL' },
+              { name: 'events', type: 'string[]', required: false, desc: 'Replace event subscriptions' },
+              { name: 'active', type: 'boolean',  required: false, desc: 'Pause (false) or resume (true) deliveries' },
+            ]} />
+          <Endpoint method="DELETE" path="/api/webhooks/:id"      desc="Delete a webhook" />
+          <Endpoint method="POST"   path="/api/webhooks/:id/test" desc="Send a test payload to verify your endpoint is reachable" />
+          <Endpoint method="GET"    path="/api/webhooks/deliveries"        desc="List recent deliveries across all webhooks" />
+          <Endpoint method="GET"    path="/api/webhooks/:id/deliveries"    desc="List deliveries for a specific webhook" />
+          <Endpoint method="POST"   path="/api/webhooks/:id/deliveries/:deliveryId/retry" desc="Retry a failed delivery" />
+
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: '20px 0 12px' }}>Event types</h3>
+          {[
+            ['bvn.success',           'BVN check completed successfully'],
+            ['bvn.failed',            'BVN check failed or returned an error'],
+            ['nin.success',           'NIN check completed successfully'],
+            ['nin.failed',            'NIN check failed'],
+            ['bureau.success',        'Credit bureau report retrieved'],
+            ['bureau.failed',         'Bureau check failed'],
+            ['statement.success',     'Bank statement analysed successfully'],
+            ['statement.failed',      'Statement analysis failed'],
+            ['customer.created',      'A new customer record was created'],
+            ['onboarding.complete',   'A customer completed the onboarding flow'],
+          ].map(([event, desc]) => (
+            <div key={event} style={{ display: 'flex', gap: 16, padding: '8px 0', borderBottom: '1px solid #f1f5f9', alignItems: 'baseline' }}>
+              <code style={{ fontSize: 12, fontWeight: 700, color: '#6d28d9', minWidth: 200 }}>{event}</code>
+              <span style={{ fontSize: 13, color: '#64748b' }}>{desc}</span>
+            </div>
+          ))}
+
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: '20px 0 12px' }}>Payload shape</h3>
+          <pre style={s.code}>{`{
+  "event": "bvn.success",
+  "timestamp": "2026-07-10T12:34:56Z",
+  "data": {
+    "resultId": "6643ab...",
+    "customerId": "6643cd...",
+    "bvn": "22312345678",
+    "firstName": "Amaka",
+    "lastName": "Okafor"
+  }
+}`}</pre>
+
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: '20px 0 8px' }}>Signature verification</h3>
+          <p style={{ fontSize: 13, color: '#475569', marginBottom: 12 }}>
+            If you set a <code>secret</code> when registering the webhook, every request includes an
+            <code> X-Lucred-Signature</code> header containing an HMAC-SHA256 of the raw request body.
+            Verify it to confirm the payload came from Lucred.
+          </p>
+          <CodeBlock code={`// Node.js example
+const crypto = require('crypto');
+
+function verifyWebhook(rawBody, signature, secret) {
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(rawBody)
+    .digest('hex');
+  return crypto.timingSafeEqual(
+    Buffer.from(expected),
+    Buffer.from(signature)
+  );
+}`} />
         </Section>
 
         {/* Errors */}

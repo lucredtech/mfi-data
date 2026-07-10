@@ -9,11 +9,15 @@ export default function Settings() {
   const [pwForm, setPwForm]   = useState({ current: '', next: '', confirm: '' });
   const [savingPw, setSavingPw] = useState(false);
   const [resending, setResending] = useState(false);
+  const [slug, setSlug]         = useState('');
+  const [slugSaving, setSlugSaving] = useState(false);
+  const [copied, setCopied]     = useState(false);
 
   useEffect(() => {
     api.get('/api/auth/me').then(({ data }) => {
       setProfile(data.client);
       setForm({ organizationName: data.client.organizationName || '', contactPerson: data.client.contactPerson || '', phone: data.client.phone || '' });
+      setSlug(data.client.onboardingSlug || '');
     }).catch(() => toast.error('Failed to load settings'));
   }, []);
 
@@ -40,6 +44,23 @@ export default function Settings() {
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to change password');
     } finally { setSavingPw(false); }
+  }
+
+  async function saveSlug() {
+    if (!slug.trim()) return;
+    setSlugSaving(true);
+    try {
+      const { data } = await api.patch('/api/settings/onboarding-slug', { slug: slug.trim() });
+      setSlug(data.onboardingSlug || data.slug);
+      toast.success('Onboarding link updated');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update link');
+    } finally { setSlugSaving(false); }
+  }
+
+  function copyLink() {
+    const link = `https://engine.lucred.co/onboard/${slug}`;
+    navigator.clipboard.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
   }
 
   async function resendVerification() {
@@ -115,6 +136,38 @@ export default function Settings() {
             {savingPw ? 'Changing…' : 'Change password'}
           </button>
         </form>
+      </div>
+
+      <div style={s.card}>
+        <h2 style={s.cardTitle}>Customer Onboarding Link</h2>
+        <p style={{ fontSize: 13, color: '#64748b', marginTop: 0, marginBottom: 16 }}>
+          Share this link with your customers so they can self-onboard. Their data will flow directly into your dashboard.
+        </p>
+        {slug && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, background: '#f0f9ff', border: '1.5px solid #bae6fd', borderRadius: 10, padding: '10px 14px' }}>
+            <span style={{ flex: 1, fontSize: 13, color: '#0369a1', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              https://engine.lucred.co/onboard/{slug}
+            </span>
+            <button onClick={copyLink} style={{ flexShrink: 0, padding: '6px 14px', border: 'none', borderRadius: 7, background: copied ? '#22c55e' : '#0ea5e9', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              {copied ? '✓ Copied!' : 'Copy'}
+            </button>
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div style={{ flex: 1 }}>
+            <label style={s.label}>Custom Slug</label>
+            <input
+              value={slug}
+              onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+              placeholder="e.g. acme-microfinance"
+              style={s.input}
+            />
+            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Lowercase letters, numbers, hyphens only. Changing this breaks existing shared links.</p>
+          </div>
+          <button onClick={saveSlug} disabled={slugSaving || !slug.trim()} style={{ ...s.btn, marginTop: 18, flexShrink: 0, opacity: slugSaving || !slug.trim() ? 0.6 : 1 }}>
+            {slugSaving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
       </div>
 
       <div style={{ ...s.card, border: '1px solid #fee2e2' }}>

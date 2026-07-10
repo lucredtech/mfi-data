@@ -41,4 +41,23 @@ async function getStatementUrl(key, expiresInSeconds = 3600) {
   return getSignedUrl(client, new GetObjectCommand({ Bucket: BUCKET, Key: key }), { expiresIn: expiresInSeconds });
 }
 
-module.exports = { uploadStatement, getStatementUrl };
+/**
+ * Upload a generic document to S3 (onboarding CAC docs, ID cards, financials, etc.)
+ * Returns the S3 key. Throws on failure.
+ */
+async function uploadDocument(buffer, { clientId, sessionToken, filename, mimetype, folder = 'onboarding' }) {
+  if (!BUCKET) throw new Error('AWS_S3_BUCKET env var not set');
+  const safe = (filename || 'doc').replace(/[^a-zA-Z0-9._-]/g, '_');
+  const key = `${folder}/${clientId}/${sessionToken}/${Date.now()}_${safe}`;
+
+  await client.send(new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    Body: buffer,
+    ContentType: mimetype || 'application/octet-stream',
+  }));
+
+  return key;
+}
+
+module.exports = { uploadStatement, getStatementUrl, uploadDocument };

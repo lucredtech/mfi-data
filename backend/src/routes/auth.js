@@ -103,9 +103,14 @@ router.post('/register', async (req, res) => {
     }
 
     const referralCode = crypto.randomBytes(4).toString('hex').toUpperCase();
+    // Generate onboarding slug from org name
+    const slugBase = organizationName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const slugSuffix = crypto.randomBytes(2).toString('hex');
+    const onboardingSlug = `${slugBase}-${slugSuffix}`;
+
     const client = await MFIClient.create({
       organizationName, email, password, contactPerson, phone,
-      referralCode,
+      referralCode, onboardingSlug,
       ...(referrer ? { referredBy: referrer._id } : {}),
     });
 
@@ -298,6 +303,22 @@ router.post('/resend-verification', requireJWT, async (req, res) => {
     res.json({ message: 'Verification email sent.' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to resend verification email' });
+  }
+});
+
+// Update onboarding slug
+router.patch('/settings/onboarding-slug', requireJWT, async (req, res) => {
+  try {
+    const { slug } = req.body;
+    if (!slug) return res.status(400).json({ error: 'slug is required' });
+    const normalized = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-|-$/g, '');
+    if (normalized.length < 3) return res.status(400).json({ error: 'Slug must be at least 3 characters' });
+    const existing = await MFIClient.findOne({ onboardingSlug: normalized, _id: { $ne: req.client.id } });
+    if (existing) return res.status(409).json({ error: 'That slug is already taken. Try a different one.' });
+    const updated = await MFIClient.findByIdAndUpdate(req.client.id, { onboardingSlug: normalized }, { new: true }).select('onboardingSlug').lean();
+    res.json({ onboardingSlug: updated.onboardingSlug });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update slug' });
   }
 });
 
