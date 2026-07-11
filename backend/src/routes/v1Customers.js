@@ -320,7 +320,7 @@ router.post('/:id/verify-cac', logUsage('/v1/customers/verify-cac'), upload.sing
 
     let cacResult;
     try {
-      const { data } = await dojahApi.get('/api/v1/kyc/cac/advance', { params: { rc_number: cacNumber, company_type: companyType } });
+      const { data } = await dojahApi.get('/api/v1/kyc/cac/basic', { params: { rc_number: cacNumber, company_type: companyType } });
       cacResult = data.entity || data;
     } catch (err) {
       if (!cacCharge.freeQuota) refundCharge(req.client.id, 'CAC_CHECK', { customerName: customer.name, customerId: customer._id }).catch(() => {});

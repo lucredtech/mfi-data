@@ -353,7 +353,11 @@ router.post(
 );
 
 // ── POST .../step/business ── SME only ────────────────────────────────────────
-router.post('/sessions/:id/step/business', requireApiKey, upload.single('cacDocument'), async (req, res) => {
+router.post('/sessions/:id/step/business', requireApiKey, upload.fields([
+  { name: 'cacDocument', maxCount: 1 },
+  { name: 'memartDocument', maxCount: 1 },
+  { name: 'statusReport', maxCount: 1 },
+]), async (req, res) => {
   try {
     const session = await getSession(req.client.id, req.params.id);
     if (!session) return res.status(404).json({ error: 'Session not found' });
@@ -382,7 +386,7 @@ router.post('/sessions/:id/step/business', requireApiKey, upload.single('cacDocu
 
     let cacResult = null;
     try {
-      const { data } = await dojahApi.get('/api/v1/kyc/cac/advance', { params: { rc_number: cacNumber, company_type: companyType } });
+      const { data } = await dojahApi.get('/api/v1/kyc/cac/basic', { params: { rc_number: cacNumber, company_type: companyType } });
       cacResult = data.entity || data;
     } catch (err) {
       if (!cacCharge.freeQuota) refundCharge(req.client.id, 'CAC_CHECK', { customerName: businessName, customerId: customer._id }).catch(() => {});
@@ -404,21 +408,43 @@ router.post('/sessions/:id/step/business', requireApiKey, upload.single('cacDocu
       tinResult = { error: tinCharge.error, failed: true };
     }
 
-    // CAC document upload
+    const files = req.files || {};
+
+    // Upload CAC document
     let cacDocKey = null;
-    if (req.file) {
-      cacDocKey = await uploadDocument(req.file.buffer, {
+    if (files.cacDocument?.[0]) {
+      const f = files.cacDocument[0];
+      cacDocKey = await uploadDocument(f.buffer, {
         clientId: req.client.id, sessionToken: session._id.toString(),
-        filename: req.file.originalname, mimetype: req.file.mimetype,
-        folder: 'onboarding/cac-docs',
+        filename: f.originalname, mimetype: f.mimetype, folder: 'onboarding/cac-docs',
       }).catch(err => { console.error('[s3] cac doc upload failed:', err.message); return null; });
+    }
+
+    // Upload Memart
+    let memartKey = null;
+    if (files.memartDocument?.[0]) {
+      const f = files.memartDocument[0];
+      memartKey = await uploadDocument(f.buffer, {
+        clientId: req.client.id, sessionToken: session._id.toString(),
+        filename: f.originalname, mimetype: f.mimetype, folder: 'onboarding/memart-docs',
+      }).catch(err => { console.error('[s3] memart upload failed:', err.message); return null; });
+    }
+
+    // Upload Status Report
+    let statusReportKey = null;
+    if (files.statusReport?.[0]) {
+      const f = files.statusReport[0];
+      statusReportKey = await uploadDocument(f.buffer, {
+        clientId: req.client.id, sessionToken: session._id.toString(),
+        filename: f.originalname, mimetype: f.mimetype, folder: 'onboarding/status-reports',
+      }).catch(err => { console.error('[s3] status report upload failed:', err.message); return null; });
     }
 
     customer.businessDetails = {
       ...customer.businessDetails,
       cacNumber, companyType,
       cacVerified: !cacResult?.failed,
-      cacResult, cacDocKey,
+      cacResult, cacDocKey, memartKey, statusReportKey,
       tinVerified: !tinResult?.failed,
       tinNumber: tinResult?.tax_id || tinResult?.taxId || null,
       tinResult,
@@ -426,7 +452,7 @@ router.post('/sessions/:id/step/business', requireApiKey, upload.single('cacDocu
     await customer.save();
 
     session.customer = customer._id;
-    session.data = { ...session.data, business: { businessName, email, phone, cacNumber, companyType, cacDocKey } };
+    session.data = { ...session.data, business: { businessName, email, phone, cacNumber, companyType, cacDocKey, memartKey, statusReportKey } };
     session.verifications = {
       ...session.verifications,
       cac: { status: cacResult?.failed ? 'failed' : 'success', data: cacResult },

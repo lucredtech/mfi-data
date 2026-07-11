@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 const SECTIONS = [
   { id: 'auth',             label: 'Authentication' },
+  { id: 'pricing',         label: 'Pricing' },
   { id: 'bvn',             label: 'BVN Verification' },
   { id: 'nin',             label: 'NIN Verification' },
   { id: 'bureau',          label: 'Credit Bureau' },
@@ -136,6 +137,45 @@ export default function Docs() {
   -H "X-Api-Key: lcrd_your_api_key_here"`} />
           <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '12px 16px', fontSize: 13, color: '#15803d' }}>
             <strong>Test mode:</strong> Create a key with mode <code>test</code> in the dashboard. All calls with a test key return mock data and are <strong>never charged</strong>.
+          </div>
+        </Section>
+
+        {/* Pricing */}
+        <Section title="Pricing" id="pricing">
+          <p style={{ fontSize: 13, color: '#475569', marginBottom: 20 }}>
+            Charges are deducted from your wallet per successful API call. The first 3 BVN, NIN, and statement checks per month are free. Bureau and business verification checks are always charged.
+          </p>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#f8fafc' }}>
+                  {['Check', 'Upstream Cost', 'Lucred Engine Price', 'Free Quota'].map(h => (
+                    <th key={h} style={{ textAlign: 'left', padding: '10px 14px', fontWeight: 700, color: '#0f172a', borderBottom: '2px solid #e2e8f0' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { check: 'BVN Verification',              upstream: '₦50',  price: '₦75',  quota: '3 / month' },
+                  { check: 'NIN Verification',              upstream: '₦70',  price: '₦100', quota: '3 / month' },
+                  { check: 'Individual Credit Bureau',      upstream: '₦500', price: '₦700', quota: '—' },
+                  { check: 'Bank Statement Analysis',       upstream: '₦350', price: '₦500', quota: '3 / month' },
+                  { check: 'CAC Verification (Basic)',    upstream: '₦130', price: '₦175', quota: '—' },
+                  { check: 'TIN Verification',              upstream: '₦70',  price: '₦100', quota: '—' },
+                  { check: 'Business Credit Bureau',        upstream: '₦500', price: '₦700', quota: '—' },
+                ].map(({ check, upstream, price, quota }) => (
+                  <tr key={check} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '10px 14px', color: '#0f172a', fontWeight: 500 }}>{check}</td>
+                    <td style={{ padding: '10px 14px', color: '#64748b' }}>{upstream}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 700, color: '#0ea5e9' }}>{price}</td>
+                    <td style={{ padding: '10px 14px', color: quota === '—' ? '#94a3b8' : '#16a34a', fontWeight: quota === '—' ? 400 : 600 }}>{quota}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '12px 16px', fontSize: 13, color: '#0369a1', marginTop: 16 }}>
+            Custom volume rates are available for high-usage clients. Contact your account manager or email <strong>support@lucred.co</strong>.
           </div>
         </Section>
 
@@ -351,7 +391,7 @@ curl -X POST ${BASE}/v1/customers \\
   -d '{"name":"Okeke Ventures Ltd","phone":"08031234567","customerType":"business"}'
 # → { "customer": { "_id": "CUSTOMER_ID", ... } }
 
-# 2. Verify CAC (Advance) + TIN — both run in one call
+# 2. Verify CAC (Basic) + TIN — both run in one call
 curl -X POST ${BASE}/v1/customers/CUSTOMER_ID/verify-cac \\
   -H "X-Api-Key: lcrd_your_api_key" \\
   -F "cacNumber=RC1234567" \\
@@ -512,13 +552,15 @@ curl -X POST ${BASE}/v1/customers/statement/rerun/RESULT_ID \\
 
           <Endpoint
             method="POST" path="/v1/customers/:id/verify-cac"
-            desc="Verify CAC registration via Dojah CAC Advance — also runs TIN lookup automatically"
-            note="Send as multipart/form-data. Customer must have customerType: business. Both CAC and TIN results are stored on the customer record."
+            desc="Verify CAC registration via Dojah CAC Basic — also runs TIN lookup automatically"
+            note="Send as multipart/form-data. Customer must have customerType: business. Costs ₦175 (CAC) + ₦100 (TIN). Both results are stored on the customer record."
             body={[
               { name: 'cacNumber',    type: 'string', required: true,  desc: 'CAC / RC number e.g. RC1234567' },
               { name: 'companyType',  type: 'string', required: true,  desc: 'One of: BUSINESS_NAME | COMPANY | INCORPORATED_TRUSTEES | LIMITED_PARTNERSHIP | LIMITED_LIABILITY_PARTNERSHIP' },
               { name: 'businessName', type: 'string', required: false, desc: 'Update the customer name at the same time' },
               { name: 'cacDocument',  type: 'file',   required: false, desc: 'CAC certificate or registration document (PDF or image)' },
+              { name: 'memartDocument', type: 'file', required: false, desc: 'Memorandum & Articles of Association (PDF or image)' },
+              { name: 'statusReport',   type: 'file', required: false, desc: 'CAC Status Report (PDF or image)' },
             ]}
             response={`{
   "success": true,
@@ -542,7 +584,7 @@ curl -X POST ${BASE}/v1/customers/statement/rerun/RESULT_ID \\
           <Endpoint
             method="POST" path="/v1/customers/:id/verify-tin"
             desc="Re-run TIN verification independently without re-doing full CAC check"
-            note="Uses the cacNumber already on the customer record. Specify companyType if not already set."
+            note="Uses the cacNumber already on the customer record. Costs ₦100. Specify companyType if not already set."
             body={[
               { name: 'cacNumber',   type: 'string', required: false, desc: 'RC number — defaults to the value already on the customer record' },
               { name: 'companyType', type: 'string', required: false, desc: 'Company type — defaults to COMPANY if not stored on the record' },
@@ -610,15 +652,17 @@ curl -X POST ${BASE}/v1/customers/statement/rerun/RESULT_ID \\
 
           <Endpoint
             method="POST" path="/v1/onboarding/sessions/:id/step/business"
-            desc="Submit business info, verify CAC (Advance), and look up TIN — all in one call"
-            note="Send as multipart/form-data. Requires an SME onboarding session. CAC Advance and TIN run automatically; both results are stored on the session and customer record."
+            desc="Submit business info, verify CAC (Basic), and look up TIN — all in one call"
+            note="Send as multipart/form-data. Requires an SME onboarding session. Costs ₦175 (CAC) + ₦100 (TIN). All results stored on the session and customer record."
             body={[
-              { name: 'businessName', type: 'string', required: true,  desc: 'Registered business name' },
-              { name: 'cacNumber',    type: 'string', required: true,  desc: 'CAC RC number e.g. RC1234567' },
-              { name: 'companyType',  type: 'string', required: true,  desc: 'One of: BUSINESS_NAME | COMPANY | INCORPORATED_TRUSTEES | LIMITED_PARTNERSHIP | LIMITED_LIABILITY_PARTNERSHIP' },
-              { name: 'email',        type: 'string', required: false, desc: 'Business email address' },
-              { name: 'phone',        type: 'string', required: false, desc: 'Business phone number' },
-              { name: 'cacDocument',  type: 'file',   required: false, desc: 'CAC certificate or registration document (PDF or image)' },
+              { name: 'businessName',   type: 'string', required: true,  desc: 'Registered business name' },
+              { name: 'cacNumber',      type: 'string', required: true,  desc: 'CAC RC number e.g. RC1234567' },
+              { name: 'companyType',    type: 'string', required: true,  desc: 'One of: BUSINESS_NAME | COMPANY | INCORPORATED_TRUSTEES | LIMITED_PARTNERSHIP | LIMITED_LIABILITY_PARTNERSHIP' },
+              { name: 'email',          type: 'string', required: false, desc: 'Business email address' },
+              { name: 'phone',          type: 'string', required: false, desc: 'Business phone number' },
+              { name: 'cacDocument',    type: 'file',   required: false, desc: 'CAC certificate or registration document (PDF or image)' },
+              { name: 'memartDocument', type: 'file',   required: false, desc: 'Memorandum & Articles of Association (PDF or image)' },
+              { name: 'statusReport',   type: 'file',   required: false, desc: 'CAC Status Report (PDF or image)' },
             ]}
             response={`{
   "success": true,
@@ -689,7 +733,7 @@ curl -X POST ${BASE}/v1/customers/statement/rerun/RESULT_ID \\
   ]
 }`} />
 
-          <CodeBlock code={`# 1. Verify CAC (Advance) + TIN and submit business info
+          <CodeBlock code={`# 1. Verify CAC (Basic) + TIN and submit business info
 curl -X POST ${BASE}/v1/onboarding/sessions/SESSION_ID/step/business \\
   -H "X-Api-Key: lcrd_your_api_key" \\
   -F "businessName=Okeke Ventures Ltd" \\
@@ -878,7 +922,7 @@ curl -X POST ${BASE}/v1/onboarding/sessions \\
   -d '{"type":"sme"}'
 # → { "sessionId": "SESSION_ID", ... }
 
-# Step 2 — business info + CAC (Advance) + TIN
+# Step 2 — business info + CAC (Basic) + TIN
 curl -X POST ${BASE}/v1/onboarding/sessions/SESSION_ID/step/business \\
   -H "X-Api-Key: lcrd_your_api_key" \\
   -F "businessName=Okeke Ventures Ltd" \\

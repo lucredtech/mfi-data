@@ -14,6 +14,7 @@ const CustomerNote = require('../models/CustomerNote');
 const AuditLog = require('../models/AuditLog');
 const LoanReview = require('../models/LoanReview');
 const Scorecard = require('../models/Scorecard');
+const { getStatementUrl } = require('../utils/s3');
 const { smsBorrowerDecision } = require('../utils/sms');
 const { notify } = require('../utils/notify');
 const { sendStaffLoanReviewAlert, sendStaffStatusChangeAlert } = require('../utils/mailer');
@@ -284,6 +285,33 @@ router.delete('/:id', requireWriteAccess, async (req, res) => {
   } catch (err) {
     console.error("[route] unhandled error:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ── GET /:id/doc-url — generate signed S3 URL for a business document ─────────
+router.get('/:id/doc-url', async (req, res) => {
+  try {
+    const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id }).lean();
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+
+    const { key } = req.query;
+    if (!key) return res.status(400).json({ error: 'key is required' });
+
+    // Only allow keys that belong to this client
+    const allowed = [
+      customer.businessDetails?.cacDocKey,
+      customer.businessDetails?.memartKey,
+      customer.businessDetails?.statusReportKey,
+      ...(customer.directors || []).map(d => d.idCardKey),
+      ...(customer.financials || []).map(f => f.s3Key),
+    ].filter(Boolean);
+
+    if (!allowed.includes(key)) return res.status(403).json({ error: 'Access denied' });
+
+    const url = await getStatementUrl(key, 3600);
+    res.json({ url });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

@@ -11,7 +11,8 @@ import { useAuth } from '../context/AuthContext';
 
 function authHeaders() { return { Authorization: `Bearer ${localStorage.getItem('token')}` }; }
 
-const TABS = ['Overview', 'Timeline', 'Statement Analysis', 'BVN Verification', 'NIN Verification', 'Credit Bureau', 'Scorecard', 'Loan Review'];
+const TABS_INDIVIDUAL = ['Overview', 'Timeline', 'Statement Analysis', 'BVN Verification', 'NIN Verification', 'Credit Bureau', 'Scorecard', 'Loan Review'];
+const TABS_BUSINESS   = ['Overview', 'Business KYC', 'Timeline', 'Statement Analysis', 'Credit Bureau', 'Scorecard', 'Loan Review'];
 
 // Returns true if the statement's period end date (or analysis date) is older than 90 days
 function isStaleStatement(statement) {
@@ -121,6 +122,8 @@ export default function CustomerDetail() {
 
   const isWatchlisted = latestBVN?.result?.watchListed === true || latestNIN?.result?.watchListed === true;
   const currentStatus = customerStatus ?? customer.status ?? 'applied';
+  const isBusiness = customer.customerType === 'business';
+  const TABS = isBusiness ? TABS_BUSINESS : TABS_INDIVIDUAL;
 
   async function deleteCustomer() {
     if (!confirm(`Permanently delete ${customer.name} and all their records? This cannot be undone.`)) return;
@@ -194,11 +197,20 @@ export default function CustomerDetail() {
         <div style={s.headerInfo}>
           <h1 style={s.name}>{customer.name}</h1>
           <div style={s.chips}>
+            <span style={{ ...s.chip, background: isBusiness ? '#fef3c7' : '#f0f9ff', color: isBusiness ? '#d97706' : '#0ea5e9', fontWeight: 700 }}>
+              {isBusiness ? '🏢 SME' : '👤 Individual'}
+            </span>
             {customer.email && <span style={s.chip}>{customer.email}</span>}
             {customer.phone && <span style={s.chip}>{customer.phone}</span>}
             {customer.address && <span style={s.chip}>{customer.address}</span>}
-            {customer.bvn && <span style={{ ...s.chip, background: '#dcfce7', color: '#16a34a' }}>BVN ••••{customer.bvn.slice(-4)}</span>}
-            {customer.nin && <span style={{ ...s.chip, background: '#ede9fe', color: '#6d28d9' }}>NIN ••••{customer.nin.slice(-4)}</span>}
+            {isBusiness && customer.businessDetails?.cacNumber && (
+              <span style={{ ...s.chip, background: '#dcfce7', color: '#16a34a' }}>RC {customer.businessDetails.cacNumber}</span>
+            )}
+            {isBusiness && customer.businessDetails?.companyType && (
+              <span style={s.chip}>{customer.businessDetails.companyType.replace(/_/g, ' ')}</span>
+            )}
+            {!isBusiness && customer.bvn && <span style={{ ...s.chip, background: '#dcfce7', color: '#16a34a' }}>BVN ••••{customer.bvn.slice(-4)}</span>}
+            {!isBusiness && customer.nin && <span style={{ ...s.chip, background: '#ede9fe', color: '#6d28d9' }}>NIN ••••{customer.nin.slice(-4)}</span>}
           </div>
         </div>
 
@@ -232,9 +244,18 @@ export default function CustomerDetail() {
             </div>
           )}
           <div style={s.statPill}>{(statements || []).length} Statements</div>
-          <div style={s.statPill}>{(bvnResults || []).length} BVN</div>
-          <div style={s.statPill}>{(ninResults || []).length} NIN</div>
-          <div style={s.statPill}>{(bureauResults || []).length} Bureau</div>
+          {isBusiness ? (
+            <>
+              <div style={s.statPill}>{(customer.directors || []).length} Directors</div>
+              <div style={s.statPill}>{(bureauResults || []).length} Bureau</div>
+            </>
+          ) : (
+            <>
+              <div style={s.statPill}>{(bvnResults || []).length} BVN</div>
+              <div style={s.statPill}>{(ninResults || []).length} NIN</div>
+              <div style={s.statPill}>{(bureauResults || []).length} Bureau</div>
+            </>
+          )}
           <button
             onClick={() => exportCustomerReportPDF({ customer, bvnResults, ninResults, bureauResults, statements, loanReviews })}
             style={{ background: '#0f172a', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -257,6 +278,7 @@ export default function CustomerDetail() {
 
       <div>
         {tab === 'Overview' && <OverviewTab customer={customer} statements={statements || []} bvnResults={bvnResults || []} ninResults={ninResults || []} bureauResults={bureauResults || []} discrepancies={discrepancies} setTab={setTab} customerId={id} />}
+        {tab === 'Business KYC' && <BusinessKYCTab customer={customer} customerId={id} />}
         {tab === 'Timeline' && <TimelineTab customer={customer} statements={statements || []} bvnResults={bvnResults || []} ninResults={ninResults || []} bureauResults={bureauResults || []} loanReviews={loanReviews} setTab={setTab} />}
         {tab === 'Statement Analysis' && <StatementTab customer={customer} statements={statements || []} onRefresh={load} />}
         {tab === 'BVN Verification' && <BVNTab customer={customer} bvnResults={bvnResults || []} onRefresh={load} />}
@@ -2705,6 +2727,175 @@ function VerificationResultCard({ result, accentColor, photoKey, fields, verifie
   );
 }
 
+// ── Business KYC Tab ─────────────────────────────────────────────────────────
+function BusinessKYCTab({ customer, customerId }) {
+  const bd = customer.businessDetails || {};
+
+  async function openDoc(key) {
+    try {
+      const { data } = await axios.get(`${API}/api/customers/${customerId}/doc-url?key=${encodeURIComponent(key)}`, { headers: authHeaders() });
+      window.open(data.url, '_blank');
+    } catch {
+      toast.error('Could not load document. Please try again.');
+    }
+  }
+
+  function DocButton({ label, docKey }) {
+    if (!docKey) return <span style={{ fontSize: 12, color: '#94a3b8' }}>Not uploaded</span>;
+    const filename = docKey.split('/').pop();
+    return (
+      <button onClick={() => openDoc(docKey)} style={s.docBtn}>
+        📄 {label} <span style={{ color: '#94a3b8', fontWeight: 400 }}>({filename})</span>
+      </button>
+    );
+  }
+
+  function Field({ label, value }) {
+    return (
+      <div style={s.infoCell}>
+        <div style={s.infoLabel}>{label}</div>
+        <div style={s.infoValue}>{value || <span style={{ color: '#94a3b8' }}>—</span>}</div>
+      </div>
+    );
+  }
+
+  function VerBadge({ verified }) {
+    return (
+      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20, background: verified ? '#dcfce7' : '#f1f5f9', color: verified ? '#16a34a' : '#94a3b8' }}>
+        {verified ? '✓ Verified' : 'Not verified'}
+      </span>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* CAC Registration */}
+      <div style={s.card}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={s.cardTitle}>CAC Registration</div>
+          <VerBadge verified={bd.cacVerified} />
+        </div>
+        <div style={s.infoGrid}>
+          <Field label="Company Name"      value={bd.cacResult?.company_name} />
+          <Field label="RC Number"         value={bd.cacNumber} />
+          <Field label="Company Type"      value={bd.companyType?.replace(/_/g, ' ')} />
+          <Field label="Status"            value={bd.cacResult?.status} />
+          <Field label="State"             value={bd.cacResult?.state} />
+          <Field label="City"              value={bd.cacResult?.city} />
+          <Field label="LGA"               value={bd.cacResult?.lga} />
+          <Field label="Email"             value={bd.cacResult?.email} />
+        </div>
+        {bd.cacResult?.address && (
+          <div style={{ ...s.infoCell, marginTop: 10 }}>
+            <div style={s.infoLabel}>Registered Address</div>
+            <div style={s.infoValue}>{bd.cacResult.address}</div>
+          </div>
+        )}
+        {bd.cacResult?.error && (
+          <div style={{ background: '#fee2e2', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#dc2626', marginTop: 12 }}>
+            CAC lookup failed: {bd.cacResult.error}
+          </div>
+        )}
+      </div>
+
+      {/* TIN */}
+      <div style={s.card}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={s.cardTitle}>Tax Identification (TIN)</div>
+          <VerBadge verified={bd.tinVerified} />
+        </div>
+        <div style={s.infoGrid}>
+          <Field label="TIN"          value={bd.tinNumber} />
+          <Field label="Company Name" value={bd.tinResult?.company_name} />
+          <Field label="Company Type" value={bd.tinResult?.company_type?.replace(/_/g, ' ')} />
+          <Field label="RC Number"    value={bd.tinResult?.rc_number} />
+        </div>
+        {bd.tinResult?.error && (
+          <div style={{ background: '#fee2e2', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#dc2626', marginTop: 12 }}>
+            TIN lookup failed: {bd.tinResult.error}
+          </div>
+        )}
+      </div>
+
+      {/* Documents */}
+      <div style={s.card}>
+        <div style={s.cardTitle}>Uploaded Documents</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {[
+            { label: 'CAC Certificate',                   key: bd.cacDocKey },
+            { label: 'Memart (Memorandum & Articles)',    key: bd.memartKey },
+            { label: 'CAC Status Report',                 key: bd.statusReportKey },
+          ].map(({ label, key }) => (
+            <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{label}</span>
+              <DocButton label={label} docKey={key} />
+            </div>
+          ))}
+          {(customer.financials || []).length > 0 && (
+            <div style={{ paddingTop: 4 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Financial Documents</div>
+              {customer.financials.map((f, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ fontSize: 13, color: '#334155' }}>{f.filename || `Document ${i + 1}`}</span>
+                  <DocButton label={f.filename || `Document ${i + 1}`} docKey={f.s3Key} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Directors */}
+      {(customer.directors || []).length > 0 && (
+        <div style={s.card}>
+          <div style={s.cardTitle}>Directors / Proprietors</div>
+          <table style={s.table}>
+            <thead>
+              <tr>
+                {['Name', 'BVN', 'BVN Status', 'Bureau Status', 'ID Card'].map(h => <th key={h} style={s.th}>{h}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {customer.directors.map((d, i) => (
+                <tr key={i}>
+                  <td style={s.td}>{d.name}</td>
+                  <td style={s.td}><code style={{ fontSize: 12, color: '#64748b' }}>{d.bvn ? `••••${d.bvn.slice(-4)}` : '—'}</code></td>
+                  <td style={s.td}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: d.bvnStatus === 'success' ? '#dcfce7' : d.bvnStatus === 'failed' ? '#fee2e2' : '#f1f5f9', color: d.bvnStatus === 'success' ? '#16a34a' : d.bvnStatus === 'failed' ? '#dc2626' : '#94a3b8' }}>
+                      {d.bvnStatus || '—'}
+                    </span>
+                  </td>
+                  <td style={s.td}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: d.bureauStatus === 'success' ? '#dcfce7' : d.bureauStatus === 'failed' ? '#fee2e2' : '#f1f5f9', color: d.bureauStatus === 'success' ? '#16a34a' : d.bureauStatus === 'failed' ? '#dc2626' : '#94a3b8' }}>
+                      {d.bureauStatus || '—'}
+                    </span>
+                  </td>
+                  <td style={s.td}><DocButton label="ID Card" docKey={d.idCardKey} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Guarantor */}
+      {customer.guarantor?.name && (
+        <div style={s.card}>
+          <div style={s.cardTitle}>Guarantor</div>
+          <div style={s.infoGrid}>
+            <Field label="Name"         value={customer.guarantor.name} />
+            <Field label="Relationship" value={customer.guarantor.relationship} />
+            <Field label="Phone"        value={customer.guarantor.phone} />
+            <Field label="Email"        value={customer.guarantor.email} />
+            <Field label="Address"      value={customer.guarantor.address} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatusBadge({ status }) {
   return (
     <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20, background: status === 'success' ? '#dcfce7' : '#fee2e2', color: status === 'success' ? '#16a34a' : '#dc2626', flexShrink: 0 }}>
@@ -2737,6 +2928,8 @@ const s = {
   tabActive: { color: '#0ea5e9', borderBottomColor: '#0ea5e9' },
   summaryGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 20 },
   summaryCard: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '1.25rem' },
+  businessKycGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
+  docBtn: { display: 'inline-flex', alignItems: 'center', gap: 6, background: '#f0f9ff', border: '1px solid #bae6fd', color: '#0369a1', borderRadius: 7, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', textDecoration: 'none' },
   summaryLabel: { fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
   summaryValue: { fontSize: 28, fontWeight: 800, lineHeight: 1, marginBottom: 4 },
   summarySub: { fontSize: 12, color: '#94a3b8' },

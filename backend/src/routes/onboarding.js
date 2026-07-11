@@ -412,7 +412,7 @@ router.post('/:slug/session/:token/step/business', upload.fields([
 
     let cacResult = null;
     try {
-      const { data } = await dojahApi.get('/api/v1/kyc/cac/advance', { params: { rc_number: cacNumber, company_type: companyType } });
+      const { data } = await dojahApi.get('/api/v1/kyc/cac/basic', { params: { rc_number: cacNumber, company_type: companyType } });
       cacResult = data.entity || data;
     } catch (err) {
       if (!cacCharge.freeQuota) refundCharge(client._id, 'CAC_CHECK', { customerName: businessName }).catch(() => {});

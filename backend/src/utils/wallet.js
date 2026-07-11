@@ -11,7 +11,7 @@ const RATES = {
   NIN_CHECK:          100,
   BUREAU_CHECK:       700,
   STATEMENT_ANALYSIS: 500,
-  CAC_CHECK:          150,
+  CAC_CHECK:          175,
   TIN_CHECK:          100,
 };
 

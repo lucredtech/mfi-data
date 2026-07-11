@@ -105,11 +105,19 @@ export default function Billing() {
       {/* Rates */}
       <div style={{ ...s.card, marginBottom: 24 }}>
         <div style={s.cardLabel}>Analysis Rates (per check)</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 8 }}>
-          {[['BVN check','₦75'],['NIN check','₦100'],['Bureau check','₦700'],['Statement analysis','₦500']].map(([label, price]) => (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 8 }}>
+          {[
+            ['BVN check',            '₦75',  true],
+            ['NIN check',            '₦100', true],
+            ['Credit bureau',        '₦700', false],
+            ['Statement analysis',   '₦500', true],
+            ['CAC verification',     '₦175', false],
+            ['TIN verification',     '₦100', false],
+          ].map(([label, price, hasQuota]) => (
             <div key={label} style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{label}</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{price}</div>
+              {hasQuota && <div style={{ fontSize: 10, color: '#0ea5e9', fontWeight: 600, marginTop: 2 }}>3 free/month</div>}
             </div>
           ))}
         </div>
