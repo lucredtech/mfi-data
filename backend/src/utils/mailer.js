@@ -419,4 +419,55 @@ async function sendNewSignupAlert({ organizationName, email, contactPerson, phon
   });
 }
 
-module.exports = { sendPasswordReset, sendWelcome, sendLoanDecision, sendPlanLimitWarning, sendVerificationEmail, sendTeamInvite, sendStaffLoanReviewAlert, sendStaffStatusChangeAlert, sendLowBalanceAlert, sendMonthlySummary, sendTopupConfirmation, sendApprovalNotification, sendSLARequest, sendNewSignupAlert };
+async function sendOnboardingCompleteToClient(to, { organizationName, customerName, customerType, dashboardUrl }) {
+  const typeLabel = customerType === 'business' ? 'Business (SME)' : 'Individual';
+  await sendMail({
+    to,
+    subject: `New onboarding complete — ${customerName}`,
+    html: `
+      <div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:12px">
+        <div style="font-size:22px;font-weight:800;color:#0ea5e9;margin-bottom:8px">Lucred Credit Engine</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:28px">${organizationName}</div>
+        <h2 style="font-size:18px;color:#0f172a;margin:0 0 12px">A customer just completed onboarding</h2>
+        <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:20px 24px;margin-bottom:24px">
+          <div style="font-size:13px;color:#64748b;margin-bottom:4px">Customer name</div>
+          <div style="font-size:16px;font-weight:700;color:#0f172a;margin-bottom:12px">${customerName}</div>
+          <div style="font-size:13px;color:#64748b;margin-bottom:4px">Customer type</div>
+          <div style="font-size:14px;font-weight:600;color:#0ea5e9">${typeLabel}</div>
+        </div>
+        <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 24px">
+          Their profile is ready for review. You can run a scorecard, pull bureau data, or initiate a loan review from the dashboard.
+        </p>
+        <a href="${dashboardUrl}" style="display:inline-block;background:#0ea5e9;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:14px">View Customer Profile →</a>
+        <p style="color:#94a3b8;font-size:12px;margin-top:28px">Sent by Lucred Credit Engine on behalf of ${organizationName}.</p>
+      </div>
+    `,
+  });
+}
+
+async function sendOnboardingCompleteToCustomer(to, { customerName, organizationName }) {
+  await sendMail({
+    to,
+    subject: `Your application has been received — ${organizationName}`,
+    html: `
+      <div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:12px">
+        <div style="font-size:22px;font-weight:800;color:#0ea5e9;margin-bottom:8px">Lucred Credit Engine</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:28px">Powered by ${organizationName}</div>
+        <h2 style="font-size:18px;color:#0f172a;margin:0 0 12px">Hi ${customerName},</h2>
+        <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 20px">
+          Thank you for completing your onboarding. Your application has been received by <strong>${organizationName}</strong> and is currently under review.
+        </p>
+        <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:16px 20px;margin-bottom:24px">
+          <div style="font-size:13px;font-weight:700;color:#166534">✓ Application received</div>
+          <div style="font-size:13px;color:#15803d;margin-top:4px">Your information has been securely submitted and is being reviewed.</div>
+        </div>
+        <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 24px">
+          You'll be contacted by <strong>${organizationName}</strong> once your assessment is complete. If you have any questions, please reach out to them directly.
+        </p>
+        <p style="color:#94a3b8;font-size:12px;margin-top:28px">This confirmation was sent by Lucred Credit Engine on behalf of ${organizationName}.</p>
+      </div>
+    `,
+  });
+}
+
+module.exports = { sendPasswordReset, sendWelcome, sendLoanDecision, sendPlanLimitWarning, sendVerificationEmail, sendTeamInvite, sendStaffLoanReviewAlert, sendStaffStatusChangeAlert, sendLowBalanceAlert, sendMonthlySummary, sendTopupConfirmation, sendApprovalNotification, sendSLARequest, sendNewSignupAlert, sendOnboardingCompleteToClient, sendOnboardingCompleteToCustomer };

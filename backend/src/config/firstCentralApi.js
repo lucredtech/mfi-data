@@ -87,4 +87,35 @@ async function getXScoreConsumerReport({ consumerID, consumerMergeList, subscrib
   });
 }
 
-module.exports = { getDataTicket, getXScoreConsumerReport, matchConsumer };
+// Commercial (business) match — equivalent of connectConsumerMatch for companies
+async function matchCommercial({ cacNumber, businessName }) {
+  return withRetry(async () => {
+    const DataTicket = await getDataTicket();
+    const body = {
+      DataTicket,
+      EnquiryReason: ENQUIRY_REASON,
+      CommercialName: businessName || '',
+      Identification: cacNumber || '',
+    };
+    const { data } = await axios.post(`${BASE_URL}/connectCommercialMatch`, body, { timeout: 30000 });
+    return Array.isArray(data) ? data[0] : data;
+  });
+}
+
+// Commercial full credit report — uses fields from matchCommercial response
+async function getCommercialFullCreditReport({ commercialID, commercialMergeList, subscriberEnquiryEngineID, enquiryID }) {
+  return withRetry(async () => {
+    const DataTicket = await getDataTicket();
+    const body = {
+      DataTicket,
+      commercialID:              parseInt(commercialID, 10) || 0,
+      EnquiryID:                 parseInt(enquiryID, 10) || Date.now(),
+      commercialMergeList:       parseInt(commercialMergeList, 10) || 0,
+      SubscriberEnquiryEngineID: parseInt(subscriberEnquiryEngineID, 10) || 0,
+    };
+    const { data } = await axios.post(`${BASE_URL}/GetCommercialFullCreditReport`, body, { timeout: 60000 });
+    return data;
+  });
+}
+
+module.exports = { getDataTicket, getXScoreConsumerReport, matchConsumer, matchCommercial, getCommercialFullCreditReport };

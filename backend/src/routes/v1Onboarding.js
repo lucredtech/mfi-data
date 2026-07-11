@@ -22,7 +22,7 @@ const AuditLog          = require('../models/AuditLog');
 
 const dojahApi  = require('../config/dojahApi');
 const lucredApi = require('../config/lucredApi');
-const { matchConsumer, getXScoreConsumerReport } = require('../config/firstCentralApi');
+const { matchConsumer, getXScoreConsumerReport, matchCommercial, getCommercialFullCreditReport } = require('../config/firstCentralApi');
 const { uploadDocument, uploadStatement } = require('../utils/s3');
 
 const upload = multer({
@@ -130,7 +130,7 @@ router.post('/sessions/:id/step/personal', requireApiKey, async (req, res) => {
     if (!session) return res.status(404).json({ error: 'Session not found' });
 
     const { name, email, phone, bvn, nin, address } = req.body;
-    if (!name || !phone) return res.status(400).json({ error: 'name and phone are required' });
+    if (!name || !phone || !email) return res.status(400).json({ error: 'name, phone, and email are required' });
 
     // Upsert customer
     let customer = await Customer.findOne({ client: req.client.id, phone });
@@ -359,7 +359,7 @@ router.post('/sessions/:id/step/business', requireApiKey, upload.single('cacDocu
     if (!session) return res.status(404).json({ error: 'Session not found' });
     if (session.type !== 'sme') return res.status(400).json({ error: 'This step is only for SME sessions' });
 
-    const { businessName, email, phone, cacNumber } = req.body;
+    const { businessName, email, phone, cacNumber, companyType = 'COMPANY' } = req.body;
     if (!businessName || !cacNumber) return res.status(400).json({ error: 'businessName and cacNumber are required' });
 
     // Upsert business customer
@@ -367,7 +367,7 @@ router.post('/sessions/:id/step/business', requireApiKey, upload.single('cacDocu
     if (!customer) {
       customer = await Customer.create({
         client: req.client.id, name: businessName, email, phone, customerType: 'business',
-        businessDetails: { name: businessName, cacNumber },
+        businessDetails: { cacNumber, companyType },
       });
     } else {
       customer.name = businessName;
@@ -376,13 +376,32 @@ router.post('/sessions/:id/step/business', requireApiKey, upload.single('cacDocu
       await customer.save();
     }
 
-    // CAC verification
+    // CAC verification — charge then call
+    const cacCharge = await deductCharge(req.client.id, 'CAC_CHECK', { customerName: businessName, customerId: customer._id });
+    if (!cacCharge.ok) return res.status(402).json({ error: cacCharge.error });
+
     let cacResult = null;
     try {
-      const { data } = await dojahApi.get('/api/v1/kyc/cac', { params: { rc_number: cacNumber } });
+      const { data } = await dojahApi.get('/api/v1/kyc/cac/advance', { params: { rc_number: cacNumber, company_type: companyType } });
       cacResult = data.entity || data;
     } catch (err) {
+      if (!cacCharge.freeQuota) refundCharge(req.client.id, 'CAC_CHECK', { customerName: businessName, customerId: customer._id }).catch(() => {});
       cacResult = { error: err.response?.data?.error || 'CAC lookup failed', failed: true };
+    }
+
+    // TIN verification — charge then call
+    const tinCharge = await deductCharge(req.client.id, 'TIN_CHECK', { customerName: businessName, customerId: customer._id });
+    let tinResult = null;
+    if (tinCharge.ok) {
+      try {
+        const { data } = await dojahApi.get('/api/v1/kyc/cac/tin', { params: { rc_number: cacNumber, company_type: companyType } });
+        tinResult = data.entity || data;
+      } catch (err) {
+        if (!tinCharge.freeQuota) refundCharge(req.client.id, 'TIN_CHECK', { customerName: businessName, customerId: customer._id }).catch(() => {});
+        tinResult = { error: err.response?.data?.error || 'TIN lookup failed', failed: true };
+      }
+    } else {
+      tinResult = { error: tinCharge.error, failed: true };
     }
 
     // CAC document upload
@@ -395,14 +414,29 @@ router.post('/sessions/:id/step/business', requireApiKey, upload.single('cacDocu
       }).catch(err => { console.error('[s3] cac doc upload failed:', err.message); return null; });
     }
 
+    customer.businessDetails = {
+      ...customer.businessDetails,
+      cacNumber, companyType,
+      cacVerified: !cacResult?.failed,
+      cacResult, cacDocKey,
+      tinVerified: !tinResult?.failed,
+      tinNumber: tinResult?.tax_id || tinResult?.taxId || null,
+      tinResult,
+    };
+    await customer.save();
+
     session.customer = customer._id;
-    session.data = { ...session.data, business: { businessName, email, phone, cacNumber, cacDocKey } };
-    session.verifications = { ...session.verifications, cac: { status: cacResult?.failed ? 'failed' : 'success', data: cacResult } };
+    session.data = { ...session.data, business: { businessName, email, phone, cacNumber, companyType, cacDocKey } };
+    session.verifications = {
+      ...session.verifications,
+      cac: { status: cacResult?.failed ? 'failed' : 'success', data: cacResult },
+      tin: { status: tinResult?.failed ? 'failed' : 'success', data: tinResult },
+    };
     if (!session.completedSteps.includes(0)) session.completedSteps.push(0);
     session.currentStep = Math.max(session.currentStep, 1);
     await session.save();
 
-    res.json({ success: true, customerId: customer._id, cacResult, currentStep: session.currentStep });
+    res.json({ success: true, customerId: customer._id, cacResult, tinResult, currentStep: session.currentStep });
   } catch (err) {
     console.error('[v1/onboarding] business error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -424,17 +458,17 @@ router.post('/sessions/:id/step/business-bureau', requireApiKey, async (req, res
 
     let upstreamData;
     try {
-      const matchResult = await matchConsumer({ bvn: cacNumber, name: businessName, Identification: cacNumber });
-      const matched = matchResult?.MatchedConsumer?.[0] ?? matchResult;
-      const consumerID = matched?.ConsumerID ?? '0';
-      const consumerMergeList = matched?.ConsumerMergeList ?? '';
+      const matchResult = await matchCommercial({ cacNumber, businessName });
+      const matched = matchResult?.MatchedCommercial?.[0] ?? matchResult?.MatchedConsumer?.[0] ?? matchResult;
+      const commercialID = matched?.CommercialID ?? matched?.commercialID ?? '0';
+      const commercialMergeList = matched?.CommercialMergeList ?? matched?.ConsumerMergeList ?? '';
       const subscriberEnquiryEngineID = matched?.MatchingEngineID ?? matched?.SubscriberEnquiryEngineID ?? '';
-      const enquiryID = matched?.EnquiryID ?? '';
+      const enquiryID = matched?.EnquiryID ?? matched?.SubscriberEnquiryID ?? '';
       const matchingRate = parseFloat(matched?.MatchingRate ?? 0);
 
-      upstreamData = (parseInt(consumerID, 10) === 0 && matchingRate === 0)
+      upstreamData = (parseInt(commercialID, 10) === 0 && matchingRate === 0)
         ? { noRecord: true, message: 'No business credit record found.' }
-        : await getXScoreConsumerReport({ consumerID, consumerMergeList, subscriberEnquiryEngineID, enquiryID });
+        : await getCommercialFullCreditReport({ commercialID, commercialMergeList, subscriberEnquiryEngineID, enquiryID });
     } catch (err) {
       if (!charge.freeQuota) refundCharge(req.client.id, 'BUREAU_CHECK', { customerName: businessName, customerId: session.customer }).catch(() => {});
       const errBody = err.response?.data || { message: err.message };

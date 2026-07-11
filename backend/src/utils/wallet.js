@@ -11,6 +11,8 @@ const RATES = {
   NIN_CHECK:          100,
   BUREAU_CHECK:       700,
   STATEMENT_ANALYSIS: 500,
+  CAC_CHECK:          150,
+  TIN_CHECK:          100,
 };
 
 const FREE_QUOTA_FIELD = {
@@ -25,6 +27,8 @@ const SERVICE_LABEL = {
   NIN_CHECK:          'NIN check',
   BUREAU_CHECK:       'Credit bureau check',
   STATEMENT_ANALYSIS: 'Statement analysis',
+  CAC_CHECK:          'CAC verification',
+  TIN_CHECK:          'TIN verification',
 };
 
 module.exports = { RATES, getOrCreateWallet, deductCharge, refundCharge, creditWallet };

@@ -247,41 +247,152 @@ export default function Docs() {
 
         {/* Customers */}
         <Section title="Customers" id="customers">
-          <p style={{ fontSize: 13, color: '#475569', marginBottom: 16 }}>Manage borrower profiles programmatically. All checks (BVN, NIN, bureau, statement) are linked to a customer record.</p>
-          <Endpoint method="POST" path="/v1/customers" desc="Create a customer"
+          <p style={{ fontSize: 13, color: '#475569', marginBottom: 16 }}>
+            Manage borrower profiles programmatically. All checks (BVN, NIN, bureau, statement) are linked to a customer record.
+            Set <code>customerType</code> to <code>"business"</code> when creating an SME or company — this unlocks business KYC flows (CAC verification, business bureau, director checks) described in the <a href="#business-kyc" style={{ color: '#6d28d9' }}>Business KYC</a> section.
+          </p>
+
+          <Endpoint method="POST" path="/v1/customers" desc="Create an individual or business customer"
             body={[
-              { name: 'name',         type: 'string', required: true,  desc: "Full name" },
-              { name: 'email',        type: 'string', required: false, desc: "Email address" },
-              { name: 'phone',        type: 'string', required: false, desc: "Phone number" },
-              { name: 'bvn',          type: 'string', required: false, desc: "BVN (11 digits)" },
-              { name: 'nin',          type: 'string', required: false, desc: "NIN (11 digits)" },
-              { name: 'customerType', type: 'string', required: false, desc: "individual (default) or business" },
+              { name: 'name',         type: 'string', required: true,  desc: 'Full name (individual) or registered business name' },
+              { name: 'customerType', type: 'string', required: false, desc: '"individual" (default) or "business"' },
+              { name: 'email',        type: 'string', required: false, desc: 'Email address' },
+              { name: 'phone',        type: 'string', required: false, desc: 'Phone number' },
+              { name: 'bvn',          type: 'string', required: false, desc: 'BVN — 11 digits (individual)' },
+              { name: 'nin',          type: 'string', required: false, desc: 'NIN — 11 digits (individual)' },
+              { name: 'address',      type: 'string', required: false, desc: 'Address' },
             ]}
-            response={`{ "customer": { "_id": "...", "name": "Amaka Okafor", ... } }`} />
+            response={`{
+  "customer": {
+    "_id": "6643ab...",
+    "name": "Okeke Ventures Ltd",
+    "customerType": "business",
+    "email": "info@okeke.com",
+    "phone": "08012345678",
+    "status": "active",
+    "createdAt": "2026-07-11T10:00:00Z"
+  },
+  "duplicate": null
+}`}
+            note="If a customer with the same BVN, NIN, or phone already exists, the response includes a duplicate field with their id and name — the new record is still created." />
+
           <Endpoint method="GET" path="/v1/customers" desc="List customers"
             body={[
-              { name: 'q',      type: 'query', required: false, desc: "Search by name, email, or BVN" },
-              { name: 'status', type: 'query', required: false, desc: "Filter by status: active, watchlist, blacklisted" },
-              { name: 'limit',  type: 'query', required: false, desc: "Max results (default 50)" },
-              { name: 'skip',   type: 'query', required: false, desc: "Offset for pagination" },
+              { name: 'q',             type: 'query', required: false, desc: 'Search by name, email, or BVN' },
+              { name: 'customerType',  type: 'query', required: false, desc: 'Filter by type: individual or business' },
+              { name: 'status',        type: 'query', required: false, desc: 'Filter by status: active, watchlist, blacklisted' },
+              { name: 'limit',         type: 'query', required: false, desc: 'Max results (default 50)' },
+              { name: 'skip',          type: 'query', required: false, desc: 'Pagination offset' },
             ]}
             response={`{ "customers": [...], "total": 142 }`} />
-          <Endpoint method="GET" path="/v1/customers/:id" desc="Get customer with all checks"
+
+          <Endpoint method="GET" path="/v1/customers/:id" desc="Get customer with all linked check results"
             response={`{
-  "customer": { "_id": "...", "name": "Amaka Okafor", ... },
+  "customer": { "_id": "...", "name": "Okeke Ventures Ltd", "customerType": "business", ... },
   "bvnResults": [...],
   "ninResults": [...],
   "bureauResults": [...],
   "statements": [...],
+  "loanReviews": [...],
   "latestScorecard": { ... }
 }`} />
-          <Endpoint method="PATCH" path="/v1/customers/:id" desc="Update customer fields"
+
+          <Endpoint method="PATCH" path="/v1/customers/:id" desc="Update customer profile fields"
             body={[
-              { name: 'name',   type: 'string', required: false, desc: "Full name" },
-              { name: 'email',  type: 'string', required: false, desc: "Email" },
-              { name: 'phone',  type: 'string', required: false, desc: "Phone" },
-              { name: 'status', type: 'string', required: false, desc: "active | watchlist | blacklisted" },
+              { name: 'name',   type: 'string', required: false, desc: 'Name' },
+              { name: 'email',  type: 'string', required: false, desc: 'Email' },
+              { name: 'phone',  type: 'string', required: false, desc: 'Phone' },
+              { name: 'address',type: 'string', required: false, desc: 'Address' },
+              { name: 'status', type: 'string', required: false, desc: 'active | watchlist | blacklisted' },
             ]} />
+
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: '20px 0 8px' }}>Full analysis flow — individual</h3>
+          <CodeBlock code={`# 1. Create individual customer
+curl -X POST ${BASE}/v1/customers \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"Amaka Okafor","phone":"08031234567","bvn":"22312345678","nin":"12345678901","customerType":"individual"}'
+# → { "customer": { "_id": "CUSTOMER_ID", ... } }
+
+# 2. Verify BVN
+curl -X POST ${BASE}/v1/customers/CUSTOMER_ID/verify-bvn \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -d '{"bvn":"22312345678"}'
+
+# 3. Verify NIN
+curl -X POST ${BASE}/v1/customers/CUSTOMER_ID/verify-nin \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -d '{"nin":"12345678901"}'
+
+# 4. Pull credit bureau
+curl -X POST ${BASE}/v1/customers/CUSTOMER_ID/credit-bureau \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -d '{"bvn":"22312345678"}'
+
+# 5. Upload bank statement
+curl -X POST ${BASE}/v1/customers/CUSTOMER_ID/statement \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -F "statement=@statement.pdf" \\
+  -F "bankName=access"
+
+# 6. Run loan review
+curl -X POST ${BASE}/v1/customers/CUSTOMER_ID/loan-review \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -d '{"loanAmount":200000,"loanTenor":12,"annualRate":24}'`} />
+
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: '20px 0 8px' }}>Full analysis flow — business (SME)</h3>
+          <p style={{ fontSize: 13, color: '#475569', marginBottom: 12 }}>
+            All business KYC steps are available as standalone endpoints directly on the customer record — no onboarding session required.
+          </p>
+          <CodeBlock code={`# 1. Create business customer
+curl -X POST ${BASE}/v1/customers \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"Okeke Ventures Ltd","phone":"08031234567","customerType":"business"}'
+# → { "customer": { "_id": "CUSTOMER_ID", ... } }
+
+# 2. Verify CAC (Advance) + TIN — both run in one call
+curl -X POST ${BASE}/v1/customers/CUSTOMER_ID/verify-cac \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -F "cacNumber=RC1234567" \\
+  -F "companyType=COMPANY" \\
+  -F "cacDocument=@cert.pdf"
+
+# 3. Upload bank statement
+curl -X POST ${BASE}/v1/customers/CUSTOMER_ID/statement \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -F "statement=@statement.pdf" \\
+  -F "bankName=access"
+
+# 4. Pull business credit bureau (FirstCentral commercial report)
+curl -X POST ${BASE}/v1/customers/CUSTOMER_ID/business-bureau \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -H "Content-Type: application/json" \\
+  -d '{"cacNumber":"RC1234567","businessName":"Okeke Ventures Ltd"}'
+
+# 5. Submit directors — BVN check + individual bureau per director
+curl -X POST ${BASE}/v1/customers/CUSTOMER_ID/directors \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -F 'directors=[{"name":"Chukwuemeka Okafor","bvn":"22312345678"}]' \\
+  -F "idCards=@director-id.pdf"
+
+# 6. Upload other financial documents (optional)
+curl -X POST ${BASE}/v1/customers/CUSTOMER_ID/financials \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -F "documents=@management-accounts.pdf" \\
+  -F "documents=@audited-report.pdf"
+
+# 7. Add guarantor (optional)
+curl -X POST ${BASE}/v1/customers/CUSTOMER_ID/guarantor \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -H "Content-Type: application/json" \\
+  -d '{"name":"Tunde Balogun","phone":"08099887766","relationship":"Business partner"}'
+
+# 8. Run loan review
+curl -X POST ${BASE}/v1/customers/CUSTOMER_ID/loan-review \\
+  -H "X-Api-Key: lcrd_your_api_key" \\
+  -H "Content-Type: application/json" \\
+  -d '{"loanAmount":5000000,"loanTenor":24,"annualRate":18}'`} />
         </Section>
 
         {/* Scorecard & Loan Review */}
@@ -400,12 +511,111 @@ curl -X POST ${BASE}/v1/customers/statement/rerun/RESULT_ID \\
           </p>
 
           <Endpoint
+            method="POST" path="/v1/customers/:id/verify-cac"
+            desc="Verify CAC registration via Dojah CAC Advance — also runs TIN lookup automatically"
+            note="Send as multipart/form-data. Customer must have customerType: business. Both CAC and TIN results are stored on the customer record."
+            body={[
+              { name: 'cacNumber',    type: 'string', required: true,  desc: 'CAC / RC number e.g. RC1234567' },
+              { name: 'companyType',  type: 'string', required: true,  desc: 'One of: BUSINESS_NAME | COMPANY | INCORPORATED_TRUSTEES | LIMITED_PARTNERSHIP | LIMITED_LIABILITY_PARTNERSHIP' },
+              { name: 'businessName', type: 'string', required: false, desc: 'Update the customer name at the same time' },
+              { name: 'cacDocument',  type: 'file',   required: false, desc: 'CAC certificate or registration document (PDF or image)' },
+            ]}
+            response={`{
+  "success": true,
+  "cacVerified": true,
+  "cacResult": {
+    "company_name": "OKEKE VENTURES LIMITED",
+    "rc_number": "RC1234567",
+    "registration_date": "2019-03-15",
+    "address": "123 Lagos Street, Ikeja",
+    "affiliates": [{ "role": "DIRECTOR", "name": "Chukwuemeka Okafor" }]
+  },
+  "tinVerified": true,
+  "tinResult": {
+    "company_name": "OKEKE VENTURES LIMITED",
+    "tax_id": "12345678-0001",
+    "company_type": "COMPANY",
+    "rc_number": "RC1234567"
+  }
+}`} />
+
+          <Endpoint
+            method="POST" path="/v1/customers/:id/verify-tin"
+            desc="Re-run TIN verification independently without re-doing full CAC check"
+            note="Uses the cacNumber already on the customer record. Specify companyType if not already set."
+            body={[
+              { name: 'cacNumber',   type: 'string', required: false, desc: 'RC number — defaults to the value already on the customer record' },
+              { name: 'companyType', type: 'string', required: false, desc: 'Company type — defaults to COMPANY if not stored on the record' },
+            ]}
+            response={`{
+  "success": true,
+  "tinVerified": true,
+  "tinResult": {
+    "company_name": "OKEKE VENTURES LIMITED",
+    "tax_id": "12345678-0001",
+    "company_type": "COMPANY",
+    "rc_number": "RC1234567"
+  }
+}`} />
+
+          <Endpoint
+            method="POST" path="/v1/customers/:id/directors"
+            desc="Submit directors — runs BVN check + individual bureau per director"
+            note="Send as multipart/form-data. Costs ₦75 BVN + ₦700 bureau per director. Directors are merged into the customer record."
+            body={[
+              { name: 'directors', type: 'JSON array', required: true,  desc: 'Array of objects: [{ name, bvn }]. At least one required.' },
+              { name: 'idCards',   type: 'file[]',     required: false, desc: 'ID card files — one per director, in the same order as the directors array.' },
+            ]}
+            response={`{
+  "success": true,
+  "totalDirectors": 1,
+  "results": [
+    {
+      "name": "Chukwuemeka Okafor",
+      "bvn": "22312345678",
+      "bvnStatus": "success",
+      "bureauStatus": "success",
+      "idCardKey": "customers/director-ids/director-0-id.pdf"
+    }
+  ]
+}`} />
+
+          <Endpoint
+            method="POST" path="/v1/customers/:id/financials"
+            desc="Upload additional financial documents — stored in S3 and linked to the customer"
+            note="Send as multipart/form-data. Up to 10 files per request. Repeated calls append to existing documents."
+            body={[
+              { name: 'documents', type: 'file[]', required: true, desc: 'PDF, XLSX, DOCX — management accounts, audited reports, etc. Max 10MB each.' },
+            ]}
+            response={`{
+  "success": true,
+  "uploaded": 2,
+  "documents": [
+    { "filename": "management-accounts.pdf", "size": 204800, "uploadedAt": "2026-07-11T10:00:00Z" },
+    { "filename": "audited-report.pdf",      "size": 512000, "uploadedAt": "2026-07-11T10:00:00Z" }
+  ]
+}`} />
+
+          <Endpoint
+            method="POST" path="/v1/customers/:id/guarantor"
+            desc="Add or update guarantor details on a customer record"
+            body={[
+              { name: 'name',         type: 'string', required: true,  desc: 'Guarantor full name' },
+              { name: 'phone',        type: 'string', required: true,  desc: 'Phone number' },
+              { name: 'email',        type: 'string', required: false, desc: 'Email address' },
+              { name: 'address',      type: 'string', required: false, desc: 'Address' },
+              { name: 'relationship', type: 'string', required: false, desc: 'e.g. "Business partner", "Director", "Spouse"' },
+            ]}
+            response={`{ "success": true, "guarantor": { "name": "Tunde Balogun", "phone": "08099887766", "relationship": "Business partner" } }`} />
+
+          <Endpoint
             method="POST" path="/v1/onboarding/sessions/:id/step/business"
-            desc="Submit business info & verify CAC"
-            note="Send as multipart/form-data. Requires an SME onboarding session (see Customer Onboarding section)."
+            desc="Submit business info, verify CAC (Advance), and look up TIN — all in one call"
+            note="Send as multipart/form-data. Requires an SME onboarding session. CAC Advance and TIN run automatically; both results are stored on the session and customer record."
             body={[
               { name: 'businessName', type: 'string', required: true,  desc: 'Registered business name' },
               { name: 'cacNumber',    type: 'string', required: true,  desc: 'CAC RC number e.g. RC1234567' },
+              { name: 'companyType',  type: 'string', required: true,  desc: 'One of: BUSINESS_NAME | COMPANY | INCORPORATED_TRUSTEES | LIMITED_PARTNERSHIP | LIMITED_LIABILITY_PARTNERSHIP' },
               { name: 'email',        type: 'string', required: false, desc: 'Business email address' },
               { name: 'phone',        type: 'string', required: false, desc: 'Business phone number' },
               { name: 'cacDocument',  type: 'file',   required: false, desc: 'CAC certificate or registration document (PDF or image)' },
@@ -415,18 +625,42 @@ curl -X POST ${BASE}/v1/customers/statement/rerun/RESULT_ID \\
   "customerId": "6643ab...",
   "currentStep": 1,
   "cacResult": {
-    "company_name": "Okeke Ventures Limited",
+    "company_name": "OKEKE VENTURES LIMITED",
     "rc_number": "RC1234567",
-    "registration_date": "2019-03-15",
-    "company_type": "Private Limited Company",
-    "status": "Active"
+    "address": "123 Lagos Street, Ikeja",
+    "affiliates": [{ "role": "DIRECTOR", "name": "Chukwuemeka Okafor" }]
+  },
+  "tinResult": {
+    "company_name": "OKEKE VENTURES LIMITED",
+    "tax_id": "12345678-0001",
+    "company_type": "COMPANY",
+    "rc_number": "RC1234567"
+  }
+}`} />
+
+          <Endpoint
+            method="POST" path="/v1/customers/:id/business-bureau"
+            desc="Pull business credit bureau report (FirstCentral) — costs ₦700"
+            note="Customer must have customerType: business. Pass cacNumber in the body, or set it on the customer record first."
+            body={[
+              { name: 'cacNumber',    type: 'string', required: true,  desc: 'CAC / RC number used to query FirstCentral e.g. RC1234567' },
+              { name: 'businessName', type: 'string', required: false, desc: 'Business name — improves matching accuracy. Defaults to the customer name.' },
+            ]}
+            response={`{
+  "success": true,
+  "resultId": "6643cd...",
+  "noRecord": false,
+  "data": {
+    "PersonalDetails": { "ConsumerName": "OKEKE VENTURES LIMITED", ... },
+    "Score": { "Value": 620 },
+    "SummaryOfPerformance": { "TotalNoOfAccounts": 2, "TotalNoOfDelinquentFacilities": 0 }
   }
 }`} />
 
           <Endpoint
             method="POST" path="/v1/onboarding/sessions/:id/step/business-bureau"
-            desc="Pull business credit bureau report (FirstCentral)"
-            note="Run after the business step. Uses the CAC/RC number to query FirstCentral. Costs ₦700."
+            desc="Same bureau check within an onboarding session — uses CAC from the business step"
+            note="Alternative to the standalone endpoint above. Uses the RC number already stored in the session from the business step. Costs ₦700."
             response={`{
   "success": true,
   "resultId": "6643cd...",
@@ -455,11 +689,12 @@ curl -X POST ${BASE}/v1/customers/statement/rerun/RESULT_ID \\
   ]
 }`} />
 
-          <CodeBlock code={`# 1. Verify CAC and submit business info
+          <CodeBlock code={`# 1. Verify CAC (Advance) + TIN and submit business info
 curl -X POST ${BASE}/v1/onboarding/sessions/SESSION_ID/step/business \\
   -H "X-Api-Key: lcrd_your_api_key" \\
   -F "businessName=Okeke Ventures Ltd" \\
   -F "cacNumber=RC1234567" \\
+  -F "companyType=COMPANY" \\
   -F "email=info@okeke.com" \\
   -F "cacDocument=@/path/to/cert.pdf"
 
@@ -643,11 +878,12 @@ curl -X POST ${BASE}/v1/onboarding/sessions \\
   -d '{"type":"sme"}'
 # → { "sessionId": "SESSION_ID", ... }
 
-# Step 2 — business info + CAC
+# Step 2 — business info + CAC (Advance) + TIN
 curl -X POST ${BASE}/v1/onboarding/sessions/SESSION_ID/step/business \\
   -H "X-Api-Key: lcrd_your_api_key" \\
   -F "businessName=Okeke Ventures Ltd" \\
-  -F "cacNumber=RC1234567"
+  -F "cacNumber=RC1234567" \\
+  -F "companyType=COMPANY"
 
 # Step 3 — bank statement
 curl -X POST ${BASE}/v1/onboarding/sessions/SESSION_ID/step/statement \\

@@ -256,13 +256,13 @@ function IndividualPersonalStep({ onNext, loading, session }) {
       <StepHeader title="Personal Information" subtitle="We'll use this to verify your identity and run a credit assessment." />
       <div style={grid2}>
         <Field label="Full Name" required><input style={inp} placeholder="Amaka Obi" value={form.name} onChange={set('name')} /></Field>
-        <Field label="Email"><input style={inp} type="email" placeholder="amaka@example.com" value={form.email} onChange={set('email')} /></Field>
+        <Field label="Email" required><input style={inp} type="email" placeholder="amaka@example.com" value={form.email} onChange={set('email')} /></Field>
         <Field label="Phone" required><input style={inp} placeholder="08012345678" value={form.phone} onChange={set('phone')} /></Field>
         <Field label="BVN"><input style={inp} placeholder="22222222222" value={form.bvn} onChange={set('bvn')} maxLength={11} /></Field>
         <Field label="NIN"><input style={inp} placeholder="12345678901" value={form.nin} onChange={set('nin')} maxLength={11} /></Field>
       </div>
       <Field label="Address"><input style={inp} placeholder="12 Broad Street, Lagos" value={form.address} onChange={set('address')} /></Field>
-      <NextBtn onClick={() => onNext(form)} loading={loading} disabled={!form.name || !form.phone} />
+      <NextBtn onClick={() => onNext(form)} loading={loading} disabled={!form.name || !form.phone || !form.email} />
     </div>
   );
 }
@@ -317,35 +317,68 @@ function StatementStep({ onNext, loading }) {
   );
 }
 
+const COMPANY_TYPES = [
+  { value: 'COMPANY', label: 'Company (Ltd / Plc)' },
+  { value: 'BUSINESS_NAME', label: 'Business Name' },
+  { value: 'INCORPORATED_TRUSTEES', label: 'Incorporated Trustees' },
+  { value: 'LIMITED_PARTNERSHIP', label: 'Limited Partnership' },
+  { value: 'LIMITED_LIABILITY_PARTNERSHIP', label: 'Limited Liability Partnership' },
+];
+
 // ── SME: Business Info ─────────────────────────────────────────────────────────
 function SMEBusinessStep({ onNext, loading, session }) {
   const d = session?.data?.business || {};
-  const [form, setForm] = useState({ businessName: d.businessName || '', email: d.email || '', phone: d.phone || '', cacNumber: d.cacNumber || '' });
+  const [form, setForm] = useState({
+    businessName: d.businessName || '',
+    email: d.email || '',
+    phone: d.phone || '',
+    cacNumber: d.cacNumber || '',
+    companyType: d.companyType || 'COMPANY',
+  });
   const [cacDoc, setCacDoc] = useState(null);
+  const [memartDoc, setMemartDoc] = useState(null);
+  const [statusReport, setStatusReport] = useState(null);
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   async function handleNext() {
+    if (!form.businessName || !form.cacNumber) return;
     const fd = new FormData();
     fd.append('businessName', form.businessName);
     fd.append('email', form.email);
     fd.append('phone', form.phone);
     fd.append('cacNumber', form.cacNumber);
+    fd.append('companyType', form.companyType);
     if (cacDoc) fd.append('cacDocument', cacDoc);
+    if (memartDoc) fd.append('memartDocument', memartDoc);
+    if (statusReport) fd.append('statusReport', statusReport);
     onNext(fd);
   }
 
   return (
     <div style={{ background: '#fff', borderRadius: 16, padding: '2rem', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-      <StepHeader title="Business Information" subtitle="Provide your registered business details. We'll verify your CAC registration." />
+      <StepHeader title="Business Information" subtitle="Provide your registered business details. We'll verify your CAC registration and TIN." />
       <div style={grid2}>
         <Field label="Business Name" required><input style={inp} placeholder="Okeke Ventures Ltd" value={form.businessName} onChange={set('businessName')} /></Field>
         <Field label="CAC / RC Number" required><input style={inp} placeholder="RC1234567" value={form.cacNumber} onChange={set('cacNumber')} /></Field>
         <Field label="Business Email"><input style={inp} type="email" placeholder="info@okekeventures.com" value={form.email} onChange={set('email')} /></Field>
         <Field label="Business Phone"><input style={inp} placeholder="0801 234 5678" value={form.phone} onChange={set('phone')} /></Field>
       </div>
-      <Field label="CAC Certificate / Registration Document (optional)">
-        <FileUploadBox label="CAC document" accept=".pdf,.jpg,.jpeg,.png" onChange={setCacDoc} file={cacDoc} hint="PDF or image · max 10MB" />
+      <Field label="Company Type" required>
+        <select style={{ ...inp, color: '#0f172a' }} value={form.companyType} onChange={set('companyType')}>
+          {COMPANY_TYPES.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
+        </select>
       </Field>
+      <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <Field label="CAC Certificate / Registration Document (optional)">
+          <FileUploadBox label="CAC document" accept=".pdf,.jpg,.jpeg,.png" onChange={setCacDoc} file={cacDoc} hint="PDF or image · max 10MB" />
+        </Field>
+        <Field label="Memart (Memorandum & Articles of Association)">
+          <FileUploadBox label="Memart document" accept=".pdf,.jpg,.jpeg,.png" onChange={setMemartDoc} file={memartDoc} hint="PDF or image · max 10MB" />
+        </Field>
+        <Field label="CAC Status Report">
+          <FileUploadBox label="Status report" accept=".pdf,.jpg,.jpeg,.png" onChange={setStatusReport} file={statusReport} hint="PDF or image · max 10MB" />
+        </Field>
+      </div>
       <NextBtn onClick={handleNext} loading={loading} disabled={!form.businessName || !form.cacNumber} />
     </div>
   );

@@ -105,7 +105,7 @@ router.get('/', async (req, res) => {
 // Create customer
 router.post('/', requireWriteAccess, async (req, res) => {
   try {
-    const { name, email, bvn, nin, phone, customerType } = req.body;
+    const { name, email, bvn, nin, phone, address, customerType, cacNumber, companyType } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
 
     // Duplicate detection
@@ -113,10 +113,15 @@ router.post('/', requireWriteAccess, async (req, res) => {
     if (bvn) dupChecks.push({ bvn, client: req.client.id });
     if (nin) dupChecks.push({ nin, client: req.client.id });
     if (phone) dupChecks.push({ phone, client: req.client.id });
+    if (cacNumber) dupChecks.push({ 'businessDetails.cacNumber': cacNumber, client: req.client.id });
     let duplicate = null;
     if (dupChecks.length) duplicate = await Customer.findOne({ $or: dupChecks }).lean();
 
-    const customer = await Customer.create({ client: req.client.id, name, email, bvn, nin, phone, customerType: customerType || 'individual' });
+    const isBusiness = customerType === 'business';
+    const customer = await Customer.create({
+      client: req.client.id, name, email, phone, address,
+      ...(isBusiness ? { customerType: 'business', businessDetails: { cacNumber, companyType } } : { customerType: 'individual', bvn, nin }),
+    });
     AuditLog.create({ client: req.client.id, action: 'CUSTOMER_CREATED', entityType: 'Customer', entityId: customer._id, label: `Created customer profile: ${name}`, meta: { name, email } }).catch(() => {});
     dispatchWebhook(req.client.id, 'customer.created', { customerId: customer._id, name, email });
     res.status(201).json({ customer, duplicate: duplicate ? { id: duplicate._id, name: duplicate.name } : null });

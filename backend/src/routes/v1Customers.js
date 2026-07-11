@@ -21,9 +21,11 @@ const AuditLog = require('../models/AuditLog');
 
 const dojahApi = require('../config/dojahApi');
 const lucredApi = require('../config/lucredApi');
-const { matchConsumer, getXScoreConsumerReport } = require('../config/firstCentralApi');
+const { matchConsumer, getXScoreConsumerReport, matchCommercial, getCommercialFullCreditReport } = require('../config/firstCentralApi');
 const computeLoanReview = require('../utils/computeLoanReview');
 const computeScorecard = require('../utils/computeScorecard');
+const { deductCharge, refundCharge } = require('../utils/wallet');
+const { uploadDocument } = require('../utils/s3');
 
 const limiter = rateLimit({ windowMs: 60 * 1000, max: 60, keyGenerator: req => req.apiKey?.key ?? req.client?.id ?? req.ip });
 router.use(requireApiKeyOrJWT, limiter);
@@ -243,6 +245,344 @@ router.post('/:id/statement', sandboxMock('statement'), logUsage('/v1/statement/
     AuditLog.create({ client: req.client.id, action: 'STATEMENT_ANALYSIS', entityType: 'StatementResult', entityId: saved._id, label: `Statement analysis for ${customer.name}`, meta: { filename: req.file.originalname, source: 'api' } }).catch(() => {});
     res.json({ success: true, data, resultId: saved._id });
   } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── POST /v1/customers/:id/business-bureau ───────────────────────────────────
+router.post('/:id/business-bureau', sandboxMock('bureau'), logUsage('/v1/credit-bureau/check'), async (req, res) => {
+  try {
+    const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id });
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    if (customer.customerType !== 'business') {
+      return res.status(400).json({ error: 'This endpoint is for business customers only. Use /credit-bureau for individuals.' });
+    }
+
+    const cacNumber = req.body.cacNumber || customer.businessDetails?.cacNumber;
+    const businessName = req.body.businessName || customer.name;
+    if (!cacNumber) return res.status(400).json({ error: 'cacNumber is required (or set businessDetails.cacNumber on the customer first)' });
+
+    const charge = await deductCharge(req.client.id, 'BUREAU_CHECK', { customerName: businessName, customerId: customer._id });
+    if (!charge.ok) return res.status(402).json({ error: charge.error, required: charge.required, balance: charge.balance });
+
+    let upstreamData;
+    try {
+      const matchResult = await matchCommercial({ cacNumber, businessName });
+      const matched = matchResult?.MatchedCommercial?.[0] ?? matchResult?.MatchedConsumer?.[0] ?? matchResult;
+      const commercialID = matched?.CommercialID ?? matched?.commercialID ?? '0';
+      const commercialMergeList = matched?.CommercialMergeList ?? matched?.ConsumerMergeList ?? '';
+      const subscriberEnquiryEngineID = matched?.MatchingEngineID ?? matched?.SubscriberEnquiryEngineID ?? '';
+      const enquiryID = matched?.EnquiryID ?? matched?.enquiryID ?? matched?.SubscriberEnquiryID ?? '';
+      const matchingRate = parseFloat(matched?.MatchingRate ?? 0);
+
+      if (parseInt(commercialID, 10) === 0 && matchingRate === 0) {
+        upstreamData = { noRecord: true, message: 'No business credit record found for this RC number.' };
+      } else {
+        upstreamData = await getCommercialFullCreditReport({ commercialID, commercialMergeList, subscriberEnquiryEngineID, enquiryID });
+      }
+    } catch (upstreamErr) {
+      if (!charge.freeQuota) refundCharge(req.client.id, 'BUREAU_CHECK', { customerName: businessName, customerId: customer._id }).catch(() => {});
+      await BureauResult.create({ client: req.client.id, customer: customer._id, bvn: cacNumber, result: upstreamErr.response?.data || {}, status: 'failed', meta: { type: 'business' } }).catch(() => {});
+      return res.status(502).json({ error: upstreamErr.message || 'Business bureau check failed' });
+    }
+
+    const saved = await BureauResult.create({
+      client: req.client.id, customer: customer._id,
+      bvn: cacNumber, result: upstreamData, status: 'success',
+      meta: { type: 'business' },
+    });
+
+    AuditLog.create({ client: req.client.id, action: 'BUREAU_CHECK', entityType: 'BureauResult', entityId: saved._id, label: `Business bureau check for ${businessName} (RC: ${cacNumber})`, meta: { cacNumber, customerId: customer._id, source: 'api' } }).catch(() => {});
+
+    res.json({ success: true, resultId: saved._id, noRecord: upstreamData?.noRecord ?? false, data: upstreamData });
+  } catch (err) {
+    console.error('[business-bureau] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── POST /v1/customers/:id/verify-cac ────────────────────────────────────────
+router.post('/:id/verify-cac', logUsage('/v1/customers/verify-cac'), upload.single('cacDocument'), async (req, res) => {
+  try {
+    const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id });
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    if (customer.customerType !== 'business') {
+      return res.status(400).json({ error: 'CAC verification is only for business customers' });
+    }
+
+    const cacNumber = req.body.cacNumber || customer.businessDetails?.cacNumber;
+    const companyType = req.body.companyType || customer.businessDetails?.companyType || 'COMPANY';
+    if (!cacNumber) return res.status(400).json({ error: 'cacNumber is required' });
+
+    // CAC Advance lookup — charge then call
+    const cacCharge = await deductCharge(req.client.id, 'CAC_CHECK', { customerName: customer.name, customerId: customer._id });
+    if (!cacCharge.ok) return res.status(402).json({ error: cacCharge.error });
+
+    let cacResult;
+    try {
+      const { data } = await dojahApi.get('/api/v1/kyc/cac/advance', { params: { rc_number: cacNumber, company_type: companyType } });
+      cacResult = data.entity || data;
+    } catch (err) {
+      if (!cacCharge.freeQuota) refundCharge(req.client.id, 'CAC_CHECK', { customerName: customer.name, customerId: customer._id }).catch(() => {});
+      cacResult = { error: err.response?.data?.error || 'CAC lookup failed', failed: true };
+    }
+
+    // TIN lookup — charge then call
+    const tinCharge = await deductCharge(req.client.id, 'TIN_CHECK', { customerName: customer.name, customerId: customer._id });
+    let tinResult;
+    if (tinCharge.ok) {
+      try {
+        const { data } = await dojahApi.get('/api/v1/kyc/cac/tin', { params: { rc_number: cacNumber, company_type: companyType } });
+        tinResult = data.entity || data;
+      } catch (err) {
+        if (!tinCharge.freeQuota) refundCharge(req.client.id, 'TIN_CHECK', { customerName: customer.name, customerId: customer._id }).catch(() => {});
+        tinResult = { error: err.response?.data?.error || 'TIN lookup failed', failed: true };
+      }
+    } else {
+      tinResult = { error: tinCharge.error, failed: true };
+    }
+
+    // Upload CAC document if provided
+    let cacDocKey = customer.businessDetails?.cacDocKey || null;
+    if (req.file) {
+      cacDocKey = await uploadDocument(req.file.buffer, {
+        clientId: req.client.id,
+        sessionToken: customer._id.toString(),
+        filename: req.file.originalname,
+        mimetype: req.file.mimetype,
+        folder: 'customers/cac-docs',
+      }).catch(err => { console.error('[s3] cac doc upload failed:', err.message); return cacDocKey; });
+    }
+
+    customer.businessDetails = {
+      ...customer.businessDetails,
+      cacNumber,
+      companyType,
+      cacVerified: !cacResult.failed,
+      cacResult,
+      cacDocKey,
+      tinVerified: !tinResult.failed,
+      tinNumber: tinResult.tax_id || tinResult.taxId || null,
+      tinResult,
+    };
+    if (req.body.businessName) customer.name = req.body.businessName;
+    await customer.save();
+
+    AuditLog.create({ client: req.client.id, action: 'CAC_VERIFICATION', entityType: 'Customer', entityId: customer._id, label: `CAC + TIN verified for ${customer.name} (RC: ${cacNumber})`, meta: { cacNumber, companyType, source: 'api' } }).catch(() => {});
+
+    res.json({ success: true, cacVerified: !cacResult.failed, cacResult, tinVerified: !tinResult.failed, tinResult });
+  } catch (err) {
+    console.error('[verify-cac] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── POST /v1/customers/:id/verify-tin ────────────────────────────────────────
+router.post('/:id/verify-tin', logUsage('/v1/customers/verify-tin'), async (req, res) => {
+  try {
+    const customer = await getCustomer(req.client.id, req.params.id);
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    if (customer.customerType !== 'business') return res.status(400).json({ error: 'TIN verification is only for business customers' });
+
+    const cacNumber = req.body.cacNumber || customer.businessDetails?.cacNumber;
+    const companyType = req.body.companyType || customer.businessDetails?.companyType || 'COMPANY';
+    if (!cacNumber) return res.status(400).json({ error: 'cacNumber is required (or run verify-cac first)' });
+
+    const tinCharge = await deductCharge(req.client.id, 'TIN_CHECK', { customerName: customer.name, customerId: customer._id });
+    if (!tinCharge.ok) return res.status(402).json({ error: tinCharge.error });
+
+    let tinResult;
+    try {
+      const { data } = await dojahApi.get('/api/v1/kyc/cac/tin', { params: { rc_number: cacNumber, company_type: companyType } });
+      tinResult = data.entity || data;
+    } catch (err) {
+      if (!tinCharge.freeQuota) refundCharge(req.client.id, 'TIN_CHECK', { customerName: customer.name, customerId: customer._id }).catch(() => {});
+      tinResult = { error: err.response?.data?.error || 'TIN lookup failed', failed: true };
+    }
+
+    customer.businessDetails = {
+      ...customer.businessDetails,
+      tinVerified: !tinResult.failed,
+      tinNumber: tinResult.tax_id || tinResult.taxId || null,
+      tinResult,
+    };
+    await customer.save();
+
+    AuditLog.create({ client: req.client.id, action: 'TIN_VERIFICATION', entityType: 'Customer', entityId: customer._id, label: `TIN verified for ${customer.name} (RC: ${cacNumber})`, meta: { cacNumber, companyType, source: 'api' } }).catch(() => {});
+
+    res.json({ success: true, tinVerified: !tinResult.failed, tinResult });
+  } catch (err) {
+    console.error('[verify-tin] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── POST /v1/customers/:id/directors ─────────────────────────────────────────
+router.post('/:id/directors', logUsage('/v1/customers/directors'), upload.array('idCards', 10), async (req, res) => {
+  try {
+    const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id });
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    if (customer.customerType !== 'business') {
+      return res.status(400).json({ error: 'Director verification is only for business customers' });
+    }
+
+    let directors;
+    try {
+      directors = typeof req.body.directors === 'string'
+        ? JSON.parse(req.body.directors)
+        : req.body.directors;
+    } catch {
+      return res.status(400).json({ error: 'directors must be a valid JSON array' });
+    }
+    if (!Array.isArray(directors) || directors.length === 0) {
+      return res.status(400).json({ error: 'At least one director is required' });
+    }
+
+    const results = [];
+    for (let i = 0; i < directors.length; i++) {
+      const dir = directors[i];
+      if (!dir.name) return res.status(400).json({ error: `directors[${i}].name is required` });
+
+      const dirResult = { name: dir.name, bvn: dir.bvn || null, bvnStatus: null, bureauStatus: null, idCardKey: null };
+
+      // Upload ID card if provided
+      const idCardFile = req.files?.[i];
+      if (idCardFile) {
+        dirResult.idCardKey = await uploadDocument(idCardFile.buffer, {
+          clientId: req.client.id,
+          sessionToken: customer._id.toString(),
+          filename: `director-${i}-${idCardFile.originalname}`,
+          mimetype: idCardFile.mimetype,
+          folder: 'customers/director-ids',
+        }).catch(() => null);
+      }
+
+      if (dir.bvn) {
+        // BVN check
+        try {
+          const charge = await deductCharge(req.client.id, 'BVN_CHECK', { customerName: dir.name, customerId: customer._id });
+          if (charge.ok) {
+            const { data } = await dojahApi.get('/api/v1/kyc/bvn/advance', { params: { bvn: dir.bvn } });
+            const e = data.entity || {};
+            const normalized = { isValid: true, bvn: dir.bvn, firstName: e.first_name, lastName: e.last_name, middleName: e.middle_name, dateOfBirth: e.date_of_birth, gender: e.gender, image: e.image || e.photo || null };
+            await BVNResult.create({ client: req.client.id, customer: customer._id, bvn: dir.bvn, result: normalized, status: 'success', meta: { type: 'director', directorName: dir.name } });
+            dirResult.bvnStatus = 'success';
+          } else {
+            dirResult.bvnStatus = 'skipped';
+          }
+        } catch {
+          await BVNResult.create({ client: req.client.id, customer: customer._id, bvn: dir.bvn, result: {}, status: 'failed', meta: { type: 'director', directorName: dir.name } }).catch(() => {});
+          dirResult.bvnStatus = 'failed';
+        }
+
+        // Individual bureau check per director
+        try {
+          const charge = await deductCharge(req.client.id, 'BUREAU_CHECK', { customerName: dir.name, customerId: customer._id });
+          if (charge.ok) {
+            const matchResult = await matchConsumer({ bvn: dir.bvn, name: dir.name });
+            const matched = matchResult?.MatchedConsumer?.[0] ?? matchResult;
+            const consumerID = matched?.ConsumerID ?? '0';
+            const matchingRate = parseFloat(matched?.MatchingRate ?? 0);
+
+            if (parseInt(consumerID, 10) !== 0 || matchingRate !== 0) {
+              const bureauData = await getXScoreConsumerReport({
+                consumerID,
+                consumerMergeList: matched?.ConsumerMergeList ?? '',
+                subscriberEnquiryEngineID: matched?.MatchingEngineID ?? matched?.SubscriberEnquiryEngineID ?? '',
+                enquiryID: matched?.EnquiryID ?? '',
+              });
+              await BureauResult.create({ client: req.client.id, customer: customer._id, bvn: dir.bvn, result: bureauData, status: 'success', meta: { type: 'director', directorName: dir.name } });
+              dirResult.bureauStatus = 'success';
+            } else {
+              dirResult.bureauStatus = 'no_record';
+            }
+          } else {
+            dirResult.bureauStatus = 'skipped';
+          }
+        } catch {
+          await BureauResult.create({ client: req.client.id, customer: customer._id, bvn: dir.bvn, result: {}, status: 'failed', meta: { type: 'director', directorName: dir.name } }).catch(() => {});
+          dirResult.bureauStatus = 'failed';
+        }
+      }
+
+      results.push(dirResult);
+    }
+
+    // Merge with any existing directors or replace — append by default
+    const existingNames = new Set((customer.directors || []).map(d => d.name?.toLowerCase()));
+    for (const r of results) {
+      if (existingNames.has(r.name?.toLowerCase())) {
+        const idx = customer.directors.findIndex(d => d.name?.toLowerCase() === r.name?.toLowerCase());
+        customer.directors[idx] = { ...customer.directors[idx].toObject(), ...r };
+      } else {
+        customer.directors.push(r);
+      }
+    }
+    await customer.save();
+
+    AuditLog.create({ client: req.client.id, action: 'DIRECTORS_SUBMITTED', entityType: 'Customer', entityId: customer._id, label: `${results.length} director(s) submitted for ${customer.name}`, meta: { count: results.length, source: 'api' } }).catch(() => {});
+
+    res.json({ success: true, results, totalDirectors: customer.directors.length });
+  } catch (err) {
+    console.error('[directors] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── POST /v1/customers/:id/financials ─────────────────────────────────────────
+router.post('/:id/financials', logUsage('/v1/customers/financials'), upload.array('documents', 10), async (req, res) => {
+  try {
+    const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id });
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+    if (customer.customerType !== 'business') {
+      return res.status(400).json({ error: 'Financial document upload is only for business customers' });
+    }
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded. Send files as multipart field named "documents"' });
+    }
+
+    const uploaded = [];
+    for (const file of req.files) {
+      const s3Key = await uploadDocument(file.buffer, {
+        clientId: req.client.id,
+        sessionToken: customer._id.toString(),
+        filename: file.originalname,
+        mimetype: file.mimetype,
+        folder: 'customers/financials',
+      }).catch(err => { console.error('[s3] financials upload failed:', err.message); return null; });
+
+      uploaded.push({ filename: file.originalname, size: file.size, s3Key, uploadedAt: new Date() });
+    }
+
+    customer.financials = [...(customer.financials || []), ...uploaded];
+    await customer.save();
+
+    AuditLog.create({ client: req.client.id, action: 'FINANCIALS_UPLOADED', entityType: 'Customer', entityId: customer._id, label: `${uploaded.length} financial document(s) uploaded for ${customer.name}`, meta: { count: uploaded.length, source: 'api' } }).catch(() => {});
+
+    res.json({ success: true, uploaded: uploaded.length, documents: uploaded });
+  } catch (err) {
+    console.error('[financials] error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── POST /v1/customers/:id/guarantor ─────────────────────────────────────────
+router.post('/:id/guarantor', logUsage('/v1/customers/guarantor'), async (req, res) => {
+  try {
+    const customer = await Customer.findOne({ _id: req.params.id, client: req.client.id });
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+
+    const { name, phone, email, address, relationship } = req.body;
+    if (!name || !phone) return res.status(400).json({ error: 'name and phone are required' });
+
+    customer.guarantor = { name, phone, email, address, relationship };
+    await customer.save();
+
+    AuditLog.create({ client: req.client.id, action: 'GUARANTOR_ADDED', entityType: 'Customer', entityId: customer._id, label: `Guarantor added for ${customer.name}: ${name}`, meta: { guarantorName: name, source: 'api' } }).catch(() => {});
+
+    res.json({ success: true, guarantor: customer.guarantor });
+  } catch (err) {
+    console.error('[guarantor] error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
