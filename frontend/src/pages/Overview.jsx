@@ -31,6 +31,8 @@ export default function Overview() {
   const [searching, setSearching] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(false);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
+  const [onboardSlug, setOnboardSlug]   = useState('');
+  const [linkCopied, setLinkCopied]     = useState(false);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -64,6 +66,7 @@ export default function Overview() {
   useEffect(() => {
     fetchStats(); fetchAnalytics(); fetchStatements(); fetchApiKeys();
     api.get('/api/wallet').then(({ data }) => setWallet(data.wallet)).catch(() => {});
+    api.get('/api/auth/me').then(({ data }) => setOnboardSlug(data.client?.onboardingSlug || '')).catch(() => {});
   }, [fetchStats, fetchAnalytics, fetchStatements, fetchApiKeys]);
 
   useEffect(() => {
@@ -140,6 +143,35 @@ export default function Overview() {
             )}
           </div>
           <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>View billing →</div>
+        </div>
+      )}
+
+      {/* Self-onboard link banner */}
+      {onboardSlug && (
+        <div style={{ background: '#f0f9ff', border: '1.5px solid #bae6fd', borderRadius: 12, padding: '12px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 18 }}>🔗</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>Customer Self-Onboard Link</div>
+            <div style={{ fontSize: 13, color: '#0369a1', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              https://engine.lucred.co/onboard/{onboardSlug}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(`https://engine.lucred.co/onboard/${onboardSlug}`);
+              setLinkCopied(true);
+              setTimeout(() => setLinkCopied(false), 2000);
+            }}
+            style={{ flexShrink: 0, padding: '7px 16px', border: 'none', borderRadius: 8, background: linkCopied ? '#22c55e' : '#0ea5e9', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}
+          >
+            {linkCopied ? '✓ Copied!' : 'Copy Link'}
+          </button>
+          <button
+            onClick={() => navigate('/dashboard/settings')}
+            style={{ flexShrink: 0, padding: '7px 14px', border: '1px solid #bae6fd', borderRadius: 8, background: 'transparent', color: '#0369a1', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          >
+            Change slug
+          </button>
         </div>
       )}
 

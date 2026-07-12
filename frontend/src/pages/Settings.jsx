@@ -50,7 +50,7 @@ export default function Settings() {
     if (!slug.trim()) return;
     setSlugSaving(true);
     try {
-      const { data } = await api.patch('/api/settings/onboarding-slug', { slug: slug.trim() });
+      const { data } = await api.patch('/api/auth/settings/onboarding-slug', { slug: slug.trim() });
       setSlug(data.onboardingSlug || data.slug);
       toast.success('Onboarding link updated');
     } catch (err) {
