@@ -13,7 +13,8 @@ const SECTIONS = [
   { id: 'scorecard',       label: 'Scorecard & Loan Review' },
   { id: 'rerun',           label: 'Re-run Checks' },
   { id: 'business-kyc',    label: 'Business KYC' },
-  { id: 'onboarding',      label: 'Customer Onboarding' },
+  { id: 'self-onboard',    label: 'Self-Onboard Link' },
+  { id: 'onboarding',      label: 'Customer Onboarding (API)' },
   { id: 'webhooks',        label: 'Webhooks' },
   { id: 'errors',          label: 'Error Codes' },
 ];
@@ -753,8 +754,66 @@ curl -X POST ${BASE}/v1/onboarding/sessions/SESSION_ID/step/directors \\
   -F "idCards=@/path/to/director-id.pdf"`} />
         </Section>
 
-        {/* Customer Onboarding */}
-        <Section title="Customer Onboarding" id="onboarding">
+        {/* Self-Onboard Link */}
+        <Section title="Self-Onboard Link" id="self-onboard">
+          <p style={{ fontSize: 13, color: '#475569', marginBottom: 16 }}>
+            Give customers a branded link they open in their browser and fill out themselves — no integration work required.
+            Their data flows directly into your dashboard once they submit.
+          </p>
+
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: '0 0 12px' }}>How it works</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+            {[
+              ['1', 'Go to Settings → Customer Onboarding Link and save a custom slug (e.g. acme-mfb).'],
+              ['2', 'Share the link — https://engine.lucred.co/onboard/your-slug — via SMS, email, or WhatsApp.'],
+              ['3', 'The customer picks their type (Individual or SME/Business) and completes the form.'],
+              ['4', 'On submission, the customer appears in your Customers list. You and the customer both receive a confirmation email.'],
+            ].map(([n, text]) => (
+              <div key={n} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: '#f8fafc', borderRadius: 10, padding: '12px 14px' }}>
+                <span style={{ minWidth: 24, height: 24, borderRadius: '50%', background: '#6d28d9', color: '#fff', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{n}</span>
+                <span style={{ fontSize: 13, color: '#334155', lineHeight: 1.6 }}>{text}</span>
+              </div>
+            ))}
+          </div>
+
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: '0 0 12px' }}>What the customer fills in</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
+            {[
+              ['Individual', ['Full name', 'Phone number', 'Email address', 'Bank statement (PDF)', 'Guarantor details (optional)']],
+              ['SME / Business', ['Business name + email', 'RC number + company type', 'CAC certificate (PDF)', 'Memart document (PDF)', 'Status report (PDF)', 'Bank statement (PDF)']],
+            ].map(([type, fields]) => (
+              <div key={type} style={{ background: '#f8fafc', borderRadius: 10, padding: '14px 16px' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#6d28d9', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>{type}</div>
+                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: '#475569', lineHeight: 1.9 }}>
+                  {fields.map(f => <li key={f}>{f}</li>)}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          <h3 style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: '0 0 12px' }}>Verifications run automatically</h3>
+          <p style={{ fontSize: 13, color: '#475569', marginBottom: 12 }}>
+            Lucred runs the following checks during submission and bills them to your wallet:
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 24 }}>
+            {[
+              ['Individual', 'Credit bureau (₦700) + Statement analysis (₦500)'],
+              ['SME / Business', 'CAC Basic (₦175) + TIN (₦100) + Statement analysis (₦500)'],
+            ].map(([type, checks]) => (
+              <div key={type} style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>
+                <span style={{ fontWeight: 700, color: '#0f172a', marginRight: 8 }}>{type}:</span>
+                <span style={{ color: '#475569' }}>{checks}</span>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 10, padding: '14px 16px', fontSize: 13, color: '#92400e' }}>
+            <strong>Note:</strong> Changing your slug breaks any previously shared links. Old links will show a "not found" page until you update them.
+          </div>
+        </Section>
+
+        {/* Customer Onboarding (API) */}
+        <Section title="Customer Onboarding (API)" id="onboarding">
           <p style={{ fontSize: 13, color: '#475569', marginBottom: 16 }}>
             Run a full onboarding flow for a customer — individual or SME — programmatically via API.
             Each session is resumable and tracks verification state across steps.

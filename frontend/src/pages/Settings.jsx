@@ -119,6 +119,46 @@ export default function Settings() {
         </form>
       </div>
 
+      <div style={{ ...s.card, border: '1.5px solid #bae6fd', background: '#f0f9ff' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1 }}>
+            <h2 style={{ ...s.cardTitle, color: '#0369a1', marginBottom: 4 }}>🔗 Customer Self-Onboard Link</h2>
+            <p style={{ fontSize: 13, color: '#0369a1', marginTop: 0, marginBottom: 16 }}>
+              Share this link with customers so they can fill out their own onboarding form. Supports both individual and SME customers. Data flows directly into your dashboard.
+            </p>
+          </div>
+        </div>
+        {slug ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, background: '#fff', border: '1.5px solid #bae6fd', borderRadius: 10, padding: '12px 16px' }}>
+            <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: '#0369a1', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              https://engine.lucred.co/onboard/{slug}
+            </span>
+            <button onClick={copyLink} style={{ flexShrink: 0, padding: '8px 18px', border: 'none', borderRadius: 8, background: copied ? '#22c55e' : '#0ea5e9', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background 0.2s' }}>
+              {copied ? '✓ Copied!' : 'Copy Link'}
+            </button>
+          </div>
+        ) : (
+          <div style={{ background: '#fff', border: '1.5px dashed #bae6fd', borderRadius: 10, padding: '14px 16px', marginBottom: 16, fontSize: 13, color: '#64748b', textAlign: 'center' }}>
+            Set a slug below to generate your onboarding link.
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ ...s.label, color: '#0369a1' }}>Custom Slug</label>
+            <input
+              value={slug}
+              onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+              placeholder="e.g. acme-microfinance"
+              style={{ ...s.input, borderColor: '#bae6fd', background: '#fff' }}
+            />
+            <p style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Lowercase letters, numbers, hyphens only. Changing this breaks existing shared links.</p>
+          </div>
+          <button onClick={saveSlug} disabled={slugSaving || !slug.trim()} style={{ ...s.btn, marginBottom: 22, flexShrink: 0, opacity: slugSaving || !slug.trim() ? 0.6 : 1 }}>
+            {slugSaving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+
       <div style={s.card}>
         <h2 style={s.cardTitle}>Change password</h2>
         <form onSubmit={changePassword} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -136,38 +176,6 @@ export default function Settings() {
             {savingPw ? 'Changing…' : 'Change password'}
           </button>
         </form>
-      </div>
-
-      <div style={s.card}>
-        <h2 style={s.cardTitle}>Customer Onboarding Link</h2>
-        <p style={{ fontSize: 13, color: '#64748b', marginTop: 0, marginBottom: 16 }}>
-          Share this link with your customers so they can self-onboard. Their data will flow directly into your dashboard.
-        </p>
-        {slug && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, background: '#f0f9ff', border: '1.5px solid #bae6fd', borderRadius: 10, padding: '10px 14px' }}>
-            <span style={{ flex: 1, fontSize: 13, color: '#0369a1', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              https://engine.lucred.co/onboard/{slug}
-            </span>
-            <button onClick={copyLink} style={{ flexShrink: 0, padding: '6px 14px', border: 'none', borderRadius: 7, background: copied ? '#22c55e' : '#0ea5e9', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-              {copied ? '✓ Copied!' : 'Copy'}
-            </button>
-          </div>
-        )}
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <div style={{ flex: 1 }}>
-            <label style={s.label}>Custom Slug</label>
-            <input
-              value={slug}
-              onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
-              placeholder="e.g. acme-microfinance"
-              style={s.input}
-            />
-            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Lowercase letters, numbers, hyphens only. Changing this breaks existing shared links.</p>
-          </div>
-          <button onClick={saveSlug} disabled={slugSaving || !slug.trim()} style={{ ...s.btn, marginTop: 18, flexShrink: 0, opacity: slugSaving || !slug.trim() ? 0.6 : 1 }}>
-            {slugSaving ? 'Saving…' : 'Save'}
-          </button>
-        </div>
       </div>
 
       <div style={{ ...s.card, border: '1px solid #fee2e2' }}>
