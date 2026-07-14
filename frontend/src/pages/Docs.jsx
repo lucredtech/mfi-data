@@ -259,7 +259,7 @@ export default function Docs() {
             note="Send as multipart/form-data"
             body={[
               { name: 'statement', type: 'file', required: true, desc: 'PDF, CSV, XLSX, or DOCX — max 10MB. PDF is highly recommended for best accuracy.' },
-              { name: 'bankName',  type: 'string', required: true, desc: 'Bank slug e.g. access, gtb, kuda, moniepoint' },
+              { name: 'bankName',  type: 'string', required: true, desc: 'Bank slug e.g. access, gtb, kuda, moniepoint, wema, premium' },
               { name: 'email',     type: 'string', required: false, desc: "Borrower's email address" },
               { name: 'password',  type: 'string', required: false, desc: 'PDF password if statement is encrypted' },
               { name: 'customerId', type: 'string', required: false, desc: 'Link result to a customer profile' },
@@ -931,7 +931,7 @@ curl -X POST ${BASE}/v1/onboarding/sessions/SESSION_ID/step/directors \\
             note="Send as multipart/form-data. Works for both individual and SME sessions."
             body={[
               { name: 'statement', type: 'file',   required: true,  desc: 'PDF, XLSX, CSV, or DOCX — max 10MB' },
-              { name: 'bankName',  type: 'string', required: false, desc: 'Bank name e.g. access, gtb, kuda' },
+              { name: 'bankName',  type: 'string', required: false, desc: 'Bank name e.g. access, gtb, kuda, wema, premium' },
               { name: 'password',  type: 'string', required: false, desc: 'PDF password if statement is encrypted' },
             ]}
             response={`{ "success": true, "resultId": "6643ef...", "currentStep": 3 }`} />

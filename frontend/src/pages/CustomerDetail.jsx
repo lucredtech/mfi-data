@@ -720,6 +720,7 @@ function StatementTab({ customer, statements, onRefresh }) {
     { value: 'providus', label: 'Providus' }, { value: 'smartcash', label: 'Airtel Smartcash' },
     { value: 'access', label: 'Access' }, { value: 'fcmb', label: 'FCMB' },
     { value: 'firstbank', label: 'First Bank' },
+    { value: 'wema', label: 'Wema Bank' }, { value: 'premium', label: 'Premium Trust' },
   ];
 
   async function handleUpload(e) {

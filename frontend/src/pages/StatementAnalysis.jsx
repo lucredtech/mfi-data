@@ -24,6 +24,8 @@ const BANKS = [
   { value: "nova", label: "Nova Bank" },
   { value: "palmpay", label: "Palmpay" },
   { value: "ecobank", label: "Ecobank" },
+  { value: "wema", label: "Wema Bank" },
+  { value: "premium", label: "Premium Trust" },
 ];
 
 function BankSelect({ value, onChange }) {
