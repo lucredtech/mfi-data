@@ -16,7 +16,7 @@ const BUCKET = process.env.AWS_BUCKET_NAME;
  * Returns the S3 key. Throws on failure.
  */
 async function uploadStatement(buffer, { clientId, resultId, filename, mimetype }) {
-  if (!BUCKET) throw new Error('AWS_S3_BUCKET env var not set');
+  if (!BUCKET) throw new Error('AWS_BUCKET_NAME env var not set');
   const now = new Date();
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const safe = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -37,7 +37,7 @@ async function uploadStatement(buffer, { clientId, resultId, filename, mimetype 
  * Generate a pre-signed GET URL for a statement (expires in 1 hour by default).
  */
 async function getStatementUrl(key, expiresInSeconds = 3600) {
-  if (!BUCKET) throw new Error('AWS_S3_BUCKET env var not set');
+  if (!BUCKET) throw new Error('AWS_BUCKET_NAME env var not set');
   return getSignedUrl(client, new GetObjectCommand({ Bucket: BUCKET, Key: key }), { expiresIn: expiresInSeconds });
 }
 
@@ -46,7 +46,7 @@ async function getStatementUrl(key, expiresInSeconds = 3600) {
  * Returns the S3 key. Throws on failure.
  */
 async function uploadDocument(buffer, { clientId, sessionToken, filename, mimetype, folder = 'onboarding' }) {
-  if (!BUCKET) throw new Error('AWS_S3_BUCKET env var not set');
+  if (!BUCKET) throw new Error('AWS_BUCKET_NAME env var not set');
   const safe = (filename || 'doc').replace(/[^a-zA-Z0-9._-]/g, '_');
   const key = `${folder}/${clientId}/${sessionToken}/${Date.now()}_${safe}`;
 

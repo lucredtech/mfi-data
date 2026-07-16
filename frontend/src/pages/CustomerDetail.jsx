@@ -719,7 +719,8 @@ function StatementTab({ customer, statements, onRefresh }) {
     { value: 'fidelity', label: 'Fidelity' }, { value: 'sterling', label: 'Sterling' },
     { value: 'providus', label: 'Providus' }, { value: 'smartcash', label: 'Airtel Smartcash' },
     { value: 'access', label: 'Access' }, { value: 'fcmb', label: 'FCMB' },
-    { value: 'firstbank', label: 'First Bank' },
+    { value: 'firstbank', label: 'First Bank' }, { value: 'nova', label: 'Nova Bank' },
+    { value: 'palmpay', label: 'Palmpay' }, { value: 'ecobank', label: 'Ecobank' },
     { value: 'wema', label: 'Wema Bank' }, { value: 'premium', label: 'Premium Trust' },
   ];
 
