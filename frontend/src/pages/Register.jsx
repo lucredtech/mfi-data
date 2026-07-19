@@ -95,8 +95,8 @@ export default function Register() {
         {/* Right form */}
         <div style={s.formSide}>
           <div style={{ position: 'absolute', top: 20, right: 24 }}>
-            <button onClick={toggle} className="theme-toggle-reg" style={{ fontSize: 18, background: 'none', border: 'none', cursor: 'pointer', padding: 4 }} title="Toggle theme">
-              {dark ? '☀️' : '🌙'}
+            <button onClick={toggle} className="theme-toggle-reg" style={{ fontSize: 13, fontWeight: 600, fontFamily: "'Sora',sans-serif", background: dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)', border: `1.5px solid ${dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)'}`, borderRadius: 20, padding: '7px 16px', cursor: 'pointer', color: dark ? '#e2e8f0' : '#334155', lineHeight: 1 }} title="Toggle theme">
+              {dark ? '☀️ Light' : '🌙 Dark'}
             </button>
           </div>
           <div style={s.card}>

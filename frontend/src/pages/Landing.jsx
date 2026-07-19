@@ -93,12 +93,12 @@ export default function Landing() {
             <Link to="/support"  style={s.navLink} className="nav-link">Support</Link>
             <Link to="/login"    style={s.navLink} className="nav-link">Sign in</Link>
             <button onClick={toggle} style={s.themeToggle} className="theme-toggle" title="Toggle theme">
-              {dark ? '☀️' : '🌙'}
+              {dark ? '☀️ Light' : '🌙 Dark'}
             </button>
             <Link to="/register" style={s.navBtn} className="cta-primary">Get API Access →</Link>
           </div>
           <div style={{ display:'none', alignItems:'center', gap:8 }} className="nav-mobile-btn">
-            <button onClick={toggle} style={s.themeToggle} className="theme-toggle">{dark ? '☀️' : '🌙'}</button>
+            <button onClick={toggle} style={s.themeToggle} className="theme-toggle">{dark ? '☀️ Light' : '🌙 Dark'}</button>
             <Link to="/register" style={s.navBtn} className="cta-primary">Get Access →</Link>
           </div>
         </div>

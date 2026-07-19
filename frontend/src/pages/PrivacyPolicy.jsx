@@ -1,33 +1,33 @@
 import Footer from '../components/Footer';
 import { Link } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 
 const LAST_UPDATED = 'June 21, 2025';
 
-function Section({ title, id, children }) {
-  return (
-    <section id={id} style={s.section}>
-      <h2 style={s.h2}>{title}</h2>
-      {children}
-    </section>
-  );
-}
-
-function P({ children }) { return <p style={s.p}>{children}</p>; }
-function UL({ items }) {
-  return (
-    <ul style={s.ul}>
-      {items.map((item, i) => <li key={i} style={s.li}>{item}</li>)}
-    </ul>
-  );
-}
-
 export default function PrivacyPolicy() {
+  const { dark, toggle } = useTheme();
+  const s = makeStyles(dark);
+
+  function Section({ title, id, children }) {
+    return (
+      <section id={id} style={s.section}>
+        <h2 style={s.h2}>{title}</h2>
+        {children}
+      </section>
+    );
+  }
+  function P({ children }) { return <p style={s.p}>{children}</p>; }
+  function UL({ items }) {
+    return <ul style={s.ul}>{items.map((item, i) => <li key={i} style={s.li}>{item}</li>)}</ul>;
+  }
+
   return (
     <div style={s.page}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
         .toc-link:hover { color: #38bdf8 !important; border-left-color: #38bdf8 !important; }
-        .nav-lk:hover { color: #e2e8f0 !important; }
+        .nav-lk:hover { color: ${dark ? '#e2e8f0' : '#0f172a'} !important; }
+        .theme-toggle-legal:hover { opacity: 0.7; }
         @media (max-width: 800px) {
           .pp-layout { grid-template-columns: 1fr !important; }
           .pp-sidebar { display: none !important; }
@@ -39,23 +39,24 @@ export default function PrivacyPolicy() {
         }
       `}</style>
 
-      {/* Nav */}
       <nav style={s.nav}>
         <div style={s.navInner}>
           <Link to="/" style={s.logo}>
             <div style={s.logoMark}>L</div>
             <span className="lce-logo-txt">Lucred Credit Engine</span>
           </Link>
-          <div className="lce-nav-links" style={{ display: 'flex', gap: 24 }}>
-            <Link to="/terms" className="nav-lk" style={s.navLink}>Terms of Service</Link>
-            <Link to="/security" className="nav-lk" style={s.navLink}>Security</Link>
-            <Link to="/support" className="nav-lk" style={s.navLink}>Support</Link>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+            <div className="lce-nav-links" style={{ display: 'flex', gap: 24 }}>
+              <Link to="/terms" className="nav-lk" style={s.navLink}>Terms of Service</Link>
+              <Link to="/security" className="nav-lk" style={s.navLink}>Security</Link>
+              <Link to="/support" className="nav-lk" style={s.navLink}>Support</Link>
+            </div>
+            <button onClick={toggle} className="theme-toggle-legal" style={s.themeToggle} title="Toggle theme">{dark ? '☀️ Light' : '🌙 Dark'}</button>
           </div>
         </div>
       </nav>
 
       <div className="pp-layout" style={s.layout}>
-        {/* Sidebar TOC */}
         <aside className="pp-sidebar" style={s.sidebar}>
           <div style={s.sidebarTitle}>Contents</div>
           {[
@@ -75,7 +76,6 @@ export default function PrivacyPolicy() {
           ))}
         </aside>
 
-        {/* Content */}
         <main className="pp-content" style={s.content}>
           <div style={s.header}>
             <span style={s.tag}>Legal</span>
@@ -162,7 +162,7 @@ export default function PrivacyPolicy() {
                 ['Biometric images / photos', 'Same as parent record (BVN/NIN retention period)', 'Identity verification only'],
               ].map(([type, period, basis]) => (
                 <div key={type} style={s.tableRow}>
-                  <span style={{ fontWeight: 600, color: '#e2e8f0' }}>{type}</span>
+                  <span style={{ fontWeight: 600, color: dark ? '#e2e8f0' : '#0f172a' }}>{type}</span>
                   <span style={{ color: '#0ea5e9', fontFamily: "'DM Mono', monospace", fontSize: 12 }}>{period}</span>
                   <span style={{ color: '#64748b' }}>{basis}</span>
                 </div>
@@ -224,7 +224,7 @@ export default function PrivacyPolicy() {
             ]} />
             <P>
               MFI Clients can exercise data portability and account deletion rights directly from the
-              <strong style={{ color: '#e2e8f0' }}> Dashboard → Privacy & Data</strong> page. Borrower data deletion requests submitted by Clients
+              <strong style={{ color: dark ? '#e2e8f0' : '#0f172a' }}> Dashboard → Privacy & Data</strong> page. Borrower data deletion requests submitted by Clients
               are processed immediately.
             </P>
             <P>
@@ -270,7 +270,7 @@ export default function PrivacyPolicy() {
           <Section title="Contact Us" id="contact">
             <P>For privacy-related enquiries, please contact:</P>
             <div style={s.contactBox}>
-              <div style={{ fontWeight: 700, color: '#e2e8f0', marginBottom: 6 }}>Data Protection Officer</div>
+              <div style={{ fontWeight: 700, color: dark ? '#e2e8f0' : '#0f172a', marginBottom: 6 }}>Data Protection Officer</div>
               <div style={{ marginBottom: 4 }}>Lucred Technology Limited</div>
               <div style={{ marginBottom: 4 }}>Email: <a href="mailto:dpo@lucred.co" style={s.a}>dpo@lucred.co</a></div>
               <div>Privacy: <a href="mailto:privacy@lucred.co" style={s.a}>privacy@lucred.co</a></div>
@@ -287,32 +287,41 @@ export default function PrivacyPolicy() {
   );
 }
 
-const s = {
-  page: { fontFamily: "'Sora', -apple-system, sans-serif", color: '#e2e8f0', background: '#060d18', minHeight: '100vh' },
-  nav: { background: 'rgba(6,13,24,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'sticky', top: 0, zIndex: 100 },
-  navInner: { maxWidth: 1100, margin: '0 auto', padding: '0 2rem', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  logo: { fontSize: 17, fontWeight: 800, color: '#f1f5f9', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 },
-  logoMark: { width: 28, height: 28, borderRadius: 7, background: 'linear-gradient(135deg, #0ea5e9, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff' },
-  navLink: { fontSize: 13, color: '#64748b', textDecoration: 'none', fontWeight: 500 },
-  layout: { maxWidth: 1100, margin: '0 auto', padding: '3rem 2rem', display: 'grid', gridTemplateColumns: '200px 1fr', gap: 48, alignItems: 'start' },
-  sidebar: { position: 'sticky', top: 80, display: 'flex', flexDirection: 'column', gap: 2 },
-  sidebarTitle: { fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 12 },
-  tocLink: { fontSize: 12, color: '#475569', textDecoration: 'none', padding: '5px 0 5px 12px', borderLeft: '2px solid rgba(255,255,255,0.08)', transition: 'color 0.15s, border-left-color 0.15s' },
-  content: { background: '#0d1625', borderRadius: 16, padding: '2.5rem', border: '1px solid rgba(255,255,255,0.06)' },
-  header: { marginBottom: 36, paddingBottom: 28, borderBottom: '1px solid rgba(255,255,255,0.06)' },
-  tag: { fontSize: 10, fontWeight: 700, color: '#0ea5e9', background: 'rgba(14,165,233,0.1)', padding: '3px 10px', borderRadius: 20, textTransform: 'uppercase', letterSpacing: 2 },
-  h1: { fontSize: 30, fontWeight: 800, color: '#f1f5f9', margin: '14px 0 6px', letterSpacing: -0.5 },
-  h2: { fontSize: 18, fontWeight: 700, color: '#e2e8f0', margin: '0 0 14px', paddingTop: 4 },
-  h3: { fontSize: 14, fontWeight: 700, color: '#94a3b8', margin: '20px 0 10px', textTransform: 'uppercase', letterSpacing: 0.5, fontSize: 11 },
-  meta: { fontSize: 12, color: '#475569', margin: '0 0 18px', fontFamily: "'DM Mono', monospace" },
-  lead: { fontSize: 14, color: '#64748b', lineHeight: 1.8, margin: 0 },
-  section: { marginBottom: 36, paddingBottom: 36, borderBottom: '1px solid rgba(255,255,255,0.05)' },
-  p: { fontSize: 14, color: '#64748b', lineHeight: 1.8, margin: '0 0 14px' },
-  ul: { margin: '0 0 14px', paddingLeft: 20 },
-  li: { fontSize: 14, color: '#64748b', lineHeight: 1.8, marginBottom: 6 },
-  a: { color: '#38bdf8', textDecoration: 'none' },
-  table: { border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, overflow: 'hidden', marginBottom: 14 },
-  tableHead: { display: 'grid', gridTemplateColumns: '2fr 1fr 1.5fr', background: '#0b1120', padding: '10px 16px', fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 1, gap: 16 },
-  tableRow: { display: 'grid', gridTemplateColumns: '2fr 1fr 1.5fr', padding: '10px 16px', fontSize: 13, borderTop: '1px solid rgba(255,255,255,0.04)', gap: 16 },
-  contactBox: { background: '#0b1120', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '1.25rem 1.5rem', fontSize: 14, color: '#94a3b8', lineHeight: 1.9 },
-};
+function makeStyles(dark) {
+  const bg     = dark ? '#060d18' : '#f0f4f8';
+  const card   = dark ? '#0d1625' : '#ffffff';
+  const border = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
+  const text   = dark ? '#f1f5f9' : '#0f172a';
+  const navBg  = dark ? 'rgba(6,13,24,0.88)' : 'rgba(240,244,248,0.92)';
+
+  return {
+    page:        { fontFamily: "'Sora', -apple-system, sans-serif", color: dark ? '#e2e8f0' : '#334155', background: bg, minHeight: '100vh' },
+    nav:         { background: navBg, backdropFilter: 'blur(16px)', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.07)'}`, position: 'sticky', top: 0, zIndex: 100 },
+    navInner:    { maxWidth: 1100, margin: '0 auto', padding: '0 2rem', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+    logo:        { fontSize: 17, fontWeight: 800, color: text, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 },
+    logoMark:    { width: 28, height: 28, borderRadius: 7, background: 'linear-gradient(135deg, #0ea5e9, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff' },
+    navLink:     { fontSize: 13, color: '#64748b', textDecoration: 'none', fontWeight: 500 },
+    themeToggle: { fontSize: 13, fontWeight: 600, fontFamily: "'Sora', sans-serif", background: dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)', border: `1.5px solid ${dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)'}`, borderRadius: 20, padding: '7px 16px', cursor: 'pointer', color: dark ? '#e2e8f0' : '#334155', lineHeight: 1 },
+    layout:      { maxWidth: 1100, margin: '0 auto', padding: '3rem 2rem', display: 'grid', gridTemplateColumns: '200px 1fr', gap: 48, alignItems: 'start' },
+    sidebar:     { position: 'sticky', top: 80, display: 'flex', flexDirection: 'column', gap: 2 },
+    sidebarTitle:{ fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 12 },
+    tocLink:     { fontSize: 12, color: '#475569', textDecoration: 'none', padding: '5px 0 5px 12px', borderLeft: `2px solid ${dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)'}`, transition: 'color 0.15s, border-left-color 0.15s' },
+    content:     { background: card, borderRadius: 16, padding: '2.5rem', border: `1px solid ${border}`, boxShadow: dark ? 'none' : '0 2px 12px rgba(0,0,0,0.06)' },
+    header:      { marginBottom: 36, paddingBottom: 28, borderBottom: `1px solid ${border}` },
+    tag:         { fontSize: 10, fontWeight: 700, color: '#0ea5e9', background: 'rgba(14,165,233,0.1)', padding: '3px 10px', borderRadius: 20, textTransform: 'uppercase', letterSpacing: 2 },
+    h1:          { fontSize: 30, fontWeight: 800, color: text, margin: '14px 0 6px', letterSpacing: -0.5 },
+    h2:          { fontSize: 18, fontWeight: 700, color: dark ? '#e2e8f0' : '#0f172a', margin: '0 0 14px', paddingTop: 4 },
+    h3:          { fontSize: 11, fontWeight: 700, color: dark ? '#94a3b8' : '#64748b', margin: '20px 0 10px', textTransform: 'uppercase', letterSpacing: 0.5 },
+    meta:        { fontSize: 12, color: '#475569', margin: '0 0 18px', fontFamily: "'DM Mono', monospace" },
+    lead:        { fontSize: 14, color: '#64748b', lineHeight: 1.8, margin: 0 },
+    section:     { marginBottom: 36, paddingBottom: 36, borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` },
+    p:           { fontSize: 14, color: '#64748b', lineHeight: 1.8, margin: '0 0 14px' },
+    ul:          { margin: '0 0 14px', paddingLeft: 20 },
+    li:          { fontSize: 14, color: '#64748b', lineHeight: 1.8, marginBottom: 6 },
+    a:           { color: '#38bdf8', textDecoration: 'none' },
+    table:       { border: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'}`, borderRadius: 10, overflow: 'hidden', marginBottom: 14 },
+    tableHead:   { display: 'grid', gridTemplateColumns: '2fr 1fr 1.5fr', background: dark ? '#0b1120' : '#f1f5f9', padding: '10px 16px', fontSize: 10, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: 1, gap: 16 },
+    tableRow:    { display: 'grid', gridTemplateColumns: '2fr 1fr 1.5fr', padding: '10px 16px', fontSize: 13, borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}`, gap: 16 },
+    contactBox:  { background: dark ? '#0b1120' : '#f8fafc', border: `1px solid ${border}`, borderRadius: 10, padding: '1.25rem 1.5rem', fontSize: 14, color: '#94a3b8', lineHeight: 1.9 },
+  };
+}

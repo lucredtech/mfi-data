@@ -68,7 +68,7 @@ export default function Pricing() {
           </Link>
           <div style={{ display:'flex', gap:12, alignItems:'center' }}>
             <Link to="/login" className="nav-link-p lce-signin" style={s.navLink}>Sign in</Link>
-            <button onClick={toggle} className="theme-toggle-p" style={s.themeToggle} title="Toggle theme">{dark ? '☀️' : '🌙'}</button>
+            <button onClick={toggle} className="theme-toggle-p" style={s.themeToggle} title="Toggle theme">{dark ? '☀️ Light' : '🌙 Dark'}</button>
             <Link to="/register" style={s.navBtn}>Get Started Free</Link>
           </div>
         </div>

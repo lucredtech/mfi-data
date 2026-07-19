@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Footer from '../components/Footer';
 import { Link } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 
 const FAQS = [
   {
@@ -138,6 +139,8 @@ const FAQS = [
 export default function Support() {
   const [openItem, setOpenItem] = useState(null);
   const [activeCategory, setActiveCategory] = useState('Getting Started');
+  const { dark, toggle } = useTheme();
+  const s = makeStyles(dark);
 
   const current = FAQS.find(f => f.category === activeCategory);
 
@@ -146,7 +149,8 @@ export default function Support() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
         .q-card:hover { border-color: rgba(14,165,233,0.25) !important; }
-        .nav-lk:hover { color: #e2e8f0 !important; }
+        .nav-lk:hover { color: ${dark ? '#e2e8f0' : '#0f172a'} !important; }
+        .theme-toggle-legal:hover { opacity: 0.7; }
         @media (max-width: 700px) {
           .quick-cards { grid-template-columns: 1fr 1fr !important; }
           .tabs-row { gap: 6px !important; }
@@ -167,10 +171,13 @@ export default function Support() {
             <div style={s.logoMark}>L</div>
             <span className="lce-logo-txt">Lucred Credit Engine</span>
           </Link>
-          <div className="lce-nav-links" style={{ display: 'flex', gap: 24 }}>
-            <Link to="/pricing" className="nav-lk" style={s.navLink}>Pricing</Link>
-            <Link to="/privacy-policy" className="nav-lk" style={s.navLink}>Privacy</Link>
-            <Link to="/login" className="nav-lk" style={s.navLink}>Sign In</Link>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+            <div className="lce-nav-links" style={{ display: 'flex', gap: 24 }}>
+              <Link to="/pricing" className="nav-lk" style={s.navLink}>Pricing</Link>
+              <Link to="/privacy-policy" className="nav-lk" style={s.navLink}>Privacy</Link>
+              <Link to="/login" className="nav-lk" style={s.navLink}>Sign In</Link>
+            </div>
+            <button onClick={toggle} className="theme-toggle-legal" style={s.themeToggle} title="Toggle theme">{dark ? '☀️ Light' : '🌙 Dark'}</button>
           </div>
         </div>
       </nav>
@@ -232,7 +239,7 @@ export default function Support() {
               return (
                 <div key={key} style={{ ...s.faqItem, ...(isOpen ? { borderColor: 'rgba(14,165,233,0.2)' } : {}) }}>
                   <button style={s.faqQ} onClick={() => setOpenItem(isOpen ? null : key)}>
-                    <span style={{ color: isOpen ? '#38bdf8' : '#e2e8f0' }}>{item.q}</span>
+                    <span style={{ color: isOpen ? '#38bdf8' : (dark ? '#e2e8f0' : '#0f172a') }}>{item.q}</span>
                     <span style={{ fontSize: 18, color: isOpen ? '#0ea5e9' : '#475569', flexShrink: 0 }}>{isOpen ? '−' : '+'}</span>
                   </button>
                   {isOpen && <div style={s.faqA}>{item.a}</div>}
@@ -296,46 +303,55 @@ export default function Support() {
   );
 }
 
-const s = {
-  page: { fontFamily: "'Sora', -apple-system, sans-serif", color: '#e2e8f0', background: '#060d18', minHeight: '100vh' },
-  nav: { background: 'rgba(6,13,24,0.85)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'sticky', top: 0, zIndex: 100 },
-  navInner: { maxWidth: 1100, margin: '0 auto', padding: '0 2rem', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  logo: { fontSize: 17, fontWeight: 800, color: '#f1f5f9', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 },
-  logoMark: { width: 28, height: 28, borderRadius: 7, background: 'linear-gradient(135deg, #0ea5e9, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff' },
-  navLink: { fontSize: 13, color: '#64748b', textDecoration: 'none', fontWeight: 500 },
-  hero: { position: 'relative', overflow: 'hidden', background: '#060d18', padding: '5rem 2rem 4rem', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)' },
-  glowBlue: { position: 'absolute', top: -60, left: '50%', transform: 'translateX(-50%)', width: 600, height: 300, background: 'radial-gradient(circle, rgba(14,165,233,0.1) 0%, transparent 70%)', pointerEvents: 'none' },
-  heroInner: { maxWidth: 600, margin: '0 auto', position: 'relative', zIndex: 1 },
-  eyebrow: { fontSize: 10, fontWeight: 700, color: '#0ea5e9', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 14 },
-  h1: { fontSize: 38, fontWeight: 800, color: '#f8fafc', margin: '0 0 14px', letterSpacing: -0.8 },
-  lead: { fontSize: 16, color: '#64748b', margin: 0 },
-  qCard: { background: '#0b1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 14, padding: '1.5rem', textDecoration: 'none', color: 'inherit', textAlign: 'center', transition: 'border-color 0.15s' },
-  qCardIcon: { fontSize: 26, marginBottom: 10 },
-  qCardTitle: { fontSize: 14, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 },
-  qCardSub: { fontSize: 13, color: '#0ea5e9', fontWeight: 600, marginBottom: 4 },
-  qCardNote: { fontSize: 11, color: '#475569' },
-  faqSection: { background: '#060d18', padding: '3rem 2rem', borderTop: '1px solid rgba(255,255,255,0.04)' },
-  faqInner: { maxWidth: 860, margin: '0 auto' },
-  faqTitle: { fontSize: 28, fontWeight: 800, color: '#f1f5f9', marginBottom: 28, textAlign: 'center', letterSpacing: -0.5 },
-  tabs: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 28, justifyContent: 'center' },
-  tab: { fontSize: 12, fontWeight: 600, padding: '7px 16px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.08)', background: 'transparent', color: '#64748b', cursor: 'pointer', fontFamily: "'Sora', sans-serif" },
-  tabActive: { background: '#0ea5e9', color: '#fff', border: '1px solid #0ea5e9' },
-  faqList: { display: 'flex', flexDirection: 'column', gap: 8 },
-  faqItem: { border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, overflow: 'hidden', background: '#0b1120', transition: 'border-color 0.15s' },
-  faqQ: { width: '100%', background: 'none', border: 'none', padding: '16px 20px', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, fontSize: 14, fontWeight: 600, color: '#e2e8f0', fontFamily: "'Sora', sans-serif" },
-  faqA: { padding: '0 20px 16px', fontSize: 14, color: '#64748b', lineHeight: 1.8, borderTop: '1px solid rgba(255,255,255,0.05)' },
-  statusSection: { padding: '3rem 2rem', background: '#060d18', borderTop: '1px solid rgba(255,255,255,0.04)' },
-  statusInner: { maxWidth: 600, margin: '0 auto' },
-  statusTitle: { fontSize: 22, fontWeight: 800, color: '#f1f5f9', textAlign: 'center', marginBottom: 6 },
-  statusSub: { fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 24 },
-  statusGrid: { background: '#0b1120', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, overflow: 'hidden' },
-  statusRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)' },
-  statusService: { fontSize: 13, color: '#94a3b8', fontWeight: 500 },
-  statusBadge: { fontSize: 11, fontWeight: 700, color: '#34d399', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', padding: '3px 10px', borderRadius: 20 },
-  contactSection: { position: 'relative', overflow: 'hidden', background: '#0b1120', padding: '5rem 2rem', textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.05)' },
-  contactGlow: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 500, height: 250, background: 'radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%)', pointerEvents: 'none' },
-  contactInner: { maxWidth: 520, margin: '0 auto', position: 'relative', zIndex: 1 },
-  contactTitle: { fontSize: 28, fontWeight: 800, color: '#f1f5f9', marginBottom: 12 },
-  contactSub: { fontSize: 14, color: '#64748b', lineHeight: 1.7, marginBottom: 28 },
-  contactBtn: { display: 'inline-block', background: '#0ea5e9', color: '#fff', padding: '13px 28px', borderRadius: 10, textDecoration: 'none', fontWeight: 700, fontSize: 15 },
-};
+function makeStyles(dark) {
+  const bg     = dark ? '#060d18' : '#f0f4f8';
+  const card   = dark ? '#0b1120' : '#ffffff';
+  const border = dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)';
+  const text   = dark ? '#f1f5f9' : '#0f172a';
+  const navBg  = dark ? 'rgba(6,13,24,0.88)' : 'rgba(240,244,248,0.92)';
+
+  return {
+    page:          { fontFamily: "'Sora', -apple-system, sans-serif", color: dark ? '#e2e8f0' : '#334155', background: bg, minHeight: '100vh' },
+    nav:           { background: navBg, backdropFilter: 'blur(16px)', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.07)'}`, position: 'sticky', top: 0, zIndex: 100 },
+    navInner:      { maxWidth: 1100, margin: '0 auto', padding: '0 2rem', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+    logo:          { fontSize: 17, fontWeight: 800, color: text, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 },
+    logoMark:      { width: 28, height: 28, borderRadius: 7, background: 'linear-gradient(135deg, #0ea5e9, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff' },
+    navLink:       { fontSize: 13, color: '#64748b', textDecoration: 'none', fontWeight: 500 },
+    themeToggle: { fontSize: 13, fontWeight: 600, fontFamily: "'Sora', sans-serif", background: dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.07)', border: `1.5px solid ${dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)'}`, borderRadius: 20, padding: '7px 16px', cursor: 'pointer', color: dark ? '#e2e8f0' : '#334155', lineHeight: 1 },
+    hero:          { position: 'relative', overflow: 'hidden', background: bg, padding: '5rem 2rem 4rem', textAlign: 'center', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'}` },
+    glowBlue:      { position: 'absolute', top: -60, left: '50%', transform: 'translateX(-50%)', width: 600, height: 300, background: 'radial-gradient(circle, rgba(14,165,233,0.1) 0%, transparent 70%)', pointerEvents: 'none' },
+    heroInner:     { maxWidth: 600, margin: '0 auto', position: 'relative', zIndex: 1 },
+    eyebrow:       { fontSize: 10, fontWeight: 700, color: '#0ea5e9', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 14 },
+    h1:            { fontSize: 38, fontWeight: 800, color: text, margin: '0 0 14px', letterSpacing: -0.8 },
+    lead:          { fontSize: 16, color: '#64748b', margin: 0 },
+    qCard:         { background: card, border: `1px solid ${border}`, borderRadius: 14, padding: '1.5rem', textDecoration: 'none', color: 'inherit', textAlign: 'center', transition: 'border-color 0.15s', boxShadow: dark ? 'none' : '0 2px 8px rgba(0,0,0,0.06)' },
+    qCardIcon:     { fontSize: 26, marginBottom: 10 },
+    qCardTitle:    { fontSize: 14, fontWeight: 700, color: dark ? '#e2e8f0' : '#0f172a', marginBottom: 4 },
+    qCardSub:      { fontSize: 13, color: '#0ea5e9', fontWeight: 600, marginBottom: 4 },
+    qCardNote:     { fontSize: 11, color: '#475569' },
+    faqSection:    { background: bg, padding: '3rem 2rem', borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'}` },
+    faqInner:      { maxWidth: 860, margin: '0 auto' },
+    faqTitle:      { fontSize: 28, fontWeight: 800, color: text, marginBottom: 28, textAlign: 'center', letterSpacing: -0.5 },
+    tabs:          { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 28, justifyContent: 'center' },
+    tab:           { fontSize: 12, fontWeight: 600, padding: '7px 16px', borderRadius: 20, border: `1px solid ${border}`, background: 'transparent', color: '#64748b', cursor: 'pointer', fontFamily: "'Sora', sans-serif" },
+    tabActive:     { background: '#0ea5e9', color: '#fff', border: '1px solid #0ea5e9' },
+    faqList:       { display: 'flex', flexDirection: 'column', gap: 8 },
+    faqItem:       { border: `1px solid ${border}`, borderRadius: 10, overflow: 'hidden', background: card, transition: 'border-color 0.15s', boxShadow: dark ? 'none' : '0 1px 4px rgba(0,0,0,0.05)' },
+    faqQ:          { width: '100%', background: 'none', border: 'none', padding: '16px 20px', textAlign: 'left', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, fontSize: 14, fontWeight: 600, color: dark ? '#e2e8f0' : '#0f172a', fontFamily: "'Sora', sans-serif" },
+    faqA:          { padding: '0 20px 16px', fontSize: 14, color: '#64748b', lineHeight: 1.8, borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}` },
+    statusSection: { padding: '3rem 2rem', background: bg, borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)'}` },
+    statusInner:   { maxWidth: 600, margin: '0 auto' },
+    statusTitle:   { fontSize: 22, fontWeight: 800, color: text, textAlign: 'center', marginBottom: 6 },
+    statusSub:     { fontSize: 13, color: '#64748b', textAlign: 'center', marginBottom: 24 },
+    statusGrid:    { background: card, border: `1px solid ${border}`, borderRadius: 12, overflow: 'hidden', boxShadow: dark ? 'none' : '0 2px 8px rgba(0,0,0,0.06)' },
+    statusRow:     { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '13px 20px', borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.05)'}` },
+    statusService: { fontSize: 13, color: dark ? '#94a3b8' : '#475569', fontWeight: 500 },
+    statusBadge:   { fontSize: 11, fontWeight: 700, color: '#34d399', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', padding: '3px 10px', borderRadius: 20 },
+    contactSection:{ position: 'relative', overflow: 'hidden', background: dark ? '#0b1120' : '#e8edf2', padding: '5rem 2rem', textAlign: 'center', borderTop: `1px solid ${dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)'}` },
+    contactGlow:   { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 500, height: 250, background: 'radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%)', pointerEvents: 'none' },
+    contactInner:  { maxWidth: 520, margin: '0 auto', position: 'relative', zIndex: 1 },
+    contactTitle:  { fontSize: 28, fontWeight: 800, color: text, marginBottom: 12 },
+    contactSub:    { fontSize: 14, color: '#64748b', lineHeight: 1.7, marginBottom: 28 },
+    contactBtn:    { display: 'inline-block', background: '#0ea5e9', color: '#fff', padding: '13px 28px', borderRadius: 10, textDecoration: 'none', fontWeight: 700, fontSize: 15 },
+  };
+}
