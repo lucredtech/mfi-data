@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { ThemeProvider } from './context/ThemeContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AdminProvider, useAdmin } from './context/AdminContext';
 import Landing from './pages/Landing';
@@ -129,5 +130,5 @@ function App() {
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <AdminProvider><AuthProvider><NotificationProvider><App /><Analytics /></NotificationProvider></AuthProvider></AdminProvider>
+  <ThemeProvider><AdminProvider><AuthProvider><NotificationProvider><App /><Analytics /></NotificationProvider></AuthProvider></AdminProvider></ThemeProvider>
 );

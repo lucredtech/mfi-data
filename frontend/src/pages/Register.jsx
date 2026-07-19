@@ -3,6 +3,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { parseApiError } from '../utils/apiError';
+import { useTheme } from '../context/ThemeContext';
 
 const TRUST_ITEMS = [
   { icon: '🔒', text: 'All data encrypted in transit and at rest' },
@@ -16,8 +17,10 @@ export default function Register() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const ref = searchParams.get('ref') || '';
+  const { dark, toggle } = useTheme();
   const [form, setForm] = useState({ organizationName: '', email: '', password: '', contactPerson: '', phone: '' });
   const [loading, setLoading] = useState(false);
+  const s = makeStyles(dark);
 
   const update = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
@@ -45,6 +48,7 @@ export default function Register() {
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=DM+Mono:wght@400;500&display=swap');
         .auth-input:focus { border-color: rgba(14,165,233,0.5) !important; box-shadow: 0 0 0 3px rgba(14,165,233,0.08) !important; outline: none; }
         .reg-btn:hover:not(:disabled) { background: #0284c7 !important; }
+        .theme-toggle-reg:hover { opacity: 0.7; }
         @media (max-width: 900px) {
           .reg-panel { display: none !important; }
           .reg-layout { grid-template-columns: 1fr !important; }
@@ -52,7 +56,7 @@ export default function Register() {
       `}</style>
 
       <div className="reg-layout" style={s.layout}>
-        {/* Left panel */}
+        {/* Left panel — always dark */}
         <div className="reg-panel" style={s.panel}>
           <div style={s.panelGlow} />
           <div style={{ position: 'relative', zIndex: 1 }}>
@@ -90,11 +94,12 @@ export default function Register() {
 
         {/* Right form */}
         <div style={s.formSide}>
+          <div style={{ position: 'absolute', top: 20, right: 24 }}>
+            <button onClick={toggle} className="theme-toggle-reg" style={{ fontSize: 18, background: 'none', border: 'none', cursor: 'pointer', padding: 4 }} title="Toggle theme">
+              {dark ? '☀️' : '🌙'}
+            </button>
+          </div>
           <div style={s.card}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-              <div style={{ ...s.logoMark, display: 'none' }}>L</div>
-            </div>
-
             <h1 style={s.heading}>Register your MFI</h1>
             <p style={s.sub}>Get API access to identity verification, credit bureau, and statement analysis.</p>
 
@@ -124,14 +129,14 @@ export default function Register() {
               </button>
             </form>
 
-            <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#475569' }}>
+            <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: dark ? '#475569' : '#64748b' }}>
               Have an account? <Link to="/login" style={{ color: '#38bdf8', textDecoration: 'none', fontWeight: 600 }}>Sign in</Link>
             </p>
-            <p style={{ textAlign: 'center', fontSize: 11, color: '#334155', marginTop: 14, lineHeight: 1.6 }}>
+            <p style={{ textAlign: 'center', fontSize: 11, color: dark ? '#334155' : '#94a3b8', marginTop: 14, lineHeight: 1.6 }}>
               By creating an account you agree to our{' '}
-              <Link to="/terms" style={{ color: '#64748b', textDecoration: 'none' }}>Terms of Service</Link>
+              <Link to="/terms" style={{ color: dark ? '#64748b' : '#475569', textDecoration: 'none' }}>Terms of Service</Link>
               {' '}and{' '}
-              <Link to="/privacy-policy" style={{ color: '#64748b', textDecoration: 'none' }}>Privacy Policy</Link>.
+              <Link to="/privacy-policy" style={{ color: dark ? '#64748b' : '#475569', textDecoration: 'none' }}>Privacy Policy</Link>.
             </p>
           </div>
         </div>
@@ -140,19 +145,27 @@ export default function Register() {
   );
 }
 
-const s = {
-  page: { minHeight: '100vh', background: '#060d18', fontFamily: "'Sora', -apple-system, sans-serif", display: 'flex', alignItems: 'stretch' },
-  layout: { display: 'grid', gridTemplateColumns: '400px 1fr', width: '100%' },
-  panel: { position: 'relative', overflow: 'hidden', background: '#0b1120', borderRight: '1px solid rgba(255,255,255,0.06)', padding: '3rem 2.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' },
-  panelGlow: { position: 'absolute', bottom: -100, right: -100, width: 500, height: 500, background: 'radial-gradient(circle, rgba(124,58,237,0.1) 0%, transparent 65%)', pointerEvents: 'none' },
-  panelLogo: { display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' },
-  logoMark: { width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #0ea5e9, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800, color: '#fff', flexShrink: 0 },
-  formSide: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem 2rem', overflowY: 'auto' },
-  card: { width: '100%', maxWidth: 420 },
-  heading: { fontSize: 24, fontWeight: 800, color: '#f1f5f9', margin: '0 0 8px', letterSpacing: -0.5 },
-  sub: { fontSize: 13, color: '#64748b', margin: '0 0 28px', lineHeight: 1.6 },
-  field: { marginBottom: 16 },
-  label: { display: 'block', fontSize: 11, fontWeight: 600, color: '#94a3b8', marginBottom: 7, textTransform: 'uppercase', letterSpacing: 0.5 },
-  input: { width: '100%', padding: '11px 14px', background: '#0b1120', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 9, fontSize: 14, color: '#e2e8f0', boxSizing: 'border-box', fontFamily: "'Sora', sans-serif", transition: 'border-color 0.15s, box-shadow 0.15s' },
-  btn: { width: '100%', padding: '13px', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 9, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Sora', sans-serif", transition: 'background 0.15s', marginTop: 4 },
-};
+function makeStyles(dark) {
+  const bg     = dark ? '#060d18' : '#f0f4f8';
+  const card   = dark ? '#0b1120' : '#ffffff';
+  const border = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.1)';
+  const text   = dark ? '#f1f5f9' : '#0f172a';
+  const sub    = dark ? '#64748b' : '#475569';
+
+  return {
+    page:      { minHeight: '100vh', background: bg, fontFamily: "'Sora', -apple-system, sans-serif", display: 'flex', alignItems: 'stretch' },
+    layout:    { display: 'grid', gridTemplateColumns: '400px 1fr', width: '100%' },
+    panel:     { position: 'relative', overflow: 'hidden', background: '#0b1120', borderRight: '1px solid rgba(255,255,255,0.06)', padding: '3rem 2.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' },
+    panelGlow: { position: 'absolute', bottom: -100, right: -100, width: 500, height: 500, background: 'radial-gradient(circle, rgba(124,58,237,0.1) 0%, transparent 65%)', pointerEvents: 'none' },
+    panelLogo: { display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' },
+    logoMark:  { width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg, #0ea5e9, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800, color: '#fff', flexShrink: 0 },
+    formSide:  { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem 2rem', overflowY: 'auto', position: 'relative' },
+    card:      { width: '100%', maxWidth: 420 },
+    heading:   { fontSize: 24, fontWeight: 800, color: text, margin: '0 0 8px', letterSpacing: -0.5 },
+    sub:       { fontSize: 13, color: sub, margin: '0 0 28px', lineHeight: 1.6 },
+    field:     { marginBottom: 16 },
+    label:     { display: 'block', fontSize: 11, fontWeight: 600, color: dark ? '#94a3b8' : '#64748b', marginBottom: 7, textTransform: 'uppercase', letterSpacing: 0.5 },
+    input:     { width: '100%', padding: '11px 14px', background: dark ? '#0b1120' : '#f8fafc', border: `1px solid ${border}`, borderRadius: 9, fontSize: 14, color: dark ? '#e2e8f0' : '#0f172a', boxSizing: 'border-box', fontFamily: "'Sora', sans-serif", transition: 'border-color 0.15s, box-shadow 0.15s' },
+    btn:       { width: '100%', padding: '13px', background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 9, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: "'Sora', sans-serif", transition: 'background 0.15s', marginTop: 4 },
+  };
+}
