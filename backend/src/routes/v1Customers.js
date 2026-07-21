@@ -443,7 +443,7 @@ router.post('/:id/directors', logUsage('/v1/customers/directors'), upload.array(
       const dir = directors[i];
       if (!dir.name) return res.status(400).json({ error: `directors[${i}].name is required` });
 
-      const dirResult = { name: dir.name, bvn: dir.bvn || null, bvnStatus: null, bureauStatus: null, idCardKey: null };
+      const dirResult = { name: dir.name, bvn: dir.bvn || null, nin: dir.nin || null, bvnStatus: null, ninStatus: null, bureauStatus: null, idCardKey: null };
 
       // Upload ID card if provided
       const idCardFile = req.files?.[i];
@@ -473,6 +473,20 @@ router.post('/:id/directors', logUsage('/v1/customers/directors'), upload.array(
         } catch {
           await BVNResult.create({ client: req.client.id, customer: customer._id, bvn: dir.bvn, result: {}, status: 'failed', meta: { type: 'director', directorName: dir.name } }).catch(() => {});
           dirResult.bvnStatus = 'failed';
+        }
+
+        // NIN check per director
+        if (dir.nin) {
+          try {
+            await deductCharge(req.client.id, 'NIN_CHECK', { customerName: dir.name, customerId: customer._id }).catch(() => {});
+            const { data: ninData } = await dojahApi.get('/api/v1/kyc/nin', { params: { nin: dir.nin } });
+            const ne = ninData.entity || {};
+            await NINResult.create({ client: req.client.id, customer: customer._id, nin: dir.nin, result: ne, status: 'success', meta: { type: 'director', directorName: dir.name } });
+            dirResult.ninStatus = 'success';
+          } catch {
+            await NINResult.create({ client: req.client.id, customer: customer._id, nin: dir.nin, result: {}, status: 'failed', meta: { type: 'director', directorName: dir.name } }).catch(() => {});
+            dirResult.ninStatus = 'failed';
+          }
         }
 
         // Individual bureau check per director

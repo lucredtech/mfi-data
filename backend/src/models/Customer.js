@@ -28,7 +28,9 @@ const customerSchema = new mongoose.Schema(
     directors: [{
       name:        { type: String },
       bvn:         { type: String },
+      nin:         { type: String },
       bvnStatus:   { type: String, enum: ['success', 'failed', 'skipped'] },
+      ninStatus:   { type: String, enum: ['success', 'failed', 'skipped'] },
       bureauStatus:{ type: String, enum: ['success', 'failed', 'no_record', 'skipped'] },
       idCardKey:   { type: String },
       addedAt:     { type: Date, default: Date.now },

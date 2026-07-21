@@ -9,6 +9,7 @@ const bureauResultSchema = new mongoose.Schema(
     bvn: { type: String },
     result: { type: Object },
     status: { type: String, enum: ['success', 'failed'], default: 'success' },
+    meta: { type: Object },
     expireAt: { type: Date, default: () => new Date(Date.now() + BUREAU_TTL_DAYS * 24 * 60 * 60 * 1000) },
   },
   { timestamps: true }

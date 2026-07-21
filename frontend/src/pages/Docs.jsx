@@ -411,10 +411,10 @@ curl -X POST ${BASE}/v1/customers/CUSTOMER_ID/business-bureau \\
   -H "Content-Type: application/json" \\
   -d '{"cacNumber":"RC1234567","businessName":"Okeke Ventures Ltd"}'
 
-# 5. Submit directors — BVN check + individual bureau per director
+# 5. Submit directors — BVN check + NIN verification + individual bureau per director
 curl -X POST ${BASE}/v1/customers/CUSTOMER_ID/directors \\
   -H "X-Api-Key: lcrd_your_api_key" \\
-  -F 'directors=[{"name":"Chukwuemeka Okafor","bvn":"22312345678"}]' \\
+  -F 'directors=[{"name":"Chukwuemeka Okafor","bvn":"22312345678","nin":"12345678901"}]' \\
   -F "idCards=@director-id.pdf"
 
 # 6. Upload other financial documents (optional)
@@ -603,10 +603,10 @@ curl -X POST ${BASE}/v1/customers/statement/rerun/RESULT_ID \\
 
           <Endpoint
             method="POST" path="/v1/customers/:id/directors"
-            desc="Submit directors — runs BVN check + individual bureau per director"
-            note="Send as multipart/form-data. Costs ₦75 BVN + ₦700 bureau per director. Directors are merged into the customer record."
+            desc="Submit directors — runs BVN check, NIN verification (optional), and individual bureau per director"
+            note="Send as multipart/form-data. Costs ₦75 BVN + ₦100 NIN + ₦700 bureau per director. NIN check only runs if nin is provided. Directors are merged into the customer record."
             body={[
-              { name: 'directors', type: 'JSON array', required: true,  desc: 'Array of objects: [{ name, bvn }]. At least one required.' },
+              { name: 'directors', type: 'JSON array', required: true,  desc: 'Array of objects: [{ name, bvn, nin? }]. name and bvn are required per director; nin is optional.' },
               { name: 'idCards',   type: 'file[]',     required: false, desc: 'ID card files — one per director, in the same order as the directors array.' },
             ]}
             response={`{
@@ -616,7 +616,9 @@ curl -X POST ${BASE}/v1/customers/statement/rerun/RESULT_ID \\
     {
       "name": "Chukwuemeka Okafor",
       "bvn": "22312345678",
+      "nin": "12345678901",
       "bvnStatus": "success",
+      "ninStatus": "success",
       "bureauStatus": "success",
       "idCardKey": "customers/director-ids/director-0-id.pdf"
     }
@@ -715,10 +717,10 @@ curl -X POST ${BASE}/v1/customers/statement/rerun/RESULT_ID \\
 
           <Endpoint
             method="POST" path="/v1/onboarding/sessions/:id/step/directors"
-            desc="Submit directors — BVN verification + bureau per director"
-            note="Send as multipart/form-data. directors field is a JSON array. Costs ₦75 BVN + ₦700 bureau per director."
+            desc="Submit directors — BVN verification, NIN verification (optional), and bureau per director"
+            note="Send as multipart/form-data. directors field is a JSON array. Costs ₦75 BVN + ₦100 NIN (if nin provided) + ₦700 bureau per director."
             body={[
-              { name: 'directors',  type: 'JSON array', required: true,  desc: 'Array of objects: [{ name, bvn }]. Minimum 1 director.' },
+              { name: 'directors',  type: 'JSON array', required: true,  desc: 'Array of objects: [{ name, bvn, nin? }]. name and bvn required; nin is optional.' },
               { name: 'idCards',    type: 'file[]',     required: false, desc: 'Optional ID card files, one per director in same order as the directors array.' },
             ]}
             response={`{
@@ -728,6 +730,7 @@ curl -X POST ${BASE}/v1/customers/statement/rerun/RESULT_ID \\
     {
       "name": "Chukwuemeka Okafor",
       "bvnStatus": "success",
+      "ninStatus": "success",
       "bureauStatus": "success",
       "idCardKey": "onboarding/director-ids/director-0-id.pdf"
     }

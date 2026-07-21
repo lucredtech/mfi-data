@@ -404,12 +404,12 @@ function SMEBusinessBureauStep({ onNext, loading, verifications: v }) {
 
 // ── SME: Directors ─────────────────────────────────────────────────────────────
 function SMEDirectorsStep({ onNext, loading, verifications: v }) {
-  const [directors, setDirectors] = useState([{ name: '', bvn: '', idCard: null }]);
+  const [directors, setDirectors] = useState([{ name: '', bvn: '', nin: '', idCard: null }]);
 
   function updateDir(i, k, val) {
     setDirectors(ds => ds.map((d, idx) => idx === i ? { ...d, [k]: val } : d));
   }
-  function addDir() { setDirectors(ds => [...ds, { name: '', bvn: '', idCard: null }]); }
+  function addDir() { setDirectors(ds => [...ds, { name: '', bvn: '', nin: '', idCard: null }]); }
   function removeDir(i) { setDirectors(ds => ds.filter((_, idx) => idx !== i)); }
 
   async function handleNext() {
@@ -417,6 +417,7 @@ function SMEDirectorsStep({ onNext, loading, verifications: v }) {
     directors.forEach((d, i) => {
       fd.append(`directors[${i}][name]`, d.name);
       fd.append(`directors[${i}][bvn]`, d.bvn);
+      if (d.nin) fd.append(`directors[${i}][nin]`, d.nin);
       if (d.idCard) fd.append(`directors[${i}][idCard]`, d.idCard);
     });
     onNext(fd);
@@ -426,7 +427,7 @@ function SMEDirectorsStep({ onNext, loading, verifications: v }) {
 
   return (
     <div style={{ background: '#fff', borderRadius: 16, padding: '2rem', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-      <StepHeader title="Director Information" subtitle="Provide details for at least one director. We'll verify identity and run a credit bureau check on each director." />
+      <StepHeader title="Director Information" subtitle="Provide details for at least one director. We'll verify BVN, NIN, and run a credit bureau check on each director." />
       {v.businessBureau && (
         <div style={{ marginBottom: 16 }}>
           <VerificationChip status={v.businessBureau} label="Business Bureau" />
@@ -441,6 +442,9 @@ function SMEDirectorsStep({ onNext, loading, verifications: v }) {
           <div style={grid2}>
             <Field label="Full Name" required={i === 0}><input style={inp} placeholder="Chukwuemeka Okafor" value={d.name} onChange={e => updateDir(i, 'name', e.target.value)} /></Field>
             <Field label="BVN" required={i === 0}><input style={inp} placeholder="22222222222" value={d.bvn} onChange={e => updateDir(i, 'bvn', e.target.value)} maxLength={11} /></Field>
+          </div>
+          <div style={grid2}>
+            <Field label="NIN (optional)"><input style={inp} placeholder="12345678901" value={d.nin} onChange={e => updateDir(i, 'nin', e.target.value)} maxLength={11} /></Field>
           </div>
           <Field label="ID Card (optional — NIN slip, National ID, Passport, Voter's card)">
             <FileUploadBox label="ID card" accept=".pdf,.jpg,.jpeg,.png" onChange={f => updateDir(i, 'idCard', f)} file={d.idCard} hint="PDF or image · max 10MB" />

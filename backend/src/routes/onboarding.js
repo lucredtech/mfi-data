@@ -574,7 +574,7 @@ router.post('/:slug/session/:token/step/directors', upload.array('idCards', 10),
     const results = [];
     for (let i = 0; i < directors.length; i++) {
       const dir = directors[i];
-      const dirResult = { name: dir.name, bvnStatus: null, bureauStatus: null, idCardKey: null };
+      const dirResult = { name: dir.name, bvnStatus: null, ninStatus: null, bureauStatus: null, idCardKey: null };
 
       // Upload ID card if provided
       const idCardFile = req.files?.[i];
@@ -589,6 +589,7 @@ router.post('/:slug/session/:token/step/directors', upload.array('idCards', 10),
       // BVN check
       if (dir.bvn) {
         try {
+          await deductCharge(client._id, 'BVN_CHECK', { customerName: dir.name }).catch(() => {});
           const { data } = await dojahApi.get('/api/v1/kyc/bvn/advance', { params: { bvn: dir.bvn } });
           const e = data.entity || {};
           const normalized = { isValid: true, bvn: dir.bvn, firstName: e.first_name, lastName: e.last_name };
@@ -597,6 +598,20 @@ router.post('/:slug/session/:token/step/directors', upload.array('idCards', 10),
         } catch {
           await BVNResult.create({ client: client._id, customer: session.customer, bvn: dir.bvn, result: {}, status: 'failed' }).catch(() => {});
           dirResult.bvnStatus = 'failed';
+        }
+
+        // NIN check for director
+        if (dir.nin) {
+          try {
+            await deductCharge(client._id, 'NIN_CHECK', { customerName: dir.name }).catch(() => {});
+            const { data: ninData } = await dojahApi.get('/api/v1/kyc/nin', { params: { nin: dir.nin } });
+            const ne = ninData.entity || {};
+            await NINResult.create({ client: client._id, customer: session.customer, nin: dir.nin, result: ne, status: 'success', meta: { type: 'director', directorName: dir.name } });
+            dirResult.ninStatus = 'success';
+          } catch {
+            await NINResult.create({ client: client._id, customer: session.customer, nin: dir.nin, result: {}, status: 'failed', meta: { type: 'director', directorName: dir.name } }).catch(() => {});
+            dirResult.ninStatus = 'failed';
+          }
         }
 
         // Bureau check for director

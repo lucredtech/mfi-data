@@ -278,7 +278,7 @@ export default function CustomerDetail() {
 
       <div>
         {tab === 'Overview' && <OverviewTab customer={customer} statements={statements || []} bvnResults={bvnResults || []} ninResults={ninResults || []} bureauResults={bureauResults || []} discrepancies={discrepancies} setTab={setTab} customerId={id} />}
-        {tab === 'Business KYC' && <BusinessKYCTab customer={customer} customerId={id} />}
+        {tab === 'Business KYC' && <BusinessKYCTab customer={customer} customerId={id} onRefresh={load} />}
         {tab === 'Timeline' && <TimelineTab customer={customer} statements={statements || []} bvnResults={bvnResults || []} ninResults={ninResults || []} bureauResults={bureauResults || []} loanReviews={loanReviews} setTab={setTab} />}
         {tab === 'Statement Analysis' && <StatementTab customer={customer} statements={statements || []} onRefresh={load} />}
         {tab === 'BVN Verification' && <BVNTab customer={customer} bvnResults={bvnResults || []} onRefresh={load} />}
@@ -2730,8 +2730,35 @@ function VerificationResultCard({ result, accentColor, photoKey, fields, verifie
 }
 
 // ── Business KYC Tab ─────────────────────────────────────────────────────────
-function BusinessKYCTab({ customer, customerId }) {
+function BusinessKYCTab({ customer, customerId, onRefresh }) {
   const bd = customer.businessDetails || {};
+  const [dirModal, setDirModal] = useState(false);
+  const [dirRows, setDirRows] = useState([{ name: '', bvn: '', nin: '' }]);
+  const [dirLoading, setDirLoading] = useState(false);
+
+  function addDirRow() { setDirRows(r => [...r, { name: '', bvn: '', nin: '' }]); }
+  function removeDirRow(i) { setDirRows(r => r.filter((_, j) => j !== i)); }
+  function updateDirRow(i, field, val) { setDirRows(r => r.map((row, j) => j === i ? { ...row, [field]: val } : row)); }
+
+  async function submitDirectors(e) {
+    e.preventDefault();
+    const valid = dirRows.filter(d => d.name && d.bvn);
+    if (!valid.length) return toast.error('At least one director with name and BVN is required');
+    setDirLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append('directors', JSON.stringify(valid.map(d => ({ name: d.name, bvn: d.bvn, ...(d.nin ? { nin: d.nin } : {}) }))));
+      await axios.post(`${API}/v1/customers/${customerId}/directors`, fd, { headers: authHeaders() });
+      toast.success(`${valid.length} director(s) submitted — BVN, NIN, and bureau checks running`);
+      setDirModal(false);
+      setDirRows([{ name: '', bvn: '', nin: '' }]);
+      onRefresh();
+    } catch (err) {
+      toast.error(parseApiError(err, { default: 'Director KYC failed. Please try again.' }));
+    } finally {
+      setDirLoading(false);
+    }
+  }
 
   async function openDoc(key) {
     try {
@@ -2849,13 +2876,20 @@ function BusinessKYCTab({ customer, customerId }) {
       </div>
 
       {/* Directors */}
-      {(customer.directors || []).length > 0 && (
-        <div style={s.card}>
+      <div style={s.card}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div style={s.cardTitle}>Directors / Proprietors</div>
+          <button onClick={() => setDirModal(true)} style={{ background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+            + Add Directors
+          </button>
+        </div>
+        {(customer.directors || []).length === 0 ? (
+          <div style={{ color: '#94a3b8', fontSize: 13, padding: '12px 0' }}>No directors submitted yet. Click "Add Directors" to run KYC.</div>
+        ) : (
           <table style={s.table}>
             <thead>
               <tr>
-                {['Name', 'BVN', 'BVN Status', 'Bureau Status', 'ID Card'].map(h => <th key={h} style={s.th}>{h}</th>)}
+                {['Name', 'BVN', 'BVN Status', 'NIN Status', 'Bureau Status', 'ID Card'].map(h => <th key={h} style={s.th}>{h}</th>)}
               </tr>
             </thead>
             <tbody>
@@ -2869,6 +2903,11 @@ function BusinessKYCTab({ customer, customerId }) {
                     </span>
                   </td>
                   <td style={s.td}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: d.ninStatus === 'success' ? '#dcfce7' : d.ninStatus === 'failed' ? '#fee2e2' : '#f1f5f9', color: d.ninStatus === 'success' ? '#16a34a' : d.ninStatus === 'failed' ? '#dc2626' : '#94a3b8' }}>
+                      {d.ninStatus || '—'}
+                    </span>
+                  </td>
+                  <td style={s.td}>
                     <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: d.bureauStatus === 'success' ? '#dcfce7' : d.bureauStatus === 'failed' ? '#fee2e2' : '#f1f5f9', color: d.bureauStatus === 'success' ? '#16a34a' : d.bureauStatus === 'failed' ? '#dc2626' : '#94a3b8' }}>
                       {d.bureauStatus || '—'}
                     </span>
@@ -2878,6 +2917,52 @@ function BusinessKYCTab({ customer, customerId }) {
               ))}
             </tbody>
           </table>
+        )}
+      </div>
+
+      {/* Add Directors Modal */}
+      {dirModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: '2rem', width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div style={{ fontSize: 17, fontWeight: 800, color: '#0f172a' }}>Director KYC</div>
+              <button onClick={() => { setDirModal(false); setDirRows([{ name: '', bvn: '', nin: '' }]); }} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>×</button>
+            </div>
+            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>Runs BVN check, NIN verification (if provided), and individual credit bureau per director. Costs apply per check.</div>
+            <form onSubmit={submitDirectors}>
+              {dirRows.map((d, i) => (
+                <div key={i} style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: '14px 16px', marginBottom: 12, position: 'relative' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#94a3b8', marginBottom: 10 }}>Director {i + 1}</div>
+                  {dirRows.length > 1 && (
+                    <button type="button" onClick={() => removeDirRow(i)} style={{ position: 'absolute', top: 10, right: 12, background: 'none', border: 'none', color: '#dc2626', fontSize: 18, cursor: 'pointer', lineHeight: 1 }}>×</button>
+                  )}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                    <div>
+                      <label style={s.label}>Full Name *</label>
+                      <input style={s.input} placeholder="Chukwuemeka Okafor" value={d.name} onChange={e => updateDirRow(i, 'name', e.target.value)} />
+                    </div>
+                    <div>
+                      <label style={s.label}>BVN *</label>
+                      <input style={s.input} placeholder="22312345678" maxLength={11} value={d.bvn} onChange={e => updateDirRow(i, 'bvn', e.target.value.replace(/\D/g, ''))} />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={s.label}>NIN <span style={{ color: '#94a3b8', fontWeight: 400 }}>(optional)</span></label>
+                    <input style={{ ...s.input, width: '50%' }} placeholder="12345678901" maxLength={11} value={d.nin} onChange={e => updateDirRow(i, 'nin', e.target.value.replace(/\D/g, ''))} />
+                  </div>
+                </div>
+              ))}
+              <button type="button" onClick={addDirRow} style={{ background: 'none', border: '1.5px dashed #cbd5e1', borderRadius: 8, padding: '8px 16px', fontSize: 13, color: '#64748b', cursor: 'pointer', width: '100%', marginBottom: 20 }}>
+                + Add another director
+              </button>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button type="button" onClick={() => { setDirModal(false); setDirRows([{ name: '', bvn: '', nin: '' }]); }} style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#334155' }}>Cancel</button>
+                <button type="submit" disabled={dirLoading} style={{ background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: dirLoading ? 0.7 : 1 }}>
+                  {dirLoading ? 'Running checks…' : 'Submit & Run KYC'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

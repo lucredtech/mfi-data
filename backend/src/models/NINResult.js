@@ -9,6 +9,7 @@ const ninResultSchema = new mongoose.Schema(
     nin: { type: String },
     result: { type: Object }, // includes photo (base64) for analyst review; TTL expires after 90 days
     status: { type: String, enum: ['success', 'failed'], default: 'success' },
+    meta: { type: Object },
     expireAt: { type: Date, default: () => new Date(Date.now() + NIN_TTL_DAYS * 24 * 60 * 60 * 1000) },
   },
   { timestamps: true }
