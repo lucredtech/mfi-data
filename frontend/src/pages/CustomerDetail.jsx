@@ -2362,6 +2362,114 @@ function computeLoanReview({ latestBVN, latestNIN, latestBureau, latestStatement
 }
 
 // ── Loan Review Tab ───────────────────────────────────────────────────────────
+function PolicySuggestionPane({ latestBVN, latestNIN, latestBureau, latestStatement, customer }) {
+  const [policy, setPolicy] = useState(null);
+
+  useEffect(() => {
+    axios.get(`${API}/api/auth/loan-policy`, { headers: authHeaders() })
+      .then(({ data }) => setPolicy(data.loanPolicy || {}))
+      .catch(() => {});
+  }, []);
+
+  if (!policy) return null;
+  const hasAnyParam = Object.values(policy).some(v => v != null && v !== '' && !(Array.isArray(v) && v.length === 0));
+  if (!hasAnyParam) return null;
+
+  const cashFlow = latestStatement?.result?.cashFlowAnalysis || {};
+  const income   = latestStatement?.result?.incomeSourceAnalysis || {};
+  const debt     = latestStatement?.result?.debtServicing || {};
+
+  // Derive values
+  const creditScore = (() => {
+    const bureau = latestBureau?.result;
+    const sec = bureau?.SecondSection || bureau?.secondSection;
+    const overviewArr = sec?.Overview || bureau?.Overview;
+    const scoring = Array.isArray(overviewArr) ? overviewArr : null;
+    const raw = scoring?.[0]?.Scoring?.[0]?.TotalConsumerScore ?? bureau?.creditScore ?? bureau?.summary?.creditScore;
+    return raw != null ? parseInt(raw, 10) : null;
+  })();
+
+  const delinquencies = (() => {
+    const agreements = latestBureau?.result?.SecondSection?.AccountSummary?.OpenAccounts?.Agreement
+      || latestBureau?.result?.AccountSummary?.OpenAccounts?.Agreement || [];
+    const list = Array.isArray(agreements) ? agreements : [agreements];
+    return list.filter(a => a.PerformanceStatus && a.PerformanceStatus !== 'Performing' && a.PerformanceStatus !== '').length;
+  })();
+
+  const monthlyIncome   = parseFloat(income.averageMonthlyIncome || income.averageIncome || 0) || null;
+  const monthlyCashInflow = cashFlow.totalCashInflow ? cashFlow.totalCashInflow / (cashFlow.periodMonths || 1) : null;
+  const monthlyExpenses   = cashFlow.totalCashOutflow ? cashFlow.totalCashOutflow / (cashFlow.periodMonths || 1) : null;
+  const dti = parseFloat(debt.loanRepayments?.DebtToIncomeRatio) || null;
+
+  function check(label, value, threshold, mode, format) {
+    if (threshold == null || threshold === '') return null;
+    const t = Number(threshold);
+    if (value == null) return { label, status: 'unknown', detail: 'No data available' };
+    const pass = mode === 'min' ? value >= t : value <= t;
+    const fmt = format === 'currency' ? `₦${Number(value).toLocaleString()}` : format === 'pct' ? `${value.toFixed(1)}%` : String(value);
+    const tFmt = format === 'currency' ? `₦${Number(t).toLocaleString()}` : format === 'pct' ? `${t}%` : String(t);
+    return { label, status: pass ? 'pass' : 'fail', detail: `${fmt} (threshold: ${mode === 'min' ? '≥' : '≤'} ${tFmt})` };
+  }
+
+  function checkRequired(key, label, present) {
+    if (!policy.requiredChecks?.includes(key)) return null;
+    return { label, status: present ? 'pass' : 'fail', detail: present ? 'Completed' : 'Not completed' };
+  }
+
+  const checks = [
+    checkRequired('bvn', 'BVN Verification', !!latestBVN),
+    checkRequired('nin', 'NIN Verification', !!latestNIN),
+    checkRequired('bureau', 'Credit Bureau', !!latestBureau),
+    check('Credit Score', creditScore, policy.minCreditScore, 'min', 'num'),
+    check('Debt-to-Income Ratio', dti, policy.maxDTI, 'max', 'pct'),
+    check('Delinquent Facilities', delinquencies, policy.maxDelinquencies, 'max', 'num'),
+    check('Monthly Income', monthlyIncome, policy.minMonthlyIncome, 'min', 'currency'),
+    check('Monthly Cash Inflow', monthlyCashInflow, policy.minMonthlyCashInflow, 'min', 'currency'),
+    check('Monthly Expenses', monthlyExpenses, policy.maxMonthlyExpenses, 'max', 'currency'),
+  ].filter(Boolean);
+
+  if (!checks.length) return null;
+
+  const fails    = checks.filter(c => c.status === 'fail').length;
+  const unknowns = checks.filter(c => c.status === 'unknown').length;
+  const passes   = checks.filter(c => c.status === 'pass').length;
+  const allPass  = fails === 0 && unknowns === 0;
+
+  const bg      = allPass ? '#f0fdf4' : fails > 0 ? '#fff7ed' : '#f8fafc';
+  const border  = allPass ? '#86efac' : fails > 0 ? '#fdba74' : '#e2e8f0';
+  const heading = allPass ? '✓ Meets your lending policy' : fails > 0 ? `${fails} policy criterion${fails > 1 ? 'ia' : 'on'} not met` : 'Policy check incomplete — some data missing';
+  const headCol = allPass ? '#15803d' : fails > 0 ? '#c2410c' : '#475569';
+
+  return (
+    <div style={{ background: bg, border: `1.5px solid ${border}`, borderRadius: 12, padding: '1.25rem 1.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: headCol }}>{heading}</div>
+          <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Based on your institution's loan policy · {passes} pass · {fails} fail · {unknowns} unknown</div>
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 700, background: 'rgba(0,0,0,0.05)', color: '#64748b', padding: '3px 10px', borderRadius: 20 }}>POLICY CHECK</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {checks.map(c => {
+          const col = c.status === 'pass' ? '#16a34a' : c.status === 'fail' ? '#dc2626' : '#94a3b8';
+          const bg2 = c.status === 'pass' ? '#dcfce7' : c.status === 'fail' ? '#fee2e2' : '#f1f5f9';
+          const icon = c.status === 'pass' ? '✓' : c.status === 'fail' ? '✗' : '?';
+          return (
+            <div key={c.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', borderRadius: 8, padding: '8px 12px', border: '1px solid rgba(0,0,0,0.05)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 22, height: 22, borderRadius: '50%', background: bg2, color: col, fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>{c.label}</span>
+              </div>
+              <span style={{ fontSize: 12, color: '#64748b' }}>{c.detail}</span>
+            </div>
+          );
+        })}
+      </div>
+      <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 12, marginBottom: 0 }}>This is a suggestion only. Final lending decisions remain with your credit team.</p>
+    </div>
+  );
+}
+
 function LoanReviewTab({ customer, statements, bvnResults, ninResults, bureauResults, discrepancies }) {
   const latestStatement = statements.find(s => s.status === 'success');
   const latestBVN = bvnResults.find(r => r.status === 'success');
@@ -2401,6 +2509,14 @@ function LoanReviewTab({ customer, statements, bvnResults, ninResults, bureauRes
           {!latestBureau && <span style={{ marginLeft: 8, fontWeight: 600 }}>Credit bureau check missing.</span>}
         </div>
       )}
+
+      <PolicySuggestionPane
+        latestBVN={latestBVN}
+        latestNIN={latestNIN}
+        latestBureau={latestBureau}
+        latestStatement={latestStatement}
+        customer={customer}
+      />
 
       <LoanReviewSection
         customer={customer}

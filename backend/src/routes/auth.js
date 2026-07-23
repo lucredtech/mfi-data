@@ -86,6 +86,50 @@ router.post('/change-password', requireJWT, async (req, res) => {
   }
 });
 
+// Loan policy — GET
+router.get('/loan-policy', requireJWT, async (req, res) => {
+  try {
+    const client = await MFIClient.findById(req.client.id).select('loanPolicy').lean();
+    res.json({ loanPolicy: client.loanPolicy || {} });
+  } catch {
+    res.status(500).json({ error: 'Failed to fetch loan policy' });
+  }
+});
+
+// Loan policy — PUT
+router.put('/loan-policy', requireJWT, async (req, res) => {
+  try {
+    const {
+      minCreditScore, maxLoanAmount, maxDTI, maxDelinquencies,
+      minMonthlyIncome, minMonthlyCashInflow, maxMonthlyExpenses, requiredChecks,
+    } = req.body;
+
+    const policy = {};
+    const num = (v) => (v !== '' && v != null && !isNaN(Number(v)) ? Number(v) : undefined);
+
+    if (num(minCreditScore)       != null) policy.minCreditScore       = num(minCreditScore);
+    else policy.minCreditScore = null;
+    if (num(maxLoanAmount)        != null) policy.maxLoanAmount        = num(maxLoanAmount);
+    else policy.maxLoanAmount = null;
+    if (num(maxDTI)               != null) policy.maxDTI               = num(maxDTI);
+    else policy.maxDTI = null;
+    if (num(maxDelinquencies)     != null) policy.maxDelinquencies     = num(maxDelinquencies);
+    else policy.maxDelinquencies = null;
+    if (num(minMonthlyIncome)     != null) policy.minMonthlyIncome     = num(minMonthlyIncome);
+    else policy.minMonthlyIncome = null;
+    if (num(minMonthlyCashInflow) != null) policy.minMonthlyCashInflow = num(minMonthlyCashInflow);
+    else policy.minMonthlyCashInflow = null;
+    if (num(maxMonthlyExpenses)   != null) policy.maxMonthlyExpenses   = num(maxMonthlyExpenses);
+    else policy.maxMonthlyExpenses = null;
+    if (Array.isArray(requiredChecks)) policy.requiredChecks = requiredChecks;
+
+    await MFIClient.findByIdAndUpdate(req.client.id, { loanPolicy: policy });
+    res.json({ success: true, loanPolicy: policy });
+  } catch {
+    res.status(500).json({ error: 'Failed to save loan policy' });
+  }
+});
+
 // Register a new MFI client
 router.post('/register', async (req, res) => {
   try {

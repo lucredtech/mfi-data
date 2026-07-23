@@ -13,12 +13,20 @@ export default function Settings() {
   const [slugSaving, setSlugSaving] = useState(false);
   const [copied, setCopied]     = useState(false);
 
+  const emptyPolicy = { minCreditScore: '', maxLoanAmount: '', maxDTI: '', maxDelinquencies: '', minMonthlyIncome: '', minMonthlyCashInflow: '', maxMonthlyExpenses: '', requiredChecks: [] };
+  const [policy, setPolicy]     = useState(emptyPolicy);
+  const [policySaving, setPolicySaving] = useState(false);
+
   useEffect(() => {
     api.get('/api/auth/me').then(({ data }) => {
       setProfile(data.client);
       setForm({ organizationName: data.client.organizationName || '', contactPerson: data.client.contactPerson || '', phone: data.client.phone || '' });
       setSlug(data.client.onboardingSlug || '');
     }).catch(() => toast.error('Failed to load settings'));
+    api.get('/api/auth/loan-policy').then(({ data }) => {
+      const p = data.loanPolicy || {};
+      setPolicy({ minCreditScore: p.minCreditScore ?? '', maxLoanAmount: p.maxLoanAmount ?? '', maxDTI: p.maxDTI ?? '', maxDelinquencies: p.maxDelinquencies ?? '', minMonthlyIncome: p.minMonthlyIncome ?? '', minMonthlyCashInflow: p.minMonthlyCashInflow ?? '', maxMonthlyExpenses: p.maxMonthlyExpenses ?? '', requiredChecks: p.requiredChecks || [] });
+    }).catch(() => {});
   }, []);
 
   async function saveProfile(e) {
@@ -44,6 +52,20 @@ export default function Settings() {
     } catch (err) {
       toast.error(err.response?.data?.error || 'Failed to change password');
     } finally { setSavingPw(false); }
+  }
+
+  async function savePolicy(e) {
+    e.preventDefault();
+    setPolicySaving(true);
+    try {
+      await api.put('/api/auth/loan-policy', { ...policy });
+      toast.success('Loan policy saved');
+    } catch { toast.error('Failed to save loan policy'); }
+    finally { setPolicySaving(false); }
+  }
+
+  function toggleCheck(key) {
+    setPolicy(p => ({ ...p, requiredChecks: p.requiredChecks.includes(key) ? p.requiredChecks.filter(c => c !== key) : [...p.requiredChecks, key] }));
   }
 
   async function saveSlug() {
@@ -157,6 +179,55 @@ export default function Settings() {
             {slugSaving ? 'Saving…' : 'Save'}
           </button>
         </div>
+      </div>
+
+      <div style={s.card}>
+        <h2 style={s.cardTitle}>Loan Approval Policy</h2>
+        <p style={{ fontSize: 13, color: '#64748b', marginTop: -10, marginBottom: 20 }}>
+          Set your institution's lending thresholds. All fields are optional — only configured parameters will be checked during loan review. Leave blank to skip that criterion.
+        </p>
+        <form onSubmit={savePolicy} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            {[
+              { key: 'minCreditScore',       label: 'Min Credit Score',         placeholder: 'e.g. 600',      hint: 'FirstCentral XScore minimum' },
+              { key: 'maxLoanAmount',         label: 'Max Loan Amount (₦)',      placeholder: 'e.g. 5000000',  hint: 'Maximum facility to approve' },
+              { key: 'maxDTI',               label: 'Max DTI (%)',              placeholder: 'e.g. 40',       hint: 'Debt-to-income ratio ceiling' },
+              { key: 'maxDelinquencies',      label: 'Max Delinquent Facilities',placeholder: 'e.g. 0',        hint: 'Non-performing loans allowed' },
+              { key: 'minMonthlyIncome',      label: 'Min Monthly Income (₦)',   placeholder: 'e.g. 150000',   hint: 'Average monthly salary/income' },
+              { key: 'minMonthlyCashInflow',  label: 'Min Monthly Cash Inflow (₦)', placeholder: 'e.g. 200000', hint: 'Total inflows from statement' },
+              { key: 'maxMonthlyExpenses',    label: 'Max Monthly Expenses (₦)', placeholder: 'e.g. 300000',  hint: 'Total outflows from statement' },
+            ].map(({ key, label, placeholder, hint }) => (
+              <div key={key}>
+                <label style={s.label}>{label}</label>
+                <input
+                  type="number" min="0"
+                  value={policy[key]}
+                  onChange={e => setPolicy(p => ({ ...p, [key]: e.target.value }))}
+                  placeholder={placeholder}
+                  style={s.input}
+                />
+                <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{hint}</p>
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <label style={s.label}>Required Checks</label>
+            <p style={{ fontSize: 12, color: '#64748b', marginTop: 0, marginBottom: 10 }}>Customer must have completed these checks before the review suggestion can pass.</p>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {[['bvn','BVN Verification'],['nin','NIN Verification'],['bureau','Credit Bureau']].map(([key, label]) => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#334155', cursor: 'pointer', background: policy.requiredChecks.includes(key) ? '#e0f2fe' : '#f8fafc', border: `1.5px solid ${policy.requiredChecks.includes(key) ? '#0ea5e9' : '#e2e8f0'}`, borderRadius: 8, padding: '8px 14px' }}>
+                  <input type="checkbox" checked={policy.requiredChecks.includes(key)} onChange={() => toggleCheck(key)} style={{ accentColor: '#0ea5e9' }} />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <button type="submit" disabled={policySaving} style={{ ...s.btn, opacity: policySaving ? 0.6 : 1, alignSelf: 'flex-start' }}>
+            {policySaving ? 'Saving…' : 'Save policy'}
+          </button>
+        </form>
       </div>
 
       <div style={s.card}>

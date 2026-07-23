@@ -31,6 +31,16 @@ const mfiClientSchema = new mongoose.Schema(
     emailVerifyToken: { type: String },
     emailVerifyExpires: { type: Date },
     onboardingSlug: { type: String, unique: true, sparse: true },
+    loanPolicy: {
+      minCreditScore:      { type: Number },
+      maxLoanAmount:       { type: Number },
+      maxDTI:              { type: Number },
+      maxDelinquencies:    { type: Number },
+      minMonthlyIncome:    { type: Number },
+      minMonthlyCashInflow:{ type: Number },
+      maxMonthlyExpenses:  { type: Number },
+      requiredChecks:      { type: [String], default: [] }, // e.g. ['bvn','nin','bureau']
+    },
   },
   { timestamps: true }
 );
