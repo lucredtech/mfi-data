@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export default function exportNINCertPDF(record) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -55,7 +55,7 @@ export default function exportNINCertPDF(record) {
     ['Watch Listed', r.watchListed || 'No'],
   ];
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 58,
     head: [['Field', 'Value']],
     body: fields,

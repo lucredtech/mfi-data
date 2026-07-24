@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export default function exportSummaryPDF({ stats, orgName, isAdmin = false }) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -30,7 +30,7 @@ export default function exportSummaryPDF({ stats, orgName, isAdmin = false }) {
 
   if (isAdmin) {
     sectionHead('MFI Clients');
-    doc.autoTable({
+    autoTable(doc, {
       startY: y,
       body: [
         ['Total MFI Clients', stats?.totalClients ?? '—'],
@@ -49,7 +49,7 @@ export default function exportSummaryPDF({ stats, orgName, isAdmin = false }) {
   }
 
   sectionHead('Analysis Volume');
-  doc.autoTable({
+  autoTable(doc, {
     startY: y,
     head: [['Metric', 'Total', 'Failed']],
     body: [
@@ -71,7 +71,7 @@ export default function exportSummaryPDF({ stats, orgName, isAdmin = false }) {
   // Endpoint breakdown (admin only)
   if (isAdmin && stats?.byEndpoint?.length > 0) {
     sectionHead('Requests by Endpoint');
-    doc.autoTable({
+    autoTable(doc, {
       startY: y,
       head: [['Endpoint', 'Request Count']],
       body: stats.byEndpoint.map((e) => [e._id, e.count]),

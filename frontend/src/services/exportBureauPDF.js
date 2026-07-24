@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 function parseBureauSections(result) {
   const arr = result?.data ?? (Array.isArray(result) ? result : []);
@@ -71,7 +71,7 @@ export default function exportBureauPDF(record) {
     ['Date Checked', new Date(record.createdAt).toLocaleString()],
   ];
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 74,
     head: [['Field', 'Value']],
     body: summaryFields,
@@ -91,7 +91,7 @@ export default function exportBureauPDF(record) {
       ['Types of Credit Score', scoring.TypesOfCreditScore ?? '—'],
       ['Length of Credit History', scoring.LengthOfCreditHistoryScore ?? '—'],
     ];
-    doc.autoTable({
+    autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 8,
       head: [['Score Component', 'Value']],
       body: scoreFields,
@@ -121,7 +121,7 @@ export default function exportBureauPDF(record) {
       a.OpeningDate || a.StartDate || '—',
     ]);
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 10,
       head: [['Lender', 'Type', 'Loan Amount', 'Outstanding', 'Status', 'Opening Date']],
       body: accountBody,
@@ -140,7 +140,7 @@ export default function exportBureauPDF(record) {
 
   // Delinquency records
   if (delinquencies.length > 0) {
-    doc.autoTable({
+    autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 12,
       head: [['Lender', 'Account No', 'Period', 'Months in Arrears']],
       body: delinquencies.map((d) => [d.SubscriberName || '—', d.AccountNo || '—', d.PeriodNum || '—', d.MonthsinArrears || '—']),
