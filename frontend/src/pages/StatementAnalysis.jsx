@@ -26,6 +26,10 @@ const BANKS = [
   { value: "ecobank", label: "Ecobank" },
   { value: "wema", label: "Wema Bank" },
   { value: "premium", label: "Premium Trust" },
+  { value: "zenith", label: "Zenith Bank" },
+  { value: "polaris", label: "Polaris Bank" },
+  { value: "fairmoney", label: "Fairmoney MFB" },
+  { value: "union", label: "Union Bank" },
 ];
 
 function BankSelect({ value, onChange }) {

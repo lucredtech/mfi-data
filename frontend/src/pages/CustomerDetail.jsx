@@ -722,6 +722,8 @@ function StatementTab({ customer, statements, onRefresh }) {
     { value: 'firstbank', label: 'First Bank' }, { value: 'nova', label: 'Nova Bank' },
     { value: 'palmpay', label: 'Palmpay' }, { value: 'ecobank', label: 'Ecobank' },
     { value: 'wema', label: 'Wema Bank' }, { value: 'premium', label: 'Premium Trust' },
+    { value: 'zenith', label: 'Zenith Bank' }, { value: 'polaris', label: 'Polaris Bank' },
+    { value: 'fairmoney', label: 'Fairmoney MFB' }, { value: 'union', label: 'Union Bank' },
   ];
 
   async function handleUpload(e) {

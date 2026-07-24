@@ -309,6 +309,10 @@ export default function Docs() {
                 ['uba',         'UBA'],
                 ['vbank',       'VBank'],
                 ['wema',        'Wema Bank'],
+                ['zenith',      'Zenith Bank'],
+                ['polaris',     'Polaris Bank'],
+                ['fairmoney',   'Fairmoney MFB'],
+                ['union',       'Union Bank'],
               ].map(([slug, name]) => (
                 <div key={slug} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
                   <code style={{ background: '#e0f2fe', color: '#0369a1', padding: '1px 7px', borderRadius: 5, fontSize: 12, fontWeight: 600, flexShrink: 0 }}>{slug}</code>
