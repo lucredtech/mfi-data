@@ -45,7 +45,8 @@ async function getRateForClient(clientId, service) {
 }
 
 // Returns { ok, error, freeQuota } — call before upstream API
-async function deductCharge(clientId, service, { customerName, customerId } = {}) {
+async function deductCharge(clientId, service, { customerName, customerId, sandbox = false } = {}) {
+  if (sandbox) return { ok: true, freeQuota: false, charged: 0, sandbox: true };
   const rate = await getRateForClient(clientId, service);
   if (rate == null) return { ok: false, error: `Unknown service: ${service}` };
 

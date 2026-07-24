@@ -262,7 +262,7 @@ router.post('/:id/business-bureau', sandboxMock('bureau'), logUsage('/v1/credit-
     const businessName = req.body.businessName || customer.name;
     if (!cacNumber) return res.status(400).json({ error: 'cacNumber is required (or set businessDetails.cacNumber on the customer first)' });
 
-    const charge = await deductCharge(req.client.id, 'BUREAU_CHECK', { customerName: businessName, customerId: customer._id });
+    const charge = await deductCharge(req.client.id, 'BUREAU_CHECK', { customerName: businessName, customerId: customer._id , sandbox: req._sandbox });
     if (!charge.ok) return res.status(402).json({ error: charge.error, required: charge.required, balance: charge.balance });
 
     let upstreamData;
@@ -315,7 +315,7 @@ router.post('/:id/verify-cac', logUsage('/v1/customers/verify-cac'), upload.sing
     if (!cacNumber) return res.status(400).json({ error: 'cacNumber is required' });
 
     // CAC Advance lookup — charge then call
-    const cacCharge = await deductCharge(req.client.id, 'CAC_CHECK', { customerName: customer.name, customerId: customer._id });
+    const cacCharge = await deductCharge(req.client.id, 'CAC_CHECK', { customerName: customer.name, customerId: customer._id , sandbox: req._sandbox });
     if (!cacCharge.ok) return res.status(402).json({ error: cacCharge.error });
 
     let cacResult;
@@ -328,7 +328,7 @@ router.post('/:id/verify-cac', logUsage('/v1/customers/verify-cac'), upload.sing
     }
 
     // TIN lookup — charge then call
-    const tinCharge = await deductCharge(req.client.id, 'TIN_CHECK', { customerName: customer.name, customerId: customer._id });
+    const tinCharge = await deductCharge(req.client.id, 'TIN_CHECK', { customerName: customer.name, customerId: customer._id , sandbox: req._sandbox });
     let tinResult;
     if (tinCharge.ok) {
       try {
@@ -388,7 +388,7 @@ router.post('/:id/verify-tin', logUsage('/v1/customers/verify-tin'), async (req,
     const companyType = req.body.companyType || customer.businessDetails?.companyType || 'COMPANY';
     if (!cacNumber) return res.status(400).json({ error: 'cacNumber is required (or run verify-cac first)' });
 
-    const tinCharge = await deductCharge(req.client.id, 'TIN_CHECK', { customerName: customer.name, customerId: customer._id });
+    const tinCharge = await deductCharge(req.client.id, 'TIN_CHECK', { customerName: customer.name, customerId: customer._id , sandbox: req._sandbox });
     if (!tinCharge.ok) return res.status(402).json({ error: tinCharge.error });
 
     let tinResult;
@@ -460,7 +460,7 @@ router.post('/:id/directors', logUsage('/v1/customers/directors'), upload.array(
       if (dir.bvn) {
         // BVN check
         try {
-          const charge = await deductCharge(req.client.id, 'BVN_CHECK', { customerName: dir.name, customerId: customer._id });
+          const charge = await deductCharge(req.client.id, 'BVN_CHECK', { customerName: dir.name, customerId: customer._id , sandbox: req._sandbox });
           if (charge.ok) {
             const { data } = await dojahApi.get('/api/v1/kyc/bvn/advance', { params: { bvn: dir.bvn } });
             const e = data.entity || {};
@@ -478,7 +478,7 @@ router.post('/:id/directors', logUsage('/v1/customers/directors'), upload.array(
         // NIN check per director
         if (dir.nin) {
           try {
-            await deductCharge(req.client.id, 'NIN_CHECK', { customerName: dir.name, customerId: customer._id }).catch(() => {});
+            await deductCharge(req.client.id, 'NIN_CHECK', { customerName: dir.name, customerId: customer._id , sandbox: req._sandbox }).catch(() => {});
             const { data: ninData } = await dojahApi.get('/api/v1/kyc/nin', { params: { nin: dir.nin } });
             const ne = ninData.entity || {};
             await NINResult.create({ client: req.client.id, customer: customer._id, nin: dir.nin, result: ne, status: 'success', meta: { type: 'director', directorName: dir.name } });
@@ -491,7 +491,7 @@ router.post('/:id/directors', logUsage('/v1/customers/directors'), upload.array(
 
         // Individual bureau check per director
         try {
-          const charge = await deductCharge(req.client.id, 'BUREAU_CHECK', { customerName: dir.name, customerId: customer._id });
+          const charge = await deductCharge(req.client.id, 'BUREAU_CHECK', { customerName: dir.name, customerId: customer._id , sandbox: req._sandbox });
           if (charge.ok) {
             const matchResult = await matchConsumer({ bvn: dir.bvn, name: dir.name });
             const matched = matchResult?.MatchedConsumer?.[0] ?? matchResult;

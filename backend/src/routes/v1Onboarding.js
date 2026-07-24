@@ -154,7 +154,7 @@ router.post('/sessions/:id/step/personal', requireApiKey, async (req, res) => {
     if (bvn) {
       setImmediate(async () => {
         try {
-          const charge = await deductCharge(req.client.id, 'BVN_CHECK', { customerName: name, customerId: customer._id });
+          const charge = await deductCharge(req.client.id, 'BVN_CHECK', { customerName: name, customerId: customer._id , sandbox: req._sandbox });
           if (!charge.ok) {
             await OnboardingSession.findByIdAndUpdate(session._id, {
               'verifications.bvn': { status: 'failed', error: 'Insufficient wallet balance for BVN check' },
@@ -192,7 +192,7 @@ router.post('/sessions/:id/step/personal', requireApiKey, async (req, res) => {
     if (nin) {
       setImmediate(async () => {
         try {
-          const charge = await deductCharge(req.client.id, 'NIN_CHECK', { customerName: name, customerId: customer._id });
+          const charge = await deductCharge(req.client.id, 'NIN_CHECK', { customerName: name, customerId: customer._id , sandbox: req._sandbox });
           if (!charge.ok) {
             await OnboardingSession.findByIdAndUpdate(session._id, {
               'verifications.nin': { status: 'failed', error: 'Insufficient wallet balance for NIN check' },
@@ -232,7 +232,7 @@ router.post('/sessions/:id/step/bureau', requireApiKey, async (req, res) => {
     const bvn = session.data?.personal?.bvn;
     if (!bvn) return res.status(400).json({ error: 'BVN required. Complete the personal step with a BVN first.' });
 
-    const charge = await deductCharge(req.client.id, 'BUREAU_CHECK', { customerName: session.data.personal?.name, customerId: session.customer });
+    const charge = await deductCharge(req.client.id, 'BUREAU_CHECK', { customerName: session.data.personal?.name, customerId: session.customer , sandbox: req._sandbox });
     if (!charge.ok) return res.status(402).json({ error: charge.error, required: charge.required, balance: charge.balance });
 
     let upstreamData;
@@ -297,7 +297,7 @@ router.post(
       const { bankName, password } = req.body;
       const personal = session.data?.personal || session.data?.business || {};
 
-      const charge = await deductCharge(req.client.id, 'STATEMENT_ANALYSIS', { customerName: personal.name || personal.businessName, customerId: session.customer });
+      const charge = await deductCharge(req.client.id, 'STATEMENT_ANALYSIS', { customerName: personal.name || personal.businessName, customerId: session.customer , sandbox: req._sandbox });
       if (!charge.ok) return res.status(402).json({ error: charge.error, required: charge.required, balance: charge.balance });
 
       const form = new FormData();
@@ -381,7 +381,7 @@ router.post('/sessions/:id/step/business', requireApiKey, upload.fields([
     }
 
     // CAC verification — charge then call
-    const cacCharge = await deductCharge(req.client.id, 'CAC_CHECK', { customerName: businessName, customerId: customer._id });
+    const cacCharge = await deductCharge(req.client.id, 'CAC_CHECK', { customerName: businessName, customerId: customer._id , sandbox: req._sandbox });
     if (!cacCharge.ok) return res.status(402).json({ error: cacCharge.error });
 
     let cacResult = null;
@@ -394,7 +394,7 @@ router.post('/sessions/:id/step/business', requireApiKey, upload.fields([
     }
 
     // TIN verification — charge then call
-    const tinCharge = await deductCharge(req.client.id, 'TIN_CHECK', { customerName: businessName, customerId: customer._id });
+    const tinCharge = await deductCharge(req.client.id, 'TIN_CHECK', { customerName: businessName, customerId: customer._id , sandbox: req._sandbox });
     let tinResult = null;
     if (tinCharge.ok) {
       try {
@@ -479,7 +479,7 @@ router.post('/sessions/:id/step/business-bureau', requireApiKey, async (req, res
     const { cacNumber, businessName } = session.data?.business || {};
     if (!cacNumber) return res.status(400).json({ error: 'Complete the business step first' });
 
-    const charge = await deductCharge(req.client.id, 'BUREAU_CHECK', { customerName: businessName, customerId: session.customer });
+    const charge = await deductCharge(req.client.id, 'BUREAU_CHECK', { customerName: businessName, customerId: session.customer , sandbox: req._sandbox });
     if (!charge.ok) return res.status(402).json({ error: charge.error, required: charge.required, balance: charge.balance });
 
     let upstreamData;
@@ -557,7 +557,7 @@ router.post('/sessions/:id/step/directors', requireApiKey, upload.array('idCards
       if (dir.bvn) {
         // BVN check (charge per director)
         try {
-          const charge = await deductCharge(req.client.id, 'BVN_CHECK', { customerName: dir.name, customerId: session.customer });
+          const charge = await deductCharge(req.client.id, 'BVN_CHECK', { customerName: dir.name, customerId: session.customer , sandbox: req._sandbox });
           if (charge.ok) {
             const { data } = await dojahApi.get('/api/v1/kyc/bvn/advance', { params: { bvn: dir.bvn } });
             const e = data.entity || {};
@@ -573,7 +573,7 @@ router.post('/sessions/:id/step/directors', requireApiKey, upload.array('idCards
 
         // Bureau per director (charge per director)
         try {
-          const charge = await deductCharge(req.client.id, 'BUREAU_CHECK', { customerName: dir.name, customerId: session.customer });
+          const charge = await deductCharge(req.client.id, 'BUREAU_CHECK', { customerName: dir.name, customerId: session.customer , sandbox: req._sandbox });
           if (charge.ok) {
             const matchResult = await matchConsumer({ bvn: dir.bvn, name: dir.name });
             const matched = matchResult?.MatchedConsumer?.[0] ?? matchResult;

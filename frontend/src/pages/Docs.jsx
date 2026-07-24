@@ -259,7 +259,7 @@ export default function Docs() {
             note="Send as multipart/form-data"
             body={[
               { name: 'statement', type: 'file', required: true, desc: 'PDF, CSV, XLSX, or DOCX — max 10MB. PDF is highly recommended for best accuracy.' },
-              { name: 'bankName',  type: 'string', required: true, desc: 'Bank slug e.g. access, gtb, kuda, moniepoint, wema, premium' },
+              { name: 'bankName',  type: 'string', required: true, desc: 'Bank slug — see supported banks table below' },
               { name: 'email',     type: 'string', required: false, desc: "Borrower's email address" },
               { name: 'password',  type: 'string', required: false, desc: 'PDF password if statement is encrypted' },
               { name: 'customerId', type: 'string', required: false, desc: 'Link result to a customer profile' },
@@ -284,6 +284,40 @@ export default function Docs() {
   -F "statement=@/path/to/statement.pdf" \\
   -F "bankName=access" \\
   -F "email=borrower@example.com"`} />
+
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '1.25rem 1.5rem', marginTop: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 12 }}>Supported banks — <code>bankName</code> slugs</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '6px 24px' }}>
+              {[
+                ['access',      'Access Bank'],
+                ['ecobank',     'Ecobank'],
+                ['fcmb',        'FCMB'],
+                ['fidelity',    'Fidelity Bank'],
+                ['firstbank',   'First Bank'],
+                ['gtb',         'GTBank'],
+                ['kuda',        'Kuda Bank'],
+                ['moniepoint',  'Moniepoint'],
+                ['nova',        'Nova Bank'],
+                ['opay',        'Opay'],
+                ['optimus',     'Optimus Bank'],
+                ['palmpay',     'Palmpay'],
+                ['parallex',    'Parallex Bank'],
+                ['premium',     'Premium Trust Bank'],
+                ['providus',    'Providus Bank'],
+                ['smartcash',   'Airtel Smartcash'],
+                ['sterling',    'Sterling Bank'],
+                ['uba',         'UBA'],
+                ['vbank',       'VBank'],
+                ['wema',        'Wema Bank'],
+              ].map(([slug, name]) => (
+                <div key={slug} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                  <code style={{ background: '#e0f2fe', color: '#0369a1', padding: '1px 7px', borderRadius: 5, fontSize: 12, fontWeight: 600, flexShrink: 0 }}>{slug}</code>
+                  <span style={{ color: '#475569' }}>{name}</span>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 12, marginBottom: 0 }}>If your bank is not listed, pass the bank name as-is — the engine will attempt a best-effort parse. PDF format is strongly recommended for unlisted banks.</p>
+          </div>
         </Section>
 
         {/* Customers */}
@@ -934,7 +968,7 @@ curl -X POST ${BASE}/v1/onboarding/sessions/SESSION_ID/step/directors \\
             note="Send as multipart/form-data. Works for both individual and SME sessions."
             body={[
               { name: 'statement', type: 'file',   required: true,  desc: 'PDF, XLSX, CSV, or DOCX — max 10MB' },
-              { name: 'bankName',  type: 'string', required: false, desc: 'Bank name e.g. access, gtb, kuda, wema, premium' },
+              { name: 'bankName',  type: 'string', required: false, desc: 'Bank slug — see supported banks table in the Statement Analysis section' },
               { name: 'password',  type: 'string', required: false, desc: 'PDF password if statement is encrypted' },
             ]}
             response={`{ "success": true, "resultId": "6643ef...", "currentStep": 3 }`} />
